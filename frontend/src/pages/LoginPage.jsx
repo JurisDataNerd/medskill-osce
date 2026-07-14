@@ -18,33 +18,43 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  async function handleLogin(e) {
-    e.preventDefault();
+async function handleLogin(e) {
+  e.preventDefault();
 
-    const { error } = await login(email, password);
+  const { error } = await login(email, password);
 
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    const osceRole = await getCurrentRole();
-
-    switch (osceRole) {
-      case "admin":
-        navigate("/admin");
-        break;
-
-      case "examiner":
-        navigate("/examiner");
-        break;
-
-      case "participant":
-      default:
-        navigate("/");
-        break;
-    }
+  if (error) {
+    alert(error.message);
+    return;
   }
+
+  const osceRole = await getCurrentRole();
+
+  // validasi role yang dipilih
+  if (role !== osceRole) {
+    alert(
+      `Akun ini terdaftar sebagai ${osceRole}, bukan ${role}.`
+    );
+    return;
+  }
+
+  switch (osceRole) {
+    case "admin":
+      navigate("/admin");
+      break;
+
+    case "examiner":
+      navigate("/examiner");
+      break;
+
+    case "participant":
+      navigate("/");
+      break;
+
+    default:
+      navigate("/");
+  }
+}
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-100">

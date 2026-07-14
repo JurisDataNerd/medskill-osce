@@ -1,43 +1,82 @@
+import { useEffect, useState } from "react";
 import AdminLayout from "@/layouts/AdminLayout";
 
-export default function LiveMonitorPage(){
+import {
+  getLiveParticipants,
+  subscribeLive,
+} from "@/services/live.service";
 
-return(
+export default function LiveMonitorPage() {
+  const [rows, setRows] = useState([]);
 
-<AdminLayout>
+  async function load() {
+    setRows(await getLiveParticipants());
+  }
 
-<h1 className="mb-8 text-3xl font-bold">
+  useEffect(() => {
+    load();
 
-Live Monitor
+    const channel = subscribeLive(load);
 
-</h1>
+    return () => {
+      channel.unsubscribe();
+    };
+  }, []);
 
-<div className="grid grid-cols-4 gap-6">
+  return (
+    <AdminLayout>
+      <h1 className="mb-8 text-3xl font-bold">
+        Live Monitor
+      </h1>
 
-<div className="col-span-3 rounded-2xl bg-white p-6 shadow min-h-[650px]">
+      <div className="grid gap-4">
 
-Realtime Monitor Peserta
+        {rows.map((item) => (
 
-</div>
+          <div
+            key={item.id}
+            className="rounded-xl bg-white p-5 shadow"
+          >
 
-<div className="rounded-2xl bg-white p-6 shadow">
+            <div className="flex justify-between">
 
-Timer
+              <div>
 
-<br/>
+                <h2 className="text-xl font-bold">
+                  {item.profiles?.full_name}
+                </h2>
 
-Rotation
+                <p className="text-slate-500">
+                  {item.osce_sessions?.title}
+                </p>
 
-<br/>
+              </div>
 
-Current Station
+              <div className="text-right">
 
-</div>
+                <p>
+                  Station {item.station_number}
+                </p>
 
-</div>
+                <span
+                  className={`rounded-full px-3 py-1 text-sm ${
+                    item.status === "approved"
+                      ? "bg-green-100 text-green-700"
+                      : "bg-yellow-100 text-yellow-700"
+                  }`}
+                >
+                  {item.status}
+                </span>
 
-</AdminLayout>
+              </div>
 
-);
+            </div>
 
+          </div>
+
+        ))}
+
+      </div>
+    </AdminLayout>
+  );
 }

@@ -58,6 +58,28 @@ export function AuthProvider({ children }) {
       load(session);
     });
 
+    const handleUnload = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) return;
+
+    await supabase
+      .from("profiles")
+      .update({
+        is_online: false,
+        last_seen: new Date().toISOString(),
+      })
+      .eq("id", user.id);
+  };
+
+  window.addEventListener("beforeunload", handleUnload);
+
+  return () => {
+    window.removeEventListener("beforeunload", handleUnload);
+  };
+
     return () => subscription.unsubscribe();
   }, []);
 

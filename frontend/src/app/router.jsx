@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router-dom";
+import { createBrowserRouter, Outlet } from "react-router-dom";
 
 import LandingPage from "@/pages/LandingPage";
 import LoginPage from "@/pages/LoginPage";
@@ -22,6 +22,8 @@ import ParticipantsPage from "@/features/admin/pages/ParticipantsPage";
 // USER
 import ParticipantPage from "@/features/participant/pages/ParticipantPage";
 import ExaminerPage from "@/features/examiner/pages/ExaminerPage";
+import ExaminerLayout from "@/layouts/ExaminerLayout";
+import ExaminerDashboardPage from "@/pages/examiner/DashboardPage";
 import MentorPage from "@/features/mentor/pages/MentorPage";
 
 export const router = createBrowserRouter([
@@ -185,6 +187,23 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
   },
+
+  {
+  path: "/examiner",
+  element: (
+    <ProtectedRoute role="examiner">
+      <ExaminerLayout>
+        <Outlet />
+      </ExaminerLayout>
+    </ProtectedRoute>
+  ),
+  children: [
+    {
+      index: true,
+      element: <ExaminerDashboardPage />,
+    },
+  ],
+},
 
   {
     path: "/unauthorized",

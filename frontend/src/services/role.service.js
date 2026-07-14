@@ -8,17 +8,24 @@ export async function getCurrentRole() {
 
   if (error) throw error;
 
-  // ADMIN GLOBAL
-  if (user?.user_metadata?.role === "admin") {
+  if (!user) return null;
+
+  // Admin dari Auth Metadata
+  if (user.user_metadata?.role === "admin") {
     return "admin";
   }
 
-  // selain admin cek role OSCE
-  const { data: member } = await supabase
-    .from("osce_session_members")
+  // Ambil role dari tabel profiles
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
     .select("role")
-    .eq("profile_id", user.id)
-    .maybeSingle();
+    .eq("id", user.id)
+    .single();
 
-  return member?.role ?? null;
+  if (profileError) {
+    console.error(profileError);
+    return null;
+  }
+
+  return profile.role;
 }
