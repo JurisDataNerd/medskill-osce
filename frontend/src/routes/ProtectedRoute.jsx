@@ -24,12 +24,12 @@ export default function ProtectedRoute({
     return <Navigate to="/" replace />;
   }
 
-  // kalau route tidak memberi allow,
-  // cukup pastikan user sudah login
+  // Route bebas, cukup login
   if (allow.length === 0) {
     return children;
   }
 
+  // Admin dari metadata Supabase
   if (
     user?.user_metadata?.role === "admin" &&
     allow.includes("admin")
@@ -37,9 +37,18 @@ export default function ProtectedRoute({
     return children;
   }
 
+  // Mentor / Examiner
   if (
-    profile?.osce_role &&
-    allow.includes(profile.osce_role)
+    profile?.mentor_id &&
+    allow.includes("examiner")
+  ) {
+    return children;
+  }
+
+  // Semua user login dianggap participant
+  if (
+    !profile?.mentor_id &&
+    allow.includes("participant")
   ) {
     return children;
   }

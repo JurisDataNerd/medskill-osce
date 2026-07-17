@@ -3,8 +3,6 @@ import {
   LayoutDashboard,
   Monitor,
   CalendarDays,
-  ClipboardList,
-  MapPinned,
   Users,
   GraduationCap,
   FileText,
@@ -27,7 +25,7 @@ const menus = [
     path: "/admin/live",
   },
   {
-    title: "Sesi OSCE",
+    title: "Kelola Sesi OSCE",
     icon: CalendarDays,
     path: "/admin/sessions",
   },
@@ -40,16 +38,6 @@ const menus = [
     title: "Penguji",
     icon: GraduationCap,
     path: "/admin/examiners",
-  },
-  {
-    title: "Kasus",
-    icon: ClipboardList,
-    path: "/admin/cases",
-  },
-  {
-    title: "Stase",
-    icon: MapPinned,
-    path: "/admin/stations",
   },
   {
     title: "Laporan",
@@ -75,17 +63,22 @@ export default function AdminLayout({ children }) {
     <div className="flex h-screen bg-slate-100">
 
       {/* Sidebar */}
+
       <aside className="flex w-72 flex-col border-r bg-white">
 
         <div className="border-b p-6">
-          <h1 className="text-2xl font-bold">MedSkill</h1>
 
-          <p className="text-sm text-slate-500">
-            OSCE Control Room
+          <h1 className="text-3xl font-bold text-blue-700">
+            MedSkill
+          </h1>
+
+          <p className="mt-1 text-sm text-slate-500">
+            Pusat Kendali Simulasi OSCE
           </p>
+
         </div>
 
-        <nav className="flex-1 space-y-1 overflow-y-auto p-4">
+        <nav className="flex-1 space-y-2 overflow-y-auto p-4">
 
           {menus.map((menu) => {
             const Icon = menu.icon;
@@ -96,9 +89,9 @@ export default function AdminLayout({ children }) {
                 to={menu.path}
                 end={menu.path === "/admin"}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-xl px-4 py-3 font-medium transition ${
+                  `flex items-center gap-3 rounded-xl px-4 py-3 transition ${
                     isActive
-                      ? "bg-blue-600 text-white shadow"
+                      ? "bg-blue-600 text-white shadow font-semibold"
                       : "text-slate-700 hover:bg-slate-100"
                   }`
                 }
@@ -112,56 +105,66 @@ export default function AdminLayout({ children }) {
         </nav>
 
         <div className="border-t p-4">
+
           <button
             onClick={handleLogout}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 py-3 font-medium text-white transition hover:bg-red-700"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 py-3 font-semibold text-white transition hover:bg-red-700"
           >
             <LogOut size={18} />
             Logout
           </button>
+
         </div>
 
       </aside>
 
       {/* Content */}
+
       <div className="flex flex-1 flex-col">
 
         <header className="flex h-20 items-center justify-between border-b bg-white px-8">
 
           <div>
+
             <h2 className="text-2xl font-bold">
-              Admin Dashboard
+              Dashboard Administrator
             </h2>
 
             <p className="text-sm text-slate-500">
-              MedSkill OSCE Management
+              Sistem Manajemen Simulasi OSCE
             </p>
+
           </div>
 
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-5">
 
-            <button className="relative rounded-xl bg-slate-100 p-3">
+            <button className="relative rounded-xl bg-slate-100 p-3 transition hover:bg-slate-200">
+
               <Bell size={20} />
-              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500"></span>
+
+              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500" />
+
             </button>
 
             <div className="text-right">
+
               <p className="font-semibold">
                 {user?.user_metadata?.full_name ?? user?.email}
               </p>
 
-              <p className="text-sm capitalize text-slate-500">
-                {user?.user_metadata?.role ?? "admin"}
+              <p className="text-sm text-slate-500">
+                Administrator
               </p>
+
             </div>
 
             <img
               src={
                 user?.user_metadata?.avatar_url ??
-                "https://ui-avatars.com/api/?name=Admin"
+                "https://ui-avatars.com/api/?name=Administrator"
               }
-              alt="avatar"
-              className="h-12 w-12 rounded-full"
+              alt="Administrator"
+              className="h-12 w-12 rounded-full border object-cover"
             />
 
           </div>
@@ -169,7 +172,9 @@ export default function AdminLayout({ children }) {
         </header>
 
         <main className="flex-1 overflow-y-auto p-8">
+
           {children}
+
         </main>
 
       </div>

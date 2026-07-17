@@ -11,6 +11,18 @@ export async function getSessions() {
   return data ?? [];
 }
 
+export async function getSessionById(id) {
+  const { data, error } = await supabase
+    .from("osce_sessions")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (error) throw error;
+
+  return data;
+}
+
 export async function createSession(payload) {
   const {
     data: { user },
@@ -88,8 +100,6 @@ export async function finishSession(id) {
 }
 
 export async function getSessionParticipants(sessionId) {
-  console.log("sessionId =", sessionId);
-
   const { data, error } = await supabase
     .from("osce_session_members")
     .select(`
@@ -102,11 +112,43 @@ export async function getSessionParticipants(sessionId) {
       profiles (
         id,
         full_name,
-        email
+        email,
+        is_online,
+        last_seen
       )
     `)
     .eq("session_id", sessionId)
-    .eq("role", "participant");
+    .eq("role", "participant")
+    .order("station_number");
+
+  if (error) {
+    console.error(error);
+    throw error;
+  }
+
+  return data ?? [];
+}
+
+export async function getSessionExaminers(sessionId) {
+  const { data, error } = await supabase
+    .from("osce_session_members")
+    .select(`
+      id,
+      profile_id,
+      role,
+      station_number,
+      status,
+      profiles (
+        id,
+        full_name,
+        email,
+        is_online,
+        last_seen
+      )
+    `)
+    .eq("session_id", sessionId)
+    .in("role", ["examiner", "mentor"])
+    .order("station_number");
 
   if (error) {
     console.error(error);
@@ -152,7 +194,9 @@ export async function getAllParticipants() {
       profiles (
         id,
         full_name,
-        email
+        email,
+        is_online,
+        last_seen
       ),
       osce_sessions (
         id,

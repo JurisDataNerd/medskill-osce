@@ -1,8 +1,7 @@
 import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
-  ClipboardCheck,
-  CalendarDays,
+  Activity,
   LogOut,
 } from "lucide-react";
 
@@ -15,14 +14,9 @@ const menus = [
     path: "/examiner",
   },
   {
-    title: "Sesi Saya",
-    icon: CalendarDays,
-    path: "/examiner/sessions",
-  },
-  {
-    title: "Penilaian",
-    icon: ClipboardCheck,
-    path: "/examiner/scoring",
+    title: "Live Monitor",
+    icon: Activity,
+    path: "/examiner/live",
   },
 ];
 
@@ -41,17 +35,17 @@ export default function ExaminerLayout({ children }) {
 
         <div className="border-b p-6">
 
-          <h1 className="text-2xl font-bold">
-            MedSkill
+          <h1 className="text-2xl font-bold text-blue-700">
+            Praxis
           </h1>
 
           <p className="text-sm text-slate-500">
-            Dashboard Penguji
+            MedSkill OSCE Examiner
           </p>
 
         </div>
 
-        <nav className="flex-1 space-y-1 p-4">
+        <nav className="flex-1 space-y-2 p-4">
 
           {menus.map((menu) => {
             const Icon = menu.icon;
@@ -62,10 +56,10 @@ export default function ExaminerLayout({ children }) {
                 to={menu.path}
                 end={menu.path === "/examiner"}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-xl px-4 py-3 font-medium ${
+                  `flex items-center gap-3 rounded-xl px-4 py-3 transition ${
                     isActive
                       ? "bg-blue-600 text-white"
-                      : "hover:bg-slate-100"
+                      : "text-slate-700 hover:bg-slate-100"
                   }`
                 }
               >
@@ -81,12 +75,10 @@ export default function ExaminerLayout({ children }) {
 
           <button
             onClick={handleLogout}
-            className="w-full rounded-xl bg-red-600 py-3 text-white"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 py-3 font-semibold text-white"
           >
-            <div className="flex items-center justify-center gap-2">
-              <LogOut size={18} />
-              Logout
-            </div>
+            <LogOut size={18} />
+            Logout
           </button>
 
         </div>
@@ -104,7 +96,7 @@ export default function ExaminerLayout({ children }) {
             </h2>
 
             <p className="text-sm text-slate-500">
-              MedSkill OSCE
+              Praxis by MedSkill Indonesia
             </p>
 
           </div>
@@ -116,7 +108,7 @@ export default function ExaminerLayout({ children }) {
             </p>
 
             <p className="text-sm text-slate-500">
-              Penguji
+              Penguji OSCE
             </p>
 
           </div>
@@ -124,9 +116,7 @@ export default function ExaminerLayout({ children }) {
         </header>
 
         <main className="flex-1 overflow-y-auto p-8">
-
           {children}
-
         </main>
 
       </div>

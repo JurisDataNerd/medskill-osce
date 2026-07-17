@@ -11,7 +11,6 @@ export default function SessionModal({
   const [sessionDate, setSessionDate] = useState("");
   const [startTime, setStartTime] = useState("");
   const [maxParticipants, setMaxParticipants] = useState(20);
-  const [stations, setStations] = useState(10);
   const [duration, setDuration] = useState(10);
   const [breakAfter, setBreakAfter] = useState(0);
   const [breakDuration, setBreakDuration] = useState(0);
@@ -25,7 +24,6 @@ export default function SessionModal({
       setSessionDate(initialData.session_date ?? "");
       setStartTime(initialData.start_time ?? "");
       setMaxParticipants(initialData.max_participants ?? 20);
-      setStations(initialData.total_stations ?? 10);
       setDuration(initialData.station_duration_minutes ?? 10);
       setBreakAfter(initialData.break_after_rotation ?? 0);
       setBreakDuration(initialData.break_duration_minutes ?? 0);
@@ -35,7 +33,6 @@ export default function SessionModal({
       setSessionDate("");
       setStartTime("");
       setMaxParticipants(20);
-      setStations(10);
       setDuration(10);
       setBreakAfter(0);
       setBreakDuration(0);
@@ -53,11 +50,10 @@ export default function SessionModal({
       session_date: sessionDate,
       start_time: startTime,
       max_participants: Number(maxParticipants),
-      status: "draft",
-      total_stations: Number(stations),
       station_duration_minutes: Number(duration),
       break_after_rotation: Number(breakAfter),
       break_duration_minutes: Number(breakDuration),
+      status: "draft",
       current_rotation: 0,
       current_station: 0,
     });
@@ -65,11 +61,10 @@ export default function SessionModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-
       <div className="w-full max-w-3xl rounded-2xl bg-white p-8">
 
         <h2 className="mb-6 text-2xl font-bold">
-          {initialData ? "Edit Session" : "New Session"}
+          {initialData ? "Edit Sesi OSCE" : "Tambah Sesi OSCE"}
         </h2>
 
         <form
@@ -79,134 +74,121 @@ export default function SessionModal({
 
           <div className="col-span-2">
             <label className="mb-2 block font-medium">
-              Session Name
+              Nama Sesi
             </label>
 
             <input
               className="w-full rounded-lg border p-3"
               value={title}
-              onChange={(e)=>setTitle(e.target.value)}
+              onChange={(e) => setTitle(e.target.value)}
             />
           </div>
 
           <div className="col-span-2">
             <label className="mb-2 block font-medium">
-              Description
+              Deskripsi
             </label>
 
             <textarea
               rows={3}
               className="w-full rounded-lg border p-3"
               value={description}
-              onChange={(e)=>setDescription(e.target.value)}
+              onChange={(e) => setDescription(e.target.value)}
             />
           </div>
 
           <div>
             <label className="mb-2 block">
-              Date
+              Tanggal
             </label>
 
             <input
               type="date"
               className="w-full rounded-lg border p-3"
               value={sessionDate}
-              onChange={(e)=>setSessionDate(e.target.value)}
+              onChange={(e) => setSessionDate(e.target.value)}
             />
           </div>
 
           <div>
             <label className="mb-2 block">
-              Start Time
+              Jam Mulai
             </label>
 
             <input
               type="time"
               className="w-full rounded-lg border p-3"
               value={startTime}
-              onChange={(e)=>setStartTime(e.target.value)}
+              onChange={(e) => setStartTime(e.target.value)}
             />
           </div>
 
           <div>
             <label className="mb-2 block">
-              Max Participants
+              Maksimal Peserta
             </label>
 
             <input
               type="number"
               className="w-full rounded-lg border p-3"
               value={maxParticipants}
-              onChange={(e)=>setMaxParticipants(e.target.value)}
+              onChange={(e) => setMaxParticipants(e.target.value)}
             />
           </div>
 
           <div>
             <label className="mb-2 block">
-              Total Stations
-            </label>
-
-            <input
-              type="number"
-              className="w-full rounded-lg border p-3"
-              value={stations}
-              onChange={(e)=>setStations(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label className="mb-2 block">
-              Minutes / Station
+              Durasi per Stase (menit)
             </label>
 
             <input
               type="number"
               className="w-full rounded-lg border p-3"
               value={duration}
-              onChange={(e)=>setDuration(e.target.value)}
+              onChange={(e) => setDuration(e.target.value)}
             />
           </div>
 
           <div>
             <label className="mb-2 block">
-              Break Every Rotation
+              Istirahat setiap rotasi ke-
             </label>
 
             <input
               type="number"
               className="w-full rounded-lg border p-3"
               value={breakAfter}
-              onChange={(e)=>setBreakAfter(e.target.value)}
+              onChange={(e) => setBreakAfter(e.target.value)}
             />
           </div>
 
           <div>
             <label className="mb-2 block">
-              Break Duration (Minutes)
+              Lama Istirahat (menit)
             </label>
 
             <input
               type="number"
               className="w-full rounded-lg border p-3"
               value={breakDuration}
-              onChange={(e)=>setBreakDuration(e.target.value)}
+              onChange={(e) => setBreakDuration(e.target.value)}
             />
           </div>
 
-          <div className="col-span-2 flex justify-end gap-3 pt-4">
+          <div className="col-span-2 flex justify-end gap-3">
 
             <button
               type="button"
               onClick={onClose}
               className="rounded-xl border px-6 py-3"
             >
-              Cancel
+              Batal
             </button>
 
             <button
               className="rounded-xl bg-blue-600 px-6 py-3 text-white"
             >
-              Save Session
+              Simpan Sesi
             </button>
 
           </div>
@@ -214,7 +196,6 @@ export default function SessionModal({
         </form>
 
       </div>
-
     </div>
   );
 }

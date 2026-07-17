@@ -3,30 +3,54 @@ import { createBrowserRouter, Outlet } from "react-router-dom";
 import LandingPage from "@/pages/LandingPage";
 import LoginPage from "@/pages/LoginPage";
 import UnauthorizedPage from "@/pages/UnauthorizedPage";
+
 import ProtectedRoute from "@/routes/ProtectedRoute";
 
+// ======================
 // ADMIN
+// ======================
+
 import AdminPage from "@/features/admin/pages/AdminPage";
-import LiveMonitorPage from "@/features/admin/pages/LiveMonitorPage";
+import AdminLiveMonitorPage from "@/features/admin/pages/LiveMonitorPage";
 import SessionsPage from "@/features/admin/pages/SessionsPage";
-import CasesPage from "@/features/admin/pages/CasesPage";
-import StationsPage from "@/features/admin/pages/StationsPage";
+import SessionDetailPage from "@/features/admin/pages/SessionDetailPage";
+import ParticipantsPage from "@/features/admin/pages/ParticipantsPage";
 import ExaminersPage from "@/features/admin/pages/ExaminersPage";
 import ReportsPage from "@/features/admin/pages/ReportsPage";
-import SettingsPage from "@/features/admin/pages/SettingsPage";
-import CaseSectionsPage from "@/features/admin/components/CaseSectionsPage";
-import CaseChecklistPage from "@/features/admin/components/CaseChecklistPage";
 import SessionParticipantsPage from "@/features/admin/pages/SessionParticipantsPage";
-import ParticipantsPage from "@/features/admin/pages/ParticipantsPage";
+import SessionExaminersPage from "@/features/admin/pages/SessionExaminersPage";
+import StageQuestionPage from "@/features/admin/pages/StageQuestionPage";
 
-// USER
-import ParticipantPage from "@/features/participant/pages/ParticipantPage";
-import ExaminerPage from "@/features/examiner/pages/ExaminerPage";
+// ======================
+// PARTICIPANT
+// ======================
+
+import ParticipantDashboardPage from "@/features/participant/pages/ParticipantDashboardPage";
+import ParticipantSessionPage from "@/features/participant/pages/ParticipantSessionPage";
+
+// ======================
+// EXAMINER
+// ======================
+
 import ExaminerLayout from "@/layouts/ExaminerLayout";
-import ExaminerDashboardPage from "@/pages/examiner/DashboardPage";
-import MentorPage from "@/features/mentor/pages/MentorPage";
+import ExaminerDashboardPage from "@/features/examiner/pages/DashboardPage";
+import ExaminerLiveMonitorPage from "@/features/examiner/pages/LiveMonitorPage";
+import ExaminerFeedbackPage from "@/features/examiner/pages/FeedbackPage";
+import ExaminerStagePage from "@/features/examiner/pages/ExaminerStagePage";
+
+function ExaminerRoot() {
+  return (
+    <ExaminerLayout>
+      <Outlet />
+    </ExaminerLayout>
+  );
+}
 
 export const router = createBrowserRouter([
+  // ==================================================
+  // PUBLIC
+  // ==================================================
+
   {
     path: "/",
     element: <LandingPage />,
@@ -37,9 +61,14 @@ export const router = createBrowserRouter([
     element: <LoginPage />,
   },
 
-  // ======================
+  {
+    path: "/unauthorized",
+    element: <UnauthorizedPage />,
+  },
+
+  // ==================================================
   // ADMIN
-  // ======================
+  // ==================================================
 
   {
     path: "/admin",
@@ -54,7 +83,7 @@ export const router = createBrowserRouter([
     path: "/admin/live",
     element: (
       <ProtectedRoute allow={["admin"]}>
-        <LiveMonitorPage />
+        <AdminLiveMonitorPage />
       </ProtectedRoute>
     ),
   },
@@ -69,28 +98,10 @@ export const router = createBrowserRouter([
   },
 
   {
-    path: "/admin/cases",
+    path: "/admin/sessions/:id",
     element: (
       <ProtectedRoute allow={["admin"]}>
-        <CasesPage />
-      </ProtectedRoute>
-    ),
-  },
-
-  {
-  path: "/admin/participants",
-  element: (
-    <ProtectedRoute allow={["admin"]}>
-      <ParticipantsPage />
-    </ProtectedRoute>
-  ),
-},
-
-  {
-    path: "/admin/stations",
-    element: (
-      <ProtectedRoute allow={["admin"]}>
-        <StationsPage />
+        <SessionDetailPage />
       </ProtectedRoute>
     ),
   },
@@ -98,8 +109,26 @@ export const router = createBrowserRouter([
   {
     path: "/admin/sessions/:id/participants",
     element: (
-      <ProtectedRoute>
+      <ProtectedRoute allow={["admin"]}>
         <SessionParticipantsPage />
+      </ProtectedRoute>
+    ),
+  },
+
+  {
+    path: "/admin/sessions/:id/examiners",
+    element: (
+      <ProtectedRoute allow={["admin"]}>
+        <SessionExaminersPage />
+      </ProtectedRoute>
+    ),
+  },
+
+  {
+    path: "/admin/participants",
+    element: (
+      <ProtectedRoute allow={["admin"]}>
+        <ParticipantsPage />
       </ProtectedRoute>
     ),
   },
@@ -123,90 +152,72 @@ export const router = createBrowserRouter([
   },
 
   {
-    path: "/admin/settings",
+    path: "/admin/stages/:stageId",
     element: (
       <ProtectedRoute allow={["admin"]}>
-        <SettingsPage />
+        <StageQuestionPage />
       </ProtectedRoute>
     ),
   },
 
-  {
-  path: "/admin/cases/:id/sections",
-  element: (
-    <ProtectedRoute allow={["admin"]}>
-      <CaseSectionsPage />
-    </ProtectedRoute>
-  ),
-},
-{
-  path: "/admin/cases/:id/checklist",
-  element: (
-    <ProtectedRoute allow={["admin"]}>
-      <CaseChecklistPage />
-    </ProtectedRoute>
-  ),
-},
-  
-
-  // ======================
+  // ==================================================
   // PARTICIPANT
-  // ======================
+  // ==================================================
 
   {
     path: "/participant",
     element: (
       <ProtectedRoute allow={["participant"]}>
-        <ParticipantPage />
+        <ParticipantDashboardPage />
       </ProtectedRoute>
     ),
   },
 
-  // ======================
+  {
+    path: "/participant/session/:sessionId",
+    element: (
+      <ProtectedRoute allow={["participant"]}>
+        <ParticipantSessionPage />
+      </ProtectedRoute>
+    ),
+  },
+
+  // ==================================================
   // EXAMINER
-  // ======================
+  // ==================================================
 
   {
     path: "/examiner",
     element: (
       <ProtectedRoute allow={["examiner"]}>
-        <ExaminerPage />
+        <ExaminerRoot />
       </ProtectedRoute>
     ),
-  },
-
-  // ======================
-  // MENTOR
-  // ======================
-
-  {
-    path: "/mentor",
-    element: (
-      <ProtectedRoute allow={["mentor"]}>
-        <MentorPage />
-      </ProtectedRoute>
-    ),
-  },
-
-  {
-  path: "/examiner",
-  element: (
-    <ProtectedRoute role="examiner">
-      <ExaminerLayout>
-        <Outlet />
-      </ExaminerLayout>
-    </ProtectedRoute>
-  ),
-  children: [
-    {
-      index: true,
-      element: <ExaminerDashboardPage />,
-    },
-  ],
-},
-
-  {
-    path: "/unauthorized",
-    element: <UnauthorizedPage />,
+    children: [
+      {
+        index: true,
+        element: <ExaminerDashboardPage />,
+      },
+      {
+        path: "live",
+        element: <ExaminerLiveMonitorPage />,
+      },
+      {
+        path: "live/:stageId",
+        element: <ExaminerLiveMonitorPage />,
+      },
+      {
+        path: "stage",
+        element: <ExaminerStagePage />,
+      },
+      {
+        path: "stage/:stageId",
+        element: <ExaminerStagePage />,
+      },
+      {
+        path: "feedback/:answerId",
+        element: <ExaminerFeedbackPage />,
+      },
+    ],
   },
 ]);

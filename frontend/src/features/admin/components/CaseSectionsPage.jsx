@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 
 import AdminLayout from "@/layouts/AdminLayout";
-import SectionModal from "@/features/admin/components/SectionModal";
+import SectionModal from "@/features/admin/components/StaseModal";
 
 import {
   getSections,

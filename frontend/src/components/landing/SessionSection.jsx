@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+
 import { supabase } from "@/supabase/client";
 import { getOpenSessions } from "@/services/landing.service";
 
@@ -26,7 +27,8 @@ export default function SessionSection() {
     const { data } = await supabase
       .from("osce_session_members")
       .select("session_id,status")
-      .eq("profile_id", session.user.id);
+      .eq("profile_id", session.user.id)
+      .eq("role", "participant");
 
     const map = {};
 
@@ -61,9 +63,7 @@ export default function SessionSection() {
       return;
     }
 
-    alert("Pendaftaran berhasil.");
-
-    load();
+    await load();
   }
 
   function renderButton(session) {
@@ -73,7 +73,7 @@ export default function SessionSection() {
       return (
         <button
           onClick={() => handleRegister(session.id)}
-          className="mt-8 w-full rounded-xl bg-[#1E3A8A] py-3 font-semibold text-white"
+          className="mt-8 w-full rounded-xl bg-[#1E3A8A] py-3 font-semibold text-white transition hover:bg-blue-800"
         >
           Register
         </button>
@@ -83,8 +83,8 @@ export default function SessionSection() {
     if (status === "pending") {
       return (
         <button
-          disabled
-          className="mt-8 w-full cursor-not-allowed rounded-xl bg-yellow-500 py-3 text-white"
+          onClick={() => navigate("/participant")}
+          className="mt-8 w-full rounded-xl bg-yellow-500 py-3 font-semibold text-white transition hover:bg-yellow-600"
         >
           Menunggu Persetujuan
         </button>
@@ -94,12 +94,43 @@ export default function SessionSection() {
     if (status === "approved") {
       return (
         <button
-          onClick={() =>
-            navigate(`/participant/session/${session.id}`)
-          }
-          className="mt-8 w-full rounded-xl bg-green-600 py-3 text-white"
+          onClick={() => navigate("/participant")}
+          className="mt-8 w-full rounded-xl bg-green-600 py-3 font-semibold text-white transition hover:bg-green-700"
         >
-          Masuk Ujian
+          Masuk
+        </button>
+      );
+    }
+
+    if (status === "assigned") {
+      return (
+        <button
+          onClick={() => navigate("/participant")}
+          className="mt-8 w-full rounded-xl bg-blue-600 py-3 font-semibold text-white transition hover:bg-blue-700"
+        >
+          Masuk
+        </button>
+      );
+    }
+
+    if (status === "running") {
+      return (
+        <button
+          onClick={() => navigate("/participant")}
+          className="mt-8 w-full rounded-xl bg-blue-600 py-3 font-semibold text-white transition hover:bg-blue-700"
+        >
+          Lanjutkan Ujian
+        </button>
+      );
+    }
+
+    if (status === "finished") {
+      return (
+        <button
+          onClick={() => navigate("/participant")}
+          className="mt-8 w-full rounded-xl bg-slate-700 py-3 font-semibold text-white transition hover:bg-slate-800"
+        >
+          Lihat Hasil
         </button>
       );
     }
@@ -107,8 +138,8 @@ export default function SessionSection() {
     if (status === "rejected") {
       return (
         <button
-          disabled
-          className="mt-8 w-full cursor-not-allowed rounded-xl bg-red-600 py-3 text-white"
+          onClick={() => navigate("/participant")}
+          className="mt-8 w-full rounded-xl bg-red-600 py-3 font-semibold text-white transition hover:bg-red-700"
         >
           Ditolak
         </button>
@@ -132,7 +163,7 @@ export default function SessionSection() {
           Belum ada sesi OSCE.
         </div>
       ) : (
-        <div className="grid gap-8 md:grid-cols-3">
+        <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-3">
           {sessions.map((session) => (
             <div
               key={session.id}
@@ -146,13 +177,13 @@ export default function SessionSection() {
                 {session.description}
               </p>
 
-              <div className="mt-6 space-y-2 text-sm">
+              <div className="mt-6 space-y-2 text-sm text-slate-600">
                 <p>📅 {session.session_date}</p>
                 <p>🕒 {session.start_time}</p>
-                <p>👥 {session.max_participants} Seats</p>
-                <p>🏥 {session.total_stations} Stations</p>
+                <p>👥 {session.max_participants} Peserta</p>
+                <p>🏥 {session.total_stations} Stase</p>
                 <p>
-                  ⏱ {session.station_duration_minutes} Minutes / Station
+                  ⏱ {session.station_duration_minutes} Menit / Stase
                 </p>
               </div>
 
