@@ -1,16 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  ChevronDown,
-  Activity,
-  LogOut,
-  LayoutDashboard,
-  Menu,
-  X,
-  ArrowRight,
-  ShieldCheck,
-} from "lucide-react";
+import { ChevronDown, Activity, LogOut, LayoutDashboard, Menu, X, ArrowRight, ShieldCheck, } from "lucide-react";
 
 import { supabase } from "@/supabase/client";
 import { logout } from "@/services/auth.service";
