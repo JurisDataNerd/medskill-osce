@@ -479,45 +479,180 @@ export default function LiveMonitorPage() {
                 </p>
               </div>
 
+              {/* Dynamic Scenario by station_number */}
               <div>
                 <h4 className="font-bold text-slate-900 text-xs uppercase mb-1">Skenario Kasus Medis</h4>
-                <p className="text-slate-700 bg-white border border-slate-200 p-3 rounded-lg leading-relaxed">
-                  Pasien datang ke UGD dengan keluhan spesifik sesuai skenario stase {selectedStationDetail.station_number}. Lakukan pemeriksaan fisik kardiovaskular / spesifik teratur.
+                <p className="text-slate-700 bg-white border border-slate-200 p-3 rounded-lg leading-relaxed font-medium">
+                  {selectedStationDetail.station_number === 1 && "Pasien laki-laki 52 tahun datang ke UGD dengan keluhan nyeri dada kiri khas infark miokard menjalar ke lengan kiri sejak 2 jam lalu."}
+                  {selectedStationDetail.station_number === 2 && "Pasien perempuan 28 tahun datang dengan sesak napas berat berbunyi ngik-ngik dan bentuk dada cembung di sisi kanan."}
+                  {selectedStationDetail.station_number === 3 && "Pasien laki-laki 30 tahun dengan luka robek sepanjang 5 cm pada lengan bawah bagian anterior akibat terkena kaca."}
+                  {selectedStationDetail.station_number === 4 && "Pasien laki-laki 60 tahun mengeluh mulut mencong dan anggota gerak kanan lemas sejak 3 jam lalu saat bangun tidur."}
+                  {selectedStationDetail.station_number === 5 && "Pasien 55 tahun baru terdiagnosis Diabetes Melitus Tipe 2 dengan GDS 320 mg/dL dan mendapat resep Insulin Pen."}
+                  {selectedStationDetail.station_number === 6 && "Pasien anak 8 tahun dibawa ibunya karena mengeluh telinga kanan terasa tersumbat dan pendengaran berkurang."}
                 </p>
               </div>
 
               <div>
                 <h4 className="font-bold text-slate-900 text-xs uppercase mb-1">Instruksi Peserta Ujian</h4>
-                <ul className="list-disc list-inside space-y-1 text-slate-700 bg-slate-50 p-3 rounded-lg">
-                  <li>Lakukan anamnesis terarah dan bina sambung rasa.</li>
-                  <li>Lakukan pemeriksaan fisik sesuai standar SOP medis.</li>
-                  <li>Sampaikan diagnosis kerja, diagnosis banding, dan rencana terapi.</li>
+                <ul className="list-disc list-inside space-y-1 text-slate-700 bg-slate-50 p-3 rounded-lg font-medium">
+                  {selectedStationDetail.station_number === 1 && (
+                    <>
+                      <li>Lakukan anamnesis terarah nyeri dada infark.</li>
+                      <li>Lakukan auskultasi 4 katup jantung dengan benar.</li>
+                      <li>Interpretasikan EKG 12 Lead & sampaikan diagnosis STEMI Anteroseptal.</li>
+                    </>
+                  )}
+                  {selectedStationDetail.station_number === 2 && (
+                    <>
+                      <li>Lakukan anamnesis sesak napas akut & wheezing.</li>
+                      <li>Inspeksi & auskultasi suara paru.</li>
+                      <li>Simulasikan indikasi Needle Thoracocentesis pada ICS 2.</li>
+                    </>
+                  )}
+                  {selectedStationDetail.station_number === 3 && (
+                    <>
+                      <li>Lakukan cuci tangan steril & kenakan sarung tangan steril.</li>
+                      <li>Lakukan debridement & irigasi luka dengan NaCl 0.9%.</li>
+                      <li>Lakukan penjahitan luka 3 simpul simple interrupted.</li>
+                    </>
+                  )}
+                  {selectedStationDetail.station_number === 4 && (
+                    <>
+                      <li>Lakukan pemeriksaan saraf kranial VII & XII.</li>
+                      <li>Lakukan pemeriksaan kekuatan motorik ekstremitas.</li>
+                      <li>Periksa refleks patologis Babinski.</li>
+                    </>
+                  )}
+                  {selectedStationDetail.station_number === 5 && (
+                    <>
+                      <li>Lakukan edukasi pola makan & penyampaian diagnosis DM.</li>
+                      <li>Simulasikan penyuntikan Insulin Pen di regio abdomen.</li>
+                      <li>Jelaskan tanda-tanda & penanganan hipoglikemia.</li>
+                    </>
+                  )}
+                  {selectedStationDetail.station_number === 6 && (
+                    <>
+                      <li>Lakukan inspeksi daun telinga & kanalis auditorius.</li>
+                      <li>Gunakan otoskop dengan posisi memegang yang benar.</li>
+                      <li>Sebutkan temuan refleks cahaya membran timpani.</li>
+                    </>
+                  )}
                 </ul>
               </div>
 
               <div>
-                <h4 className="font-bold text-slate-900 text-xs uppercase mb-1">Checklist Penilaian Penguji ({selectedStationDetail.checklist_total} Item)</h4>
-                <div className="rounded-lg border border-slate-200 p-3 bg-white space-y-1.5">
-                  <div className="flex justify-between font-semibold text-slate-800 border-b pb-1">
-                    <span>Item Checklist Rubrik</span>
-                    <span>Bobot Poin</span>
+                <h4 className="font-bold text-slate-900 text-xs uppercase mb-1">Checklist Rubrik Penilaian & Kunci Jawaban Penguji</h4>
+                <div className="rounded-lg border border-slate-200 p-3 bg-white space-y-2">
+                  <div className="flex justify-between font-bold text-slate-900 border-b pb-1 text-[11px]">
+                    <span>Item Checklist Rubrik & Kunci Jawaban</span>
+                    <span>Bobot Skor</span>
                   </div>
-                  <div className="flex justify-between text-slate-600">
-                    <span>1. Menyapa pasien & membina sambung rasa</span>
-                    <span className="font-bold text-blue-600">1 Poin</span>
-                  </div>
-                  <div className="flex justify-between text-slate-600">
-                    <span>2. Anamnesis terarah & keluhan utama</span>
-                    <span className="font-bold text-blue-600">3 Poin</span>
-                  </div>
-                  <div className="flex justify-between text-slate-600">
-                    <span>3. Prosedur pemeriksaan fisik medis</span>
-                    <span className="font-bold text-blue-600">3 Poin</span>
-                  </div>
-                  <div className="flex justify-between text-slate-600">
-                    <span>4. Diagnosis & usulan terapi</span>
-                    <span className="font-bold text-blue-600">3 Poin</span>
-                  </div>
+
+                  {selectedStationDetail.station_number === 1 && (
+                    <>
+                      <div className="border-b border-slate-100 pb-1.5">
+                        <p className="font-semibold text-slate-900">1. Menyapa pasien & membina sambung rasa</p>
+                        <p className="text-emerald-800 text-[11px]">Kunci: Menyapa salam, perkenalan diri, & konfirmasi identitas (1 Poin)</p>
+                      </div>
+                      <div className="border-b border-slate-100 pb-1.5">
+                        <p className="font-semibold text-slate-900">2. Anamnesis terarah nyeri dada</p>
+                        <p className="text-emerald-800 text-[11px]">Kunci: Menanyakan onset, kualitas (ditindih beban berat), & penjelaran nyeri (3 Poin)</p>
+                      </div>
+                      <div className="border-b border-slate-100 pb-1.5">
+                        <p className="font-semibold text-slate-900">3. Auskultasi katup jantung</p>
+                        <p className="text-emerald-800 text-[11px]">Kunci: Auskultasi 4 katup jantung dengan stetoskop secara simetris (3 Poin)</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-900">4. Interpretasi EKG 12 Lead & Diagnosis</p>
+                        <p className="text-emerald-800 text-[11px]">Kunci: Membaca ST elevasi V1-V4 & menyimpulkan STEMI Anteroseptal (3 Poin)</p>
+                      </div>
+                    </>
+                  )}
+
+                  {selectedStationDetail.station_number === 2 && (
+                    <>
+                      <div className="border-b border-slate-100 pb-1.5">
+                        <p className="font-semibold text-slate-900">1. Anamnesis sesak napas & alergi</p>
+                        <p className="text-emerald-800 text-[11px]">Kunci: Onset sesak, pemicu alergi, & riwayat obat inhaler (2 Poin)</p>
+                      </div>
+                      <div className="border-b border-slate-100 pb-1.5">
+                        <p className="font-semibold text-slate-900">2. Auskultasi suara paru</p>
+                        <p className="text-emerald-800 text-[11px]">Kunci: Menemukan wheezing ekspiratorik bilateral & perkusi hipersonor (3 Poin)</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-900">3. Indikasi Needle Thoracocentesis</p>
+                        <p className="text-emerald-800 text-[11px]">Kunci: Penusukan abocath pada ICS 2 Linea Midclavicularis kanan (4 Poin)</p>
+                      </div>
+                    </>
+                  )}
+
+                  {selectedStationDetail.station_number === 3 && (
+                    <>
+                      <div className="border-b border-slate-100 pb-1.5">
+                        <p className="font-semibold text-slate-900">1. Persiapan steril & anestesi lokal</p>
+                        <p className="text-emerald-800 text-[11px]">Kunci: Cuci tangan steril, sarung tangan steril, & Lidokain 2% (3 Poin)</p>
+                      </div>
+                      <div className="border-b border-slate-100 pb-1.5">
+                        <p className="font-semibold text-slate-900">2. Debridement & irigasi NaCl 0.9%</p>
+                        <p className="text-emerald-800 text-[11px]">Kunci: Membersihkan jaringan nekrotik & pembilasan fisiologis (3 Poin)</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-900">3. Penjahitan Simple Interrupted Suture</p>
+                        <p className="text-emerald-800 text-[11px]">Kunci: Needle holder & pinset anatomis dengan 3 simpul rapi (4 Poin)</p>
+                      </div>
+                    </>
+                  )}
+
+                  {selectedStationDetail.station_number === 4 && (
+                    <>
+                      <div className="border-b border-slate-100 pb-1.5">
+                        <p className="font-semibold text-slate-900">1. Pemeriksaan N. VII & N. XII</p>
+                        <p className="text-emerald-800 text-[11px]">Kunci: Meminta pasien tersenyum, meringis, & menjulurkan lidah (3 Poin)</p>
+                      </div>
+                      <div className="border-b border-slate-100 pb-1.5">
+                        <p className="font-semibold text-slate-900">2. Pemeriksaan Kekuatan Motorik</p>
+                        <p className="text-emerald-800 text-[11px]">Kunci: Menilai skor kekuatan otot ekstremitas kanan (nilai 3/5) (3 Poin)</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-900">3. Refleks Patologis Babinski</p>
+                        <p className="text-emerald-800 text-[11px]">Kunci: Goresan telapak kaki dari lateral ke medial (3 Poin)</p>
+                      </div>
+                    </>
+                  )}
+
+                  {selectedStationDetail.station_number === 5 && (
+                    <>
+                      <div className="border-b border-slate-100 pb-1.5">
+                        <p className="font-semibold text-slate-900">1. Bina sambung rasa & edukasi DM</p>
+                        <p className="text-emerald-800 text-[11px]">Kunci: Menjelaskan kondisi DM Tipe 2 dengan bahasa sederhana (2 Poin)</p>
+                      </div>
+                      <div className="border-b border-slate-100 pb-1.5">
+                        <p className="font-semibold text-slate-900">2. Edukasi Injeksi Insulin Pen</p>
+                        <p className="text-emerald-800 text-[11px]">Kunci: Rotasi tempat suntikan abdomen & waktu suntik sebelum makan (4 Poin)</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-900">3. Penanganan Hipoglikemia</p>
+                        <p className="text-emerald-800 text-[11px]">Kunci: Edukasi minum air gula jika berkeringat dingin & pusing (3 Poin)</p>
+                      </div>
+                    </>
+                  )}
+
+                  {selectedStationDetail.station_number === 6 && (
+                    <>
+                      <div className="border-b border-slate-100 pb-1.5">
+                        <p className="font-semibold text-slate-900">1. Pemeriksaan Telinga Luar</p>
+                        <p className="text-emerald-800 text-[11px]">Kunci: Penarikan pinna ke arah superior-posterior (3 Poin)</p>
+                      </div>
+                      <div className="border-b border-slate-100 pb-1.5">
+                        <p className="font-semibold text-slate-900">2. Teknik Penggunaan Otoskop</p>
+                        <p className="text-emerald-800 text-[11px]">Kunci: Memegang otoskop seperti pensil dengan kelingking bersandar (4 Poin)</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-900">3. Identifikasi Membran Timpani</p>
+                        <p className="text-emerald-800 text-[11px]">Kunci: Menilai refleks cahaya (cone of light) & kanalis (3 Poin)</p>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
