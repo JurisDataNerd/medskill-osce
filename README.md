@@ -1,124 +1,396 @@
-Praxis Medskill - OSCE Platform
+# MedSkill OSCE
+
+Sistem manajemen ujian **OSCE (Objective Structured Clinical Examination)** berbasis web yang digunakan untuk mengelola seluruh proses ujian mulai dari registrasi peserta, pelaksanaan setiap stase, penilaian oleh penguji, hingga publikasi hasil.
 
 ---
 
-## ✨ Fitur Utama
+# Tujuan
 
-* **[Fitur 1]:** Penjelasan singkat fitur 1.
-* **[Fitur 2]:** Penjelasan singkat fitur 2.
-* **[Fitur 3]:** Penjelasan singkat fitur 3.
-
----
-
-## 🛠️ Tech Stack
-
-* **Frontend:** [React](https://react.dev/) (menggunakan Vite)
-* **Package Manager & Runtime:** [Bun](https://bun.sh/)
-* **Styling:** [Tailwind CSS / Vanilla CSS / SCSS] *(sesuaikan)*
-* **State Management / Routing:** [Zustand / React Router Dom] *(jika ada, hapus jika tidak pakai)*
+- Mengelola pelaksanaan OSCE secara digital.
+- Mengurangi proses manual selama ujian.
+- Mengotomatisasi perpindahan peserta (rolling).
+- Menyediakan penilaian real-time oleh penguji.
+- Menghasilkan hasil akhir yang dapat diakses peserta.
 
 ---
 
-## 📦 Getting Started
+# Role
 
-Ikuti instruksi di bawah ini untuk menjalankan proyek ini di mesin lokal kamu untuk keperluan *development* dan *testing*.
+## Admin
 
-### Prasyarat
+Memiliki akses penuh terhadap seluruh sistem.
 
-Pastikan kamu sudah menginstal **Bun** di sistem operasi kamu. Jika belum, instal dengan menjalankan perintah berikut di terminal:
+Fitur:
 
-```bash
-curl -fsSL [https://bun.sh/install](https://bun.sh/install) | bash
-
-```
-
-*(Catatan: Untuk pengguna Windows, sangat disarankan menggunakan WSL).*
-
-### Instalasi & Menjalankan Server Development
-
-1. **Clone repository ini:**
-```bash
-git clone [https://github.com/](https://github.com/)[username-kamu]/[nama-repo].git
-cd [nama-repo]
-
-```
-
-
-2. **Instal semua dependensi:**
-```bash
-bun install
-
-```
-
-
-3. **Jalankan server development:**
-```bash
-bun dev
-
-```
-
-
-Buka browser dan akses `http://localhost:5173` (atau port yang tertera di terminal) untuk melihat aplikasi.
+- Membuat sesi OSCE
+- Mengatur stase
+- Menyetujui peserta
+- Memulai ujian
+- Pause / Resume ujian
+- Mengakhiri ujian
+- Monitoring seluruh peserta
+- Review hasil
+- Publish hasil
+- Mengirim hasil ke Email
 
 ---
 
-## 🏗️ Build untuk Production
+## Penguji
 
-Untuk membuat versi aplikasi yang sudah dioptimasi dan siap di-deploy ke *production*, jalankan:
+Setiap penguji bertanggung jawab pada satu stase.
 
-```bash
-bun run build
+Fitur:
+
+- Melihat peserta pada stase saat ini
+- Melihat jawaban peserta
+- Memberikan nilai
+- Mengisi checklist penilaian
+- Menambahkan catatan internal
+- Menunggu peserta berikutnya setelah rolling
+
+Catatan:
+
+- Penguji tidak berpindah stase.
+- Catatan penguji tidak dapat dilihat peserta.
+
+---
+
+## Peserta
+
+Peserta mengikuti seluruh rangkaian OSCE.
+
+Fitur:
+
+- Registrasi
+- Login
+- Waiting Room
+- Mengerjakan soal setiap stase
+- Mengikuti perpindahan stase secara otomatis
+- Melihat hasil setelah dipublikasikan
+
+---
+
+# Alur Sistem
+
+## 1. Registrasi
+
+Peserta melakukan registrasi akun.
 
 ```
+Register
+      │
+      ▼
+Waiting Approval
+      │
+      ▼
+Approved Admin
+      │
+      ▼
+Dashboard
+```
 
-File hasil *build* akan di-generate di dalam folder `dist/`.
+Peserta yang belum disetujui tidak dapat mengikuti OSCE.
 
-Untuk melihat *preview* hasil *build* secara lokal sebelum di-deploy:
+---
 
-```bash
-bun run preview
+## 2. Persiapan OSCE
 
+Admin membuat sesi OSCE.
+
+Contoh:
+
+- Nama Sesi
+- Jumlah Stase
+- Durasi Stase
+- Durasi Istirahat
+- Penguji
+- Peserta
+
+Status awal:
+
+```
+Draft
 ```
 
 ---
 
-## 📂 Struktur Proyek
+## 3. Waiting Room
 
-*(Sesuaikan bagan di bawah ini dengan struktur folder asli proyekmu)*
+Peserta login sebelum ujian dimulai.
 
-```text
-├── public/           # Aset statis (favicon, dll)
-├── src/
-│   ├── assets/       # Gambar, font, icon
-│   ├── components/   # Komponen React yang reusable
-│   ├── pages/        # Komponen halaman (jika pakai routing)
-│   ├── App.jsx       # Komponen utama aplikasi
-│   └── main.jsx      # Entry point aplikasi
-├── index.html        # Template HTML utama
-├── package.json      # Metadata proyek & daftar dependensi
-├── bun.lockb         # Binary lockfile bawaan Bun (cepat & wajib masuk git)
-└── README.md         # Dokumentasi proyek
+Dashboard hanya menampilkan informasi bahwa ujian belum dimulai.
 
+```
+Waiting Room
+
+OSCE belum dimulai
+Silakan menunggu...
 ```
 
 ---
 
-## 🤝 Contributing
+## 4. Start OSCE
 
-Kontribusi selalu dipersilakan! Jika ingin berkontribusi:
+Admin menekan tombol:
 
-1. Fork repository ini
-2. Buat branch baru untuk fitur kamu (`git checkout -b feature/FiturKeren`)
-3. Commit perubahan kamu (`git commit -m 'Menambahkan FiturKeren'`)
-4. Push ke branch tersebut (`git push origin feature/FiturKeren`)
-5. Buka **Pull Request**
+```
+Start OSCE
+```
+
+Sistem otomatis:
+
+- Mengaktifkan timer
+- Membuka stase pertama
+- Menampilkan soal
+- Menentukan peserta pada stase masing-masing
 
 ---
 
-## 📄 Lisensi
+## 5. Pengerjaan Stase
 
-Proyek ini didistribusikan di bawah Lisensi MIT. Lihat file `LICENSE` untuk informasi lebih lanjut.
+Peserta mengerjakan soal.
+
+Selama waktu berjalan peserta dapat:
+
+- Membaca soal
+- Menjawab soal
+- Menyimpan jawaban
+
+Dashboard peserta:
 
 ```
+Stase 1
+
+Timer
+
+Soal
+
+Jawaban
+```
+
+---
+
+## 6. Penilaian Penguji
+
+Penguji melihat peserta yang sedang berada pada stasenya.
+
+Penguji dapat:
+
+- Memberikan nilai
+- Mengisi checklist
+- Menambahkan catatan
+
+Catatan hanya dapat dilihat penguji dan admin.
+
+---
+
+## 7. Timer Habis
+
+Saat waktu habis sistem otomatis:
+
+- Mengunci jawaban
+- Mengakhiri stase
+- Masuk ke masa istirahat
+
+Tidak diperlukan intervensi admin.
+
+---
+
+## 8. Istirahat
+
+Peserta melihat halaman istirahat.
 
 ```
+Break Time
+
+02:00
+```
+
+Pada waktu ini penguji dapat menyelesaikan penilaian.
+
+---
+
+## 9. Rolling
+
+Setelah waktu istirahat selesai sistem otomatis memindahkan peserta ke stase berikutnya.
+
+Contoh:
+
+```
+Round 1
+
+A -> Stase 1
+B -> Stase 2
+C -> Stase 3
+
+↓
+
+Round 2
+
+A -> Stase 2
+B -> Stase 3
+C -> Stase 1
+```
+
+Penguji tetap berada pada stase yang sama.
+
+---
+
+## 10. Sesi Berikutnya
+
+Langkah berikut akan terus berulang.
+
+```
+Start
+
+↓
+
+Timer
+
+↓
+
+Break
+
+↓
+
+Rolling
+
+↓
+
+Timer
+
+↓
+
+Break
+
+↓
+
+Rolling
+```
+
+Hingga seluruh peserta menyelesaikan seluruh stase.
+
+---
+
+## 11. Finish OSCE
+
+Setelah seluruh ronde selesai.
+
+Status berubah menjadi:
+
+```
+Completed
+```
+
+Admin dapat melakukan review hasil.
+
+---
+
+## 12. Publish Result
+
+Admin menekan:
+
+```
+Publish Result
+```
+
+Sistem akan:
+
+- Menghitung nilai akhir
+- Menampilkan hasil pada dashboard peserta
+- Mengirim hasil melalui Email
+
+---
+
+# Flow Keseluruhan
+
+```
+Registrasi
+      │
+      ▼
+Approval Admin
+      │
+      ▼
+Dashboard
+      │
+      ▼
+Waiting Room
+      │
+      ▼
+Start OSCE
+      │
+      ▼
+Stase 1
+      │
+      ▼
+Break
+      │
+      ▼
+Rolling
+      │
+      ▼
+Stase 2
+      │
+      ▼
+Break
+      │
+      ▼
+Rolling
+      │
+      ▼
+...
+      │
+      ▼
+Stase Terakhir
+      │
+      ▼
+Review
+      │
+      ▼
+Publish Result
+      │
+      ▼
+Dashboard Peserta + Email
+```
+
+---
+
+# Siklus Setiap Stase
+
+```
+Start Stase
+      │
+      ▼
+Timer Berjalan
+      │
+      ▼
+Peserta Mengerjakan
+      │
+      ▼
+Penguji Menilai
+      │
+      ▼
+Timer Selesai
+      │
+      ▼
+Break
+      │
+      ▼
+Rolling
+      │
+      ▼
+Start Stase Berikutnya
+```
+
+---
+
+# Rule OSCE
+
+- 1 Penguji menangani 1 Stase.
+- Penguji tidak berpindah stase.
+- Peserta berpindah stase sesuai aturan rolling.
+- Timer berjalan otomatis.
+- Jawaban terkunci ketika timer selesai.
+- Catatan penguji bersifat internal.
+- Hasil hanya dapat dilihat setelah dipublikasikan admin.
+- Seluruh proses perpindahan peserta dilakukan otomatis oleh sistem.

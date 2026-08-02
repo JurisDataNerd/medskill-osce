@@ -20,6 +20,8 @@ import ReportsPage from "@/features/admin/pages/ReportsPage";
 import SessionParticipantsPage from "@/features/admin/pages/SessionParticipantsPage";
 import SessionExaminersPage from "@/features/admin/pages/SessionExaminersPage";
 import StageQuestionPage from "@/features/admin/pages/StageQuestionPage";
+import CreateSessionPage from "@/features/admin/pages/CreateSessionPage";
+
 
 // ======================
 // PARTICIPANT
@@ -98,6 +100,24 @@ export const router = createBrowserRouter([
   },
 
   {
+    path: "/admin/sessions/create",
+    element: (
+      <ProtectedRoute allow={["admin"]}>
+        <CreateSessionPage />
+      </ProtectedRoute>
+    ),
+  },
+
+  {
+    path: "/admin/sessions/:id/edit",
+    element: (
+      <ProtectedRoute allow={["admin"]}>
+        <CreateSessionPage />
+      </ProtectedRoute>
+    ),
+  },
+
+  {
     path: "/admin/sessions/:id",
     element: (
       <ProtectedRoute allow={["admin"]}>
@@ -105,6 +125,7 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
   },
+
 
   {
     path: "/admin/sessions/:id/participants",

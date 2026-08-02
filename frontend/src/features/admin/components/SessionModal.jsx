@@ -9,11 +9,12 @@ export default function SessionModal({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [sessionDate, setSessionDate] = useState("");
-  const [startTime, setStartTime] = useState("");
-  const [maxParticipants, setMaxParticipants] = useState(20);
-  const [duration, setDuration] = useState(10);
-  const [breakAfter, setBreakAfter] = useState(0);
-  const [breakDuration, setBreakDuration] = useState(0);
+  const [startTime, setStartTime] = useState("08:00");
+  const [maxParticipants, setMaxParticipants] = useState(6);
+  const [totalStations, setTotalStations] = useState(6);
+  const [duration, setDuration] = useState(15);
+  const [breakAfter, setBreakAfter] = useState(1);
+  const [breakDuration, setBreakDuration] = useState(3);
 
   useEffect(() => {
     if (!open) return;
@@ -22,22 +23,25 @@ export default function SessionModal({
       setTitle(initialData.title ?? "");
       setDescription(initialData.description ?? "");
       setSessionDate(initialData.session_date ?? "");
-      setStartTime(initialData.start_time ?? "");
-      setMaxParticipants(initialData.max_participants ?? 20);
-      setDuration(initialData.station_duration_minutes ?? 10);
-      setBreakAfter(initialData.break_after_rotation ?? 0);
-      setBreakDuration(initialData.break_duration_minutes ?? 0);
+      setStartTime(initialData.start_time ?? "08:00");
+      setMaxParticipants(initialData.max_participants ?? 6);
+      setTotalStations(initialData.total_stations ?? 6);
+      setDuration(initialData.station_duration_minutes ?? 15);
+      setBreakAfter(initialData.break_after_rotation ?? 1);
+      setBreakDuration(initialData.break_duration_minutes ?? 3);
     } else {
       setTitle("");
       setDescription("");
       setSessionDate("");
-      setStartTime("");
-      setMaxParticipants(20);
-      setDuration(10);
-      setBreakAfter(0);
-      setBreakDuration(0);
+      setStartTime("08:00");
+      setMaxParticipants(6);
+      setTotalStations(6);
+      setDuration(15);
+      setBreakAfter(1);
+      setBreakDuration(3);
     }
   }, [open, initialData]);
+
 
   if (!open) return null;
 
@@ -50,6 +54,8 @@ export default function SessionModal({
       session_date: sessionDate,
       start_time: startTime,
       max_participants: Number(maxParticipants),
+      total_stations: Number(totalStations),
+      total_examiners: Number(totalStations),
       station_duration_minutes: Number(duration),
       break_after_rotation: Number(breakAfter),
       break_duration_minutes: Number(breakDuration),
@@ -58,6 +64,7 @@ export default function SessionModal({
       current_station: 0,
     });
   }
+
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
