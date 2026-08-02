@@ -46,7 +46,7 @@ export const INITIAL_MOCK_SESSIONS = [
     session_date: "2026-07-28",
     start_time: "13:00",
     end_time: "15:30",
-    status: "completed",
+    status: "published", // running, draft, completed, published, cancelled
     total_stations: 6,
     station_duration_minutes: 15,
     break_duration_minutes: 3,

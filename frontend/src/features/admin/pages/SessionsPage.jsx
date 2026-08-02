@@ -146,6 +146,7 @@ export default function SessionsPage() {
   const runningCount = sessions.filter((s) => s.status === "running").length;
   const draftCount = sessions.filter((s) => s.status === "draft").length;
   const completedCount = sessions.filter((s) => s.status === "completed").length;
+  const publishedCount = sessions.filter((s) => s.status === "published").length;
 
   return (
     <AdminLayout>
@@ -217,16 +218,16 @@ export default function SessionsPage() {
           badgeText="Live"
         />
         <StatSummaryCard
+          label="Dipublikasikan"
+          value={publishedCount}
+          icon={<CheckCircle2 size={18} className="text-indigo-600" />}
+          bgColor="bg-indigo-50"
+        />
+        <StatSummaryCard
           label="Sesi Draft"
           value={draftCount}
           icon={<FileEdit size={18} className="text-amber-600" />}
           bgColor="bg-amber-50"
-        />
-        <StatSummaryCard
-          label="Sesi Selesai"
-          value={completedCount}
-          icon={<CheckCircle2 size={18} className="text-indigo-600" />}
-          bgColor="bg-indigo-50"
         />
       </div>
 
@@ -235,7 +236,7 @@ export default function SessionsPage() {
         {/* Table Controls (Search, Filters & Add Button) */}
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 p-4 bg-slate-50/50">
           {/* Status Filter Tabs */}
-          <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1">
+          <div className="flex flex-wrap items-center gap-1 rounded-lg border border-slate-200 bg-white p-1">
             <FilterTabBtn
               label="Semua"
               count={totalCount}
@@ -252,6 +253,16 @@ export default function SessionsPage() {
               activeColor="text-emerald-700 bg-emerald-50 border-emerald-200"
               onClick={() => {
                 setStatusFilter("running");
+                setCurrentPage(1);
+              }}
+            />
+            <FilterTabBtn
+              label="Dipublikasikan"
+              count={publishedCount}
+              active={statusFilter === "published"}
+              activeColor="text-indigo-700 bg-indigo-50 border-indigo-200"
+              onClick={() => {
+                setStatusFilter("published");
                 setCurrentPage(1);
               }}
             />
@@ -392,6 +403,8 @@ export default function SessionsPage() {
                         className={`rounded-lg border px-2.5 py-1 text-xs font-bold transition focus:outline-none focus:ring-2 ${
                           session.status === "running"
                             ? "bg-emerald-50 text-emerald-800 border-emerald-300 focus:ring-emerald-200"
+                            : session.status === "published"
+                            ? "bg-indigo-50 text-indigo-800 border-indigo-300 focus:ring-indigo-200"
                             : session.status === "completed"
                             ? "bg-blue-50 text-blue-800 border-blue-300 focus:ring-blue-200"
                             : session.status === "cancelled"
@@ -402,9 +415,11 @@ export default function SessionsPage() {
                         <option value="draft">Draft</option>
                         <option value="running">Berlangsung (Live)</option>
                         <option value="completed">Selesai</option>
+                        <option value="published">Dipublikasikan</option>
                         <option value="cancelled">Dibatalkan</option>
                       </select>
                     </td>
+
 
                     {/* Actions */}
                     <td className="px-5 py-4 whitespace-nowrap text-right">
@@ -604,6 +619,11 @@ function StatusBadge({ status }) {
       dot: "bg-emerald-500",
       bg: "bg-emerald-50 text-emerald-700 border-emerald-200",
     },
+    published: {
+      label: "Dipublikasikan",
+      dot: "bg-indigo-500",
+      bg: "bg-indigo-50 text-indigo-700 border-indigo-200",
+    },
     draft: {
       label: "Draft",
       dot: "bg-amber-500",
@@ -617,6 +637,7 @@ function StatusBadge({ status }) {
   };
 
   const cfg = configs[status] || configs.draft;
+
 
   return (
     <span
