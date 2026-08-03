@@ -13,15 +13,21 @@ import {
   FileText,
   Clock,
   ArrowRight,
+  Sliders,
+  CheckCircle2,
+  Building2,
+  MapPin,
+  ChevronDown,
+  ChevronUp,
+  Activity,
+  Award,
 } from "lucide-react";
 
 import AdminLayout from "@/layouts/AdminLayout";
-import StaseModal from "@/features/admin/components/StaseModal";
 import {
   INITIAL_MOCK_SESSIONS,
   MOCK_STAGES_BY_SESSION,
 } from "@/features/admin/data/mockAdminData";
-
 
 export default function SessionDetailPage() {
   const navigate = useNavigate();
@@ -29,8 +35,7 @@ export default function SessionDetailPage() {
 
   const [session, setSession] = useState(null);
   const [stages, setStages] = useState([]);
-  const [selectedStage, setSelectedStage] = useState(null);
-  const [openStageModal, setOpenStageModal] = useState(false);
+  const [expandedStageIndex, setExpandedStageIndex] = useState(0);
 
   useEffect(() => {
     // Find mock session by ID or fallback to first mock session
@@ -43,33 +48,6 @@ export default function SessionDetailPage() {
     setSession(mockSession);
     setStages(mockStages);
   }, [id]);
-
-  function handleSaveStage(payload) {
-    if (selectedStage) {
-      setStages((prev) =>
-        prev.map((s) => (s.id === selectedStage.id ? { ...s, ...payload } : s))
-      );
-    } else {
-      const newStage = {
-        id: `stage-${Date.now()}`,
-        station_number: payload.station_number || stages.length + 1,
-        title: payload.title || `Stase ${stages.length + 1}`,
-        case_title: payload.scenario || "Kasus Medis Standar",
-        duration_minutes: payload.duration_minutes || 15,
-        examiner_name: "dr. Penguji Stase",
-        total_questions: 15,
-      };
-      setStages((prev) => [...prev, newStage]);
-    }
-
-    setSelectedStage(null);
-    setOpenStageModal(false);
-  }
-
-  function handleDeleteStage(stageId) {
-    if (!confirm("Apakah Anda yakin ingin menghapus stase ini?")) return;
-    setStages((prev) => prev.filter((s) => s.id !== stageId));
-  }
 
   if (!session) {
     return (
@@ -90,7 +68,7 @@ export default function SessionDetailPage() {
           className="mb-4 inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-blue-600 transition"
         >
           <ArrowLeft size={16} />
-          Kembali ke Daftar Sesi
+          Kembali ke Kelola Sesi
         </NavLink>
 
         <div className="flex flex-wrap items-center justify-between gap-4">
@@ -106,42 +84,57 @@ export default function SessionDetailPage() {
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => {
-                setSelectedStage(null);
-                setOpenStageModal(true);
-              }}
-              className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-blue-700 active:scale-95"
+              onClick={() => navigate(`/admin/sessions/${session.id}/edit`)}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-50 active:scale-95"
             >
-              <Plus size={16} />
-              Tambah Stase
+              <Pencil size={15} />
+              Edit Sesi Ini
             </button>
+
+            {session.status === "running" ? (
+              <button
+                onClick={() => navigate("/admin/live")}
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-md transition hover:bg-emerald-700 active:scale-95"
+              >
+                <Activity size={15} />
+                Buka Monitor Live
+              </button>
+            ) : (
+              <button
+                onClick={() => navigate(`/admin/sessions/${session.id}/edit`)}
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-md transition hover:bg-blue-700 active:scale-95"
+              >
+                <CheckCircle2 size={15} />
+                Ubah Pengaturan
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Summary Cards */}
+      {/* Preview Summary Cards Grid */}
       <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <SummaryCard
           icon={<CalendarDays size={18} className="text-blue-600" />}
-          title="Tanggal & Jam"
+          title="Tanggal & Jam Pelaksanaan"
           value={session.session_date}
           subtext={`${session.start_time} - ${session.end_time || "Selesai"}`}
         />
         <SummaryCard
           icon={<Users size={18} className="text-emerald-600" />}
-          title="Maksimal Peserta"
+          title="Kapasitas Peserta"
           value={`${session.registered_participants || session.max_participants} Peserta`}
-          subtext="Terdaftar di sesi"
+          subtext="1 peserta per stase per rotasi"
         />
         <SummaryCard
           icon={<GraduationCap size={18} className="text-indigo-600" />}
-          title="Jumlah Stase"
-          value={`${stages.length} Stase`}
-          subtext={`${session.station_duration_minutes || 15} menit / stase`}
+          title="Jumlah Stase Ujian"
+          value={`${session.total_stations || stages.length} Stase`}
+          subtext={`${session.station_duration_minutes || 15}m stase • ${session.break_duration_minutes || 3}m break`}
         />
         <SummaryCard
           icon={<ClipboardList size={18} className="text-amber-600" />}
-          title="Penguji Terplot"
+          title="Dokter Penguji"
           value={`${session.total_examiners || stages.length} Penguji`}
           subtext="1 penguji per stase"
         />
@@ -151,15 +144,15 @@ export default function SessionDetailPage() {
       <div className="mb-6 grid gap-4 sm:grid-cols-2">
         <NavLink
           to={`/admin/sessions/${session.id}/participants`}
-          className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition hover:border-blue-300 hover:shadow-md group"
+          className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs transition hover:border-blue-300 hover:shadow-md group"
         >
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition">
               <Users size={18} />
             </div>
             <div>
-              <div className="font-bold text-slate-900 text-sm">Kelola Peserta Sesi</div>
-              <div className="text-xs text-slate-500">Plotting & verifikasi hadir peserta</div>
+              <div className="font-bold text-slate-900 text-xs">Penugasan & Verifikasi Peserta</div>
+              <div className="text-[11px] text-slate-500">Plotting daftar peserta ujian per gelombang</div>
             </div>
           </div>
           <ArrowRight size={16} className="text-slate-400 group-hover:text-blue-600 transition" />
@@ -167,122 +160,191 @@ export default function SessionDetailPage() {
 
         <NavLink
           to={`/admin/sessions/${session.id}/examiners`}
-          className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition hover:border-blue-300 hover:shadow-md group"
+          className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs transition hover:border-blue-300 hover:shadow-md group"
         >
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition">
               <UserCheck size={18} />
             </div>
             <div>
-              <div className="font-bold text-slate-900 text-sm">Kelola Penguji Sesi</div>
-              <div className="text-xs text-slate-500">Penugasan dokter penguji per stase</div>
+              <div className="font-bold text-slate-900 text-xs">Penugasan Dokter Penguji</div>
+              <div className="text-[11px] text-slate-500">Mapping 1 dokter penguji untuk tiap stase</div>
             </div>
           </div>
           <ArrowRight size={16} className="text-slate-400 group-hover:text-indigo-600 transition" />
         </NavLink>
       </div>
 
-      {/* Stages List */}
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-xs">
-        <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-4">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900">Daftar Stase OSCE</h2>
-            <p className="text-xs text-slate-500">Kelola stase, skenario kasus, dan lembar soal ujian.</p>
+      {/* OSCE Rules Summary Badge */}
+      <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+        <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+          <Sliders size={16} className="text-blue-600" />
+          Aturan Pelaksanaan & Otomatisasi Sesi Ini
+        </h2>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 text-xs">
+          <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+            <span className="font-bold text-slate-900 block">Single Live Session</span>
+            <span className="text-slate-500 text-[11px]">Eksklusif 1 sesi live</span>
           </div>
-          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-            {stages.length} Stase Terkonfigurasi
+
+          <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+            <span className="font-bold text-slate-900 block">Otomatisasi Rolling</span>
+            <span className="text-slate-500 text-[11px]">Rotasi otomatis per ronde</span>
+          </div>
+
+          <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+            <span className="font-bold text-slate-900 block">Penguncian Nilai</span>
+            <span className="text-slate-500 text-[11px]">Auto lock saat waktu habis</span>
+          </div>
+
+          <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+            <span className="font-bold text-slate-900 block">Toleransi Keterlambatan</span>
+            <span className="text-slate-500 text-[11px]">Batas maksimal 5 menit</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Stages Showcase & Scenarios Preview */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+          <div>
+            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <Building2 size={18} className="text-blue-600" />
+              Preview Stase, Skenario Kasus Medis & Checklist Soal
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Rincian lengkap kasus klinis, instruksi peserta, dan item rubrik penilaian per stase.
+            </p>
+          </div>
+
+          <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
+            {stages.length} Stase Siap
           </span>
         </div>
 
-        {stages.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-slate-200 p-8 text-center text-xs text-slate-500">
-            Belum ada stase yang ditambahkan pada sesi ini.
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {stages.map((stage) => (
+        <div className="space-y-4">
+          {stages.map((stage, idx) => {
+            const isExpanded = expandedStageIndex === idx;
+
+            return (
               <div
                 key={stage.id}
-                className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200 p-4 transition hover:bg-slate-50/60"
+                className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xs transition hover:border-blue-300"
               >
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-md bg-blue-100 px-2.5 py-0.5 text-xs font-bold text-blue-800">
-                      Stase {stage.station_number}
+                <div
+                  onClick={() => setExpandedStageIndex(isExpanded ? null : idx)}
+                  className="flex cursor-pointer items-center justify-between p-4 bg-slate-50/50 hover:bg-slate-100/60 transition"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600 font-extrabold text-white text-xs">
+                      {stage.station_number}
                     </span>
-                    <span className="font-bold text-slate-900 text-sm">
-                      {stage.title}
-                    </span>
+                    <div>
+                      <h3 className="font-bold text-xs text-slate-900">{stage.title}</h3>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Kasus: <strong className="text-slate-800">{stage.case_title}</strong>
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-slate-500">
-                    <span className="flex items-center gap-1">
-                      <FileText size={13} className="text-slate-400" />
-                      Kasus: <strong className="text-slate-700">{stage.case_title}</strong>
-                    </span>
-                    <span>•</span>
-                    <span className="flex items-center gap-1">
-                      <Clock size={13} className="text-slate-400" />
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-semibold text-slate-600 bg-white border border-slate-200 px-2.5 py-1 rounded-md">
                       {stage.duration_minutes || 15} Menit
                     </span>
-                    <span>•</span>
-                    <span className="flex items-center gap-1">
-                      <UserCheck size={13} className="text-slate-400" />
-                      Penguji: {stage.examiner_name || "Belum diassign"}
-                    </span>
+                    {isExpanded ? (
+                      <ChevronUp size={16} className="text-slate-400" />
+                    ) : (
+                      <ChevronDown size={16} className="text-slate-400" />
+                    )}
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      setSelectedStage(stage);
-                      setOpenStageModal(true);
-                    }}
-                    className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
-                  >
-                    <Pencil size={13} />
-                    Edit
-                  </button>
+                {isExpanded && (
+                  <div className="border-t border-slate-100 p-5 space-y-4 text-xs bg-white">
+                    {/* Doctor Examiner Assigned */}
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">Dokter Penguji Stase</span>
+                        <p className="font-bold text-slate-900 text-xs mt-0.5">
+                          {stage.examiner_name || "dr. Alexander Budiman, Sp.JP"}
+                        </p>
+                      </div>
+                      <span className="rounded-md bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800">
+                        Penguji Siap
+                      </span>
+                    </div>
 
-                  <button
-                    onClick={() => navigate(`/admin/stages/${stage.id}`)}
-                    className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700 shadow-xs"
-                  >
-                    Kelola Soal
-                    <ArrowRight size={12} />
-                  </button>
+                    {/* Skenario Kasus */}
+                    <div>
+                      <h4 className="font-bold text-slate-900 text-xs uppercase mb-1">Skenario Kasus Medis</h4>
+                      <p className="text-slate-700 bg-slate-50 border border-slate-200 p-3 rounded-xl leading-relaxed font-medium">
+                        {stage.scenario || "Pasien datang dengan keluhan spesifik sesuai skenario stase medis ini. Peserta diwajibkan melakukan anamnesis terarah, pemeriksaan fisik kardiovaskular / spesifik, dan penetapan diagnosis kerja."}
+                      </p>
+                    </div>
 
-                  <button
-                    onClick={() => handleDeleteStage(stage.id)}
-                    className="p-1.5 rounded-md text-slate-400 transition hover:bg-red-50 hover:text-red-600"
-                    title="Hapus Stase"
-                  >
-                    <Trash2 size={15} />
-                  </button>
-                </div>
+                    {/* Instructions */}
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <h4 className="font-bold text-slate-900 text-xs uppercase mb-1">Instruksi Peserta Ujian</h4>
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-slate-700 whitespace-pre-line font-medium">
+                          {stage.participant_instruction || "1. Lakukan anamnesis terarah.\n2. Lakukan pemeriksaan fisik sesuai standar SOP.\n3. Sampaikan diagnosis kerja & terapi."}
+                        </div>
+                      </div>
+
+                      <div>
+                        <h4 className="font-bold text-slate-900 text-xs uppercase mb-1">Instruksi Dokter Penguji</h4>
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-slate-700 whitespace-pre-line font-medium">
+                          {stage.examiner_instruction || "Amati kepatuhan prosedur sterilitas tangan, ketepatan auskultasi/pemeriksaan fisik, dan penyampaian edukasi ke pasien."}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Checklist & Answer Keys */}
+                    <div>
+                      <h4 className="font-bold text-slate-900 text-xs uppercase mb-1 flex items-center justify-between">
+                        <span>Checklist Penilaian & Kunci Jawaban Rubrik</span>
+                        <span className="text-blue-600 text-[11px] font-semibold">
+                          {stage.total_questions || 15} Item Terdaftar
+                        </span>
+                      </h4>
+
+                      <div className="rounded-xl border border-slate-200 p-3 bg-slate-50 space-y-2">
+                        <div className="flex justify-between font-bold text-slate-900 border-b border-slate-200 pb-1.5 text-[11px]">
+                          <span>Item Rubrik & Kunci Jawaban Benar</span>
+                          <span>Bobot Skor</span>
+                        </div>
+
+                        <div className="bg-white p-2.5 rounded-lg border border-slate-200 space-y-0.5">
+                          <p className="font-bold text-slate-900">1. Menyapa pasien & membina sambung rasa</p>
+                          <p className="text-emerald-800 text-[11px] font-medium">Kunci: Menyapa salam, perkenalan diri, & konfirmasi identitas pasien (1 Poin)</p>
+                        </div>
+
+                        <div className="bg-white p-2.5 rounded-lg border border-slate-200 space-y-0.5">
+                          <p className="font-bold text-slate-900">2. Anamnesis terarah & keluhan utama</p>
+                          <p className="text-emerald-800 text-[11px] font-medium">Kunci: Menanyakan onset, lokasi, kualitas, dan riwayat penyakit terarah (3 Poin)</p>
+                        </div>
+
+                        <div className="bg-white p-2.5 rounded-lg border border-slate-200 space-y-0.5">
+                          <p className="font-bold text-slate-900">3. Prosedur pemeriksaan fisik medis</p>
+                          <p className="text-emerald-800 text-[11px] font-medium">Kunci: Melakukan pemeriksaan fisik dengan posisi & alat yang tepat sesuai SOP (3 Poin)</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
-            ))}
-          </div>
-        )}
+            );
+          })}
+        </div>
       </div>
-
-      <StaseModal
-        open={openStageModal}
-        initialData={selectedStage}
-        onClose={() => {
-          setSelectedStage(null);
-          setOpenStageModal(false);
-        }}
-        onSave={handleSaveStage}
-      />
     </AdminLayout>
   );
 }
 
 function SummaryCard({ icon, title, value, subtext }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
       <div className="mb-2">{icon}</div>
       <p className="text-xs font-medium text-slate-500">{title}</p>
       <h2 className="mt-1 text-xl font-bold text-slate-900">{value}</h2>
@@ -294,6 +356,7 @@ function SummaryCard({ icon, title, value, subtext }) {
 function StatusBadge({ status }) {
   const configs = {
     running: { label: "Berlangsung", bg: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+    published: { label: "Dipublikasikan", bg: "bg-indigo-50 text-indigo-700 border-indigo-200" },
     draft: { label: "Draft", bg: "bg-amber-50 text-amber-700 border-amber-200" },
     completed: { label: "Selesai", bg: "bg-blue-50 text-blue-700 border-blue-200" },
   };
@@ -301,8 +364,8 @@ function StatusBadge({ status }) {
   const cfg = configs[status] || configs.draft;
 
   return (
-    <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${cfg.bg}`}>
+    <span className={`rounded-full border px-3 py-0.5 text-xs font-bold ${cfg.bg}`}>
       {cfg.label}
     </span>
   );
-}
+}

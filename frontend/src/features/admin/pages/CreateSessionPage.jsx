@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -14,14 +14,14 @@ import {
   BookOpen,
   ChevronRight,
   ChevronLeft,
-  ExternalLink,
   Info,
-  Check,
   Plus,
   Trash2,
   Award,
+  Eye,
 } from "lucide-react";
 import AdminLayout from "@/layouts/AdminLayout";
+import { INITIAL_MOCK_SESSIONS } from "@/features/admin/data/mockAdminData";
 
 export default function CreateSessionPage() {
   const { id } = useParams();
@@ -31,16 +31,12 @@ export default function CreateSessionPage() {
   // Active Menu Tab in Left Sidebar (1: Detail, 2: Parameter Stase, 3: Soal & Kasus, 4: Rule OSCE)
   const [activeTab, setActiveTab] = useState(1);
 
-  // Active Selected Station inside Tab 3 Soal & Kasus (0 to 5)
+  // Active Selected Station inside Tab 3 Soal & Kasus (0 to stationsConfig.length - 1)
   const [selectedStationIndex, setSelectedStationIndex] = useState(0);
 
   // Form State 1: Detail Utama
-  const [title, setTitle] = useState(
-    isEdit ? "Ujian OSCE Periodik Dokter Spesialis" : ""
-  );
-  const [description, setDescription] = useState(
-    isEdit ? "Evaluasi 6 stase komprehensif keterampilan klinis." : ""
-  );
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
   const [sessionDate, setSessionDate] = useState("2026-08-20");
   const [startTime, setStartTime] = useState("08:00");
   const [endTime, setEndTime] = useState("10:30");
@@ -143,7 +139,64 @@ export default function CreateSessionPage() {
   const [autoLockAnswerRule, setAutoLockAnswerRule] = useState(true);
   const [autoPublishResults, setAutoPublishResults] = useState(false);
 
-  // Helper Rubrik Item Handlers for active stase
+  // Prepopulate if EDIT mode
+  useEffect(() => {
+    if (isEdit) {
+      const foundSession = INITIAL_MOCK_SESSIONS.find((s) => s.id === id) || INITIAL_MOCK_SESSIONS[0];
+      setTitle(foundSession.title);
+      setDescription(foundSession.description || "Evaluasi 6 stase komprehensif keterampilan klinis.");
+      setSessionDate(foundSession.session_date || "2026-08-20");
+      setStartTime(foundSession.start_time || "08:00");
+      setEndTime(foundSession.end_time || "10:30");
+      setLocation(foundSession.location || "Gedung Skill Lab Ruang OSCE Utama");
+      setMaxParticipants(foundSession.max_participants || 6);
+      setTotalStations(foundSession.total_stations || 6);
+      setStationDurationMinutes(foundSession.station_duration_minutes || 15);
+      setBreakDurationMinutes(foundSession.break_duration_minutes || 3);
+    } else {
+      setTitle("");
+      setDescription("");
+    }
+  }, [isEdit, id]);
+
+  // Inline Station Handler (No Modals)
+  function handleAddStationInline() {
+    const nextNum = stationsConfig.length + 1;
+    const newStation = {
+      station_number: nextNum,
+      title: `Stase ${nextNum}: Keterampilan Medis Baru`,
+      case_title: `Kasus Medis Stase ${nextNum}`,
+      scenario: `Skenario kasus klinis lengkap untuk stase ${nextNum}.`,
+      participant_instructions: `1. Anamnesis terarah.\n2. Prosedur pemeriksaan fisik.\n3. Diagnosis & terapi.`,
+      examiner_instructions: `Amati kesterilan dan SOP medis penguji.`,
+      checklist_items: [
+        { id: `c${nextNum}-1`, question: "Menyapa pasien & sambung rasa", answer_key: "Peserta mengucapkan salam & konfirmasi identitas", max_points: 1 },
+        { id: `c${nextNum}-2`, question: "Anamnesis keluhan utama", answer_key: "Menanyakan onset, lokasi, & riwayat penyakit", max_points: 3 },
+      ],
+    };
+
+    setStationsConfig((prev) => [...prev, newStation]);
+    setTotalStations(nextNum);
+    setTotalRounds(nextNum);
+    setSelectedStationIndex(nextNum - 1);
+  }
+
+  function handleRemoveStationInline(index) {
+    if (stationsConfig.length <= 1) {
+      alert("Minimal harus terdapat 1 Stase Ujian!");
+      return;
+    }
+    const updated = stationsConfig
+      .filter((_, idx) => idx !== index)
+      .map((stg, idx) => ({ ...stg, station_number: idx + 1 }));
+
+    setStationsConfig(updated);
+    setTotalStations(updated.length);
+    setTotalRounds(updated.length);
+    setSelectedStationIndex(Math.max(0, index - 1));
+  }
+
+  // Inline Rubrik Item Handlers (No Modals)
   function handleAddChecklistItem() {
     setStationsConfig((prev) =>
       prev.map((stg, idx) => {
@@ -155,8 +208,8 @@ export default function CreateSessionPage() {
               ...stg.checklist_items,
               {
                 id: newId,
-                question: "Item Soal Rubrik Baru",
-                answer_key: "Kriteria kunci jawaban benar",
+                question: "Pertanyaan Item Rubrik Baru",
+                answer_key: "Kriteria kunci jawaban benar bagi dokter penguji",
                 max_points: 2,
               },
             ],
@@ -197,15 +250,15 @@ export default function CreateSessionPage() {
     );
   }
 
-  function handleSave(status = "draft") {
-    if (!title.trim()) {
+  // Section Save Handler
+  function handleSaveCurrentSection(isDraftOnly = true) {
+    if (!title.trim() && activeTab === 1) {
       alert("Harap isi Nama Sesi OSCE terlebih dahulu!");
-      setActiveTab(1);
-      return;
+      return false;
     }
 
     const payload = {
-      title,
+      title: title || "Sesi OSCE Tanpa Judul",
       description,
       session_date: sessionDate,
       start_time: startTime,
@@ -217,7 +270,7 @@ export default function CreateSessionPage() {
       station_duration_minutes: Number(stationDurationMinutes),
       break_duration_minutes: Number(breakDurationMinutes),
       total_rounds: Number(totalRounds),
-      status,
+      status: isDraftOnly ? "draft" : "published",
       rules: {
         single_live_session: singleLiveSessionRule,
         auto_rolling: autoRollingRule,
@@ -228,13 +281,28 @@ export default function CreateSessionPage() {
       stations: stationsConfig.slice(0, totalStations),
     };
 
-    console.log("Saving OSCE Session:", payload);
+    console.log("Section Saved:", payload);
     alert(
-      `Sesi OSCE "${title}" berhasil disimpan sebagai ${
-        status === "running" ? "Sesi Berlangsung (Live)" : "Draft Sesi"
-      }!`
+      isDraftOnly
+        ? `Draft Bagian ${activeTab} berhasil disimpan!`
+        : `Sesi OSCE "${title}" berhasil diterbitkan!`
     );
-    navigate("/admin/sessions");
+    return true;
+  }
+
+  function handleNextTab() {
+    if (activeTab === 1 && !title.trim()) {
+      alert("Harap isi Nama Sesi OSCE terlebih dahulu!");
+      return;
+    }
+
+    if (activeTab < 4) {
+      setActiveTab(activeTab + 1);
+    } else {
+      // Final Section complete
+      handleSaveCurrentSection(false);
+      navigate("/admin/sessions");
+    }
   }
 
   const activeStation = stationsConfig[selectedStationIndex] || stationsConfig[0];
@@ -253,28 +321,47 @@ export default function CreateSessionPage() {
 
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">
-              {isEdit ? "Edit Sesi OSCE & Rubrik Soal" : "Buat Sesi OSCE Baru"}
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-slate-900">
+                {isEdit ? "Edit Sesi OSCE & Soal Rubrik" : "Buat Sesi OSCE Baru"}
+              </h1>
+              <span className="rounded-full bg-blue-100 px-3 py-0.5 text-xs font-bold text-blue-800">
+                {isEdit ? "Mode Edit" : "Mode Buat Baru"}
+              </span>
+            </div>
             <p className="mt-1 text-sm text-slate-500">
-              Pengaturan 2-Panel: Navigasi Sidebar Menu (Kiri) & Formulir Lengkap Soal + Kunci Jawaban Stase (Kanan).
+              Formulir terstruktur tanpa modal: Pengaturan Sesi (Panel Kiri) & Form Input Langsung (Panel Kanan).
             </p>
           </div>
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => handleSave("draft")}
+              onClick={() => handleSaveCurrentSection(true)}
               className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-50 active:scale-95"
             >
               <Save size={15} />
               Simpan Draft
             </button>
+
+            {isEdit && (
+              <button
+                onClick={() => navigate(`/admin/sessions/${id}`)}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-50 active:scale-95"
+              >
+                <Eye size={15} />
+                Preview Sesi
+              </button>
+            )}
+
             <button
-              onClick={() => handleSave("draft")}
+              onClick={() => {
+                handleSaveCurrentSection(false);
+                navigate("/admin/sessions");
+              }}
               className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-blue-600/30 transition hover:bg-blue-700 active:scale-95"
             >
               <CheckCircle2 size={15} />
-              Terbitkan Sesi
+              {isEdit ? "Simpan Perubahan" : "Terbitkan Sesi"}
             </button>
           </div>
         </div>
@@ -458,18 +545,25 @@ export default function CreateSessionPage() {
                     onChange={(e) => setMaxParticipants(e.target.value)}
                     className="w-full rounded-xl border border-slate-200 p-3 text-xs font-bold text-slate-800 focus:border-blue-500 focus:outline-none"
                   />
-                  <p className="mt-1 text-[11px] text-slate-400">
-                    Standar OSCE setempat: 6 Peserta (1 peserta per stase per rotasi).
-                  </p>
                 </div>
               </div>
 
-              <div className="flex justify-end pt-2">
+              {/* Action Buttons for Tab 1 */}
+              <div className="flex justify-between border-t border-slate-100 pt-4">
                 <button
-                  onClick={() => setActiveTab(2)}
-                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-xs font-bold text-white shadow-md hover:bg-blue-700 active:scale-95"
+                  type="button"
+                  onClick={() => handleSaveCurrentSection(true)}
+                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition"
                 >
-                  Lanjut: Parameter Stase
+                  <Save size={15} />
+                  Simpan Draft Bagian Ini
+                </button>
+                <button
+                  type="button"
+                  onClick={handleNextTab}
+                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-xs font-bold text-white shadow-md hover:bg-blue-700 active:scale-95 transition"
+                >
+                  Lanjutkan: Parameter Stase
                   <ChevronRight size={16} />
                 </button>
               </div>
@@ -479,14 +573,25 @@ export default function CreateSessionPage() {
           {/* TAB 2 CONTENT: PARAMETER STASE */}
           {activeTab === 2 && (
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-5">
-              <div className="border-b border-slate-100 pb-3">
-                <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <Building2 size={19} className="text-blue-600" />
-                  2. Konfigurasi Parameter Stase & Durasi Rotasi
-                </h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Tentukan jumlah stase, waktu pengerjaan, dan durasi istirahat antar ronde.
-                </p>
+              <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
+                <div>
+                  <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <Building2 size={19} className="text-blue-600" />
+                    2. Konfigurasi Parameter Stase & Durasi Rotasi
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Tentukan jumlah stase, waktu pengerjaan, dan durasi istirahat. Tambah stase baru secara langsung tanpa modal.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleAddStationInline}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-blue-700 transition active:scale-95"
+                >
+                  <Plus size={15} />
+                  Tambah Stase Baru
+                </button>
               </div>
 
               <div className="grid gap-5 sm:grid-cols-3">
@@ -507,6 +612,7 @@ export default function CreateSessionPage() {
                     <option value={6}>6 Stase (Standar)</option>
                     <option value={8}>8 Stase</option>
                     <option value={10}>10 Stase</option>
+                    <option value={12}>12 Stase</option>
                   </select>
                 </div>
 
@@ -535,46 +641,72 @@ export default function CreateSessionPage() {
                 </div>
               </div>
 
-              {/* Stase Cards Overview */}
+              {/* Inline Editable Station Cards Overview (No Modals) */}
               <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-3">
-                <h3 className="text-xs font-bold text-slate-700 uppercase">
-                  Preview Rotasi {totalStations} Stase
-                </h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-slate-700 uppercase">
+                    Daftar {stationsConfig.length} Stase Terkonfigurasi
+                  </h3>
+                  <span className="text-[11px] text-slate-500">Form Input Langsung (Inline Edit)</span>
+                </div>
+
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {Array.from({ length: totalStations }, (_, i) => i + 1).map((stgNum) => (
+                  {stationsConfig.map((stg, idx) => (
                     <div
-                      key={stgNum}
-                      className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3 shadow-2xs"
+                      key={idx}
+                      className="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-3 shadow-2xs transition hover:border-blue-300 space-y-2"
                     >
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-between">
                         <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 font-extrabold text-blue-800 text-xs">
-                          {stgNum}
+                          {stg.station_number}
                         </span>
-                        <span className="font-bold text-slate-800 text-xs">
-                          Stase {stgNum}
-                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveStationInline(idx)}
+                          className="text-slate-400 hover:text-rose-600 transition"
+                          title="Hapus Stase Ini"
+                        >
+                          <Trash2 size={15} />
+                        </button>
                       </div>
-                      <span className="text-[11px] text-slate-500 font-semibold">
-                        {stationDurationMinutes} mnt
-                      </span>
+
+                      <div>
+                        <input
+                          type="text"
+                          value={stg.title}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setStationsConfig((prev) =>
+                              prev.map((item, i) => (i === idx ? { ...item, title: val } : item))
+                            );
+                          }}
+                          className="w-full rounded-md border border-slate-200 p-1.5 text-xs font-bold text-slate-900"
+                        />
+                        <p className="text-[11px] text-slate-500 mt-1 line-clamp-1">
+                          {stg.case_title}
+                        </p>
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="flex justify-between pt-2">
+              {/* Action Buttons for Tab 2 */}
+              <div className="flex justify-between border-t border-slate-100 pt-4">
                 <button
-                  onClick={() => setActiveTab(1)}
-                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                  type="button"
+                  onClick={() => handleSaveCurrentSection(true)}
+                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition"
                 >
-                  <ChevronLeft size={16} />
-                  Sebelumnya
+                  <Save size={15} />
+                  Simpan Draft Bagian Ini
                 </button>
                 <button
-                  onClick={() => setActiveTab(3)}
-                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-xs font-bold text-white shadow-md hover:bg-blue-700 active:scale-95"
+                  type="button"
+                  onClick={handleNextTab}
+                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-xs font-bold text-white shadow-md hover:bg-blue-700 active:scale-95 transition"
                 >
-                  Lanjut: Soal & Kunci Jawaban
+                  Lanjutkan: Soal & Kunci Jawaban
                   <ChevronRight size={16} />
                 </button>
               </div>
@@ -591,7 +723,7 @@ export default function CreateSessionPage() {
                     3. Detail Stase, Soal & Kunci Jawaban Rubrik
                   </h2>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Kelola skenario kasus medis, instruksi, serta item soal-soal dan kunci jawaban rubrik penilaian penguji.
+                    Kelola skenario kasus medis, instruksi, serta item soal-soal dan kunci jawaban rubrik secara inline tanpa modal.
                   </p>
                 </div>
               </div>
@@ -633,15 +765,6 @@ export default function CreateSessionPage() {
                       {activeStation.title}
                     </h3>
                   </div>
-
-                  <button
-                    onClick={() =>
-                      navigate(`/admin/stages/stage-10${activeStation.station_number}`)
-                    }
-                    className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1"
-                  >
-                    Buka Editor Penuh <ExternalLink size={13} />
-                  </button>
                 </div>
 
                 {/* Skenario & Judul Kasus */}
@@ -736,11 +859,12 @@ export default function CreateSessionPage() {
                         Daftar Soal Rubrik & Kunci Jawaban ({activeStation.checklist_items.length} Item)
                       </h4>
                       <p className="text-[11px] text-slate-500 mt-0.5">
-                        Rincian item pertanyaan rubrik dan kriteria kunci jawaban benar bagi penguji.
+                        Tambah & edit item pertanyaan rubrik dan kunci jawaban secara langsung di halaman ini.
                       </p>
                     </div>
 
                     <button
+                      type="button"
                       onClick={handleAddChecklistItem}
                       className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-700 transition active:scale-95 shadow-2xs"
                     >
@@ -778,6 +902,7 @@ export default function CreateSessionPage() {
                             </div>
 
                             <button
+                              type="button"
                               onClick={() => handleRemoveChecklistItem(item.id)}
                               className="text-slate-400 hover:text-rose-600 transition"
                               title="Hapus Soal Rubrik"
@@ -820,19 +945,22 @@ export default function CreateSessionPage() {
                 </div>
               </div>
 
-              <div className="flex justify-between pt-2">
+              {/* Action Buttons for Tab 3 */}
+              <div className="flex justify-between border-t border-slate-100 pt-4">
                 <button
-                  onClick={() => setActiveTab(2)}
-                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                  type="button"
+                  onClick={() => handleSaveCurrentSection(true)}
+                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition"
                 >
-                  <ChevronLeft size={16} />
-                  Sebelumnya
+                  <Save size={15} />
+                  Simpan Draft Bagian Ini
                 </button>
                 <button
-                  onClick={() => setActiveTab(4)}
-                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-xs font-bold text-white shadow-md hover:bg-blue-700 active:scale-95"
+                  type="button"
+                  onClick={handleNextTab}
+                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-xs font-bold text-white shadow-md hover:bg-blue-700 active:scale-95 transition"
                 >
-                  Lanjut: Rule & Otomatisasi
+                  Lanjutkan: Rule & Otomatisasi
                   <ChevronRight size={16} />
                 </button>
               </div>
@@ -900,21 +1028,27 @@ export default function CreateSessionPage() {
                 </div>
               </div>
 
-              <div className="flex justify-between pt-2">
+              {/* Action Buttons for Tab 4 */}
+              <div className="flex justify-between border-t border-slate-100 pt-4">
                 <button
-                  onClick={() => setActiveTab(3)}
-                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                  type="button"
+                  onClick={() => handleSaveCurrentSection(true)}
+                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition"
                 >
-                  <ChevronLeft size={16} />
-                  Sebelumnya
+                  <Save size={15} />
+                  Simpan Draft Sesi
                 </button>
 
                 <button
-                  onClick={() => handleSave("draft")}
-                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-xs font-bold text-white shadow-md hover:bg-emerald-700 active:scale-95"
+                  type="button"
+                  onClick={() => {
+                    handleSaveCurrentSection(false);
+                    navigate("/admin/sessions");
+                  }}
+                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-xs font-bold text-white shadow-md hover:bg-emerald-700 active:scale-95 transition"
                 >
                   <CheckCircle2 size={16} />
-                  Simpan & Terbitkan Sesi OSCE
+                  {isEdit ? "Simpan Perubahan Sesi" : "Simpan & Terbitkan Sesi OSCE"}
                 </button>
               </div>
             </div>
