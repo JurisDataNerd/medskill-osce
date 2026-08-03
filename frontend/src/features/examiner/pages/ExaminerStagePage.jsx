@@ -15,12 +15,13 @@ import {
   Save,
   Lock,
   Stethoscope,
+  Coffee,
 } from "lucide-react";
-import ExaminerLayout from "@/layouts/ExaminerLayout";
 import {
   CURRENT_EXAMINER_PROFILE,
   EXAMINER_LIVE_SESSION,
 } from "@/features/examiner/data/mockExaminerData";
+
 
 export default function ExaminerStagePage() {
   const { stageId } = useParams();
@@ -333,53 +334,73 @@ export default function ExaminerStagePage() {
                 const isActive = activeRotationIndex === idx;
 
                 return (
-                  <div
-                    key={rot.round}
-                    onClick={() => setActiveRotationIndex(idx)}
-                    className={`flex items-center justify-between rounded-xl border p-3 cursor-pointer transition ${
-                      isActive
-                        ? "bg-blue-50 border-blue-400 text-blue-900 shadow-2xs font-bold"
-                        : rot.status === "completed"
-                        ? "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
-                        : "bg-white border-slate-100 text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span
-                        className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs font-bold ${
-                          isActive
-                            ? "bg-blue-600 text-white"
-                            : rot.status === "completed"
-                            ? "bg-emerald-100 text-emerald-800"
-                            : "bg-slate-100 text-slate-500"
-                        }`}
-                      >
-                        {rot.round}
-                      </span>
+                  <div key={rot.round} className="space-y-2.5">
+                    <div
+                      onClick={() => setActiveRotationIndex(idx)}
+                      className={`flex items-center justify-between rounded-xl border p-3 cursor-pointer transition ${
+                        isActive
+                          ? "bg-blue-50 border-blue-400 text-blue-900 shadow-2xs font-bold"
+                          : rot.status === "completed"
+                          ? "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
+                          : "bg-white border-slate-100 text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs font-bold ${
+                            isActive
+                              ? "bg-blue-600 text-white"
+                              : rot.status === "completed"
+                              ? "bg-emerald-100 text-emerald-800"
+                              : "bg-slate-100 text-slate-500"
+                          }`}
+                        >
+                          {rot.round}
+                        </span>
+
+                        <div>
+                          <p className="font-bold text-xs">{rot.name}</p>
+                          <p className="text-[11px] text-slate-400">NIM: {rot.nim}</p>
+                        </div>
+                      </div>
 
                       <div>
-                        <p className="font-bold text-xs">{rot.name}</p>
-                        <p className="text-[11px] text-slate-400">NIM: {rot.nim}</p>
+                        {rot.status === "completed" ? (
+                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+                            {rot.score} Pts
+                          </span>
+                        ) : isActive ? (
+                          <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                            Aktif
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-slate-400">Menunggu</span>
+                        )}
                       </div>
                     </div>
 
-                    <div>
-                      {rot.status === "completed" ? (
-                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
-                          {rot.score} Pts
-                        </span>
-                      ) : isActive ? (
-                        <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-bold text-white">
-                          Aktif
-                        </span>
-                      ) : (
-                        <span className="text-[10px] text-slate-400">Menunggu</span>
-                      )}
-                    </div>
+                    {/* Istirahat Rotasi Card setelah Ronde 3 */}
+                    {rot.round === 3 && (
+                      <div className="rounded-xl border border-amber-300 bg-amber-50/90 p-3 text-amber-900 shadow-2xs space-y-1">
+                        <div className="flex items-center justify-between text-xs font-bold">
+                          <span className="flex items-center gap-1.5 text-amber-900">
+                            <Coffee size={15} className="text-amber-700" />
+                            Jeda Istirahat Rotasi
+                          </span>
+                          <span className="rounded-md bg-amber-200/80 px-2 py-0.5 text-[10px] font-extrabold text-amber-900 border border-amber-300">
+                            10 Menit
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-amber-800 leading-snug font-medium">
+                          Waktu istirahat penguji & peserta setelah ronde 3 (Persiapan ronde 4 - 6).
+                        </p>
+                      </div>
+                    )}
                   </div>
                 );
               })}
             </div>
+
           </div>
         </div>
 

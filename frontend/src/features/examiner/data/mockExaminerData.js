@@ -24,13 +24,15 @@ export const EXAMINER_LIVE_SESSION = {
   participant_instructions: "1. Lakukan anamnesis terarah nyeri dada.\n2. Lakukan auskultasi 4 katup jantung dengan benar.\n3. Interpretasikan EKG 12 Lead & sampaikan diagnosis STEMI Anteroseptal.",
   examiner_instructions: "Amati kepatuhan prosedur sterilitas tangan, teknik auskultasi jantung, dan penetapan diagnosis STEMI Anteroseptal.",
   
-  // Timer Info
+  // Timer & Break Info
   current_round: 2,
   total_rounds: 6,
-  station_duration_seconds: 15 * 60, // 15 menit
-  break_duration_seconds: 3 * 60, // 3 menit
+  station_duration_seconds: 15 * 60, // 15 menit per stase
+  break_after_round: 3, // Istirahat setelah Ronde 3
+  break_duration_minutes: 10, // Istirahat 10 menit
   remaining_seconds: 11 * 60 + 45, // 11:45
   is_break: false,
+
 
   // Active Participant in Station 1 Round 2
   current_participant: {
