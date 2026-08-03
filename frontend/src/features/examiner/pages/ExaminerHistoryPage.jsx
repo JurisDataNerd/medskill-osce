@@ -119,36 +119,36 @@ export default function ExaminerHistoryPage() {
               </div>
             </div>
           ))}
-        </div>
+        {/* Detail Modal */}
+        {selectedHistory && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
+            <div className="rounded-2xl bg-white p-6 max-w-md w-full shadow-2xl space-y-4">
+              <h3 className="font-bold text-base text-slate-900 border-b pb-2">
+                Rekapitulasi {selectedHistory.title}
+              </h3>
+
+              <div className="space-y-2 text-xs text-slate-700">
+                <p>Stase: <strong>{selectedHistory.station_name}</strong></p>
+                <p>Tanggal: <strong>{selectedHistory.session_date}</strong></p>
+                <p>Total Peserta Diuji: <strong>{selectedHistory.evaluated_count} Peserta</strong></p>
+                <p>Nilai Rata-Rata: <strong className="text-blue-700 text-sm">{selectedHistory.avg_score} / 100</strong></p>
+                <p>Status: <strong className="text-indigo-700">Dipublikasikan ke Peserta</strong></p>
+              </div>
+
+              <div className="flex justify-end border-t pt-3">
+                <button
+                  onClick={() => setSelectedHistory(null)}
+                  className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800"
+                >
+                  Tutup Detail
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-
-      {/* Detail Modal */}
-      {selectedHistory && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-          <div className="rounded-2xl bg-white p-6 max-w-md w-full shadow-2xl space-y-4">
-            <h3 className="font-bold text-base text-slate-900 border-b pb-2">
-              Rekapitulasi {selectedHistory.title}
-            </h3>
-
-            <div className="space-y-2 text-xs text-slate-700">
-              <p>Stase: <strong>{selectedHistory.station_name}</strong></p>
-              <p>Tanggal: <strong>{selectedHistory.session_date}</strong></p>
-              <p>Total Peserta Diuji: <strong>{selectedHistory.evaluated_count} Peserta</strong></p>
-              <p>Nilai Rata-Rata: <strong className="text-blue-700 text-sm">{selectedHistory.avg_score} / 100</strong></p>
-              <p>Status: <strong className="text-indigo-700">Dipublikasikan ke Peserta</strong></p>
-            </div>
-
-            <div className="flex justify-end border-t pt-3">
-              <button
-                onClick={() => setSelectedHistory(null)}
-                className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800"
-              >
-                Tutup Detail
-              </button>
-            </div>
-        </div>
-      )}
     </div>
   );
 }
+
 
