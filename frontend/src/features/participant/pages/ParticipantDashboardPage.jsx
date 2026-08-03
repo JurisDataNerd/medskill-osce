@@ -264,10 +264,16 @@ export default function ParticipantDashboardPage() {
                     </button>
                   )}
                 </div>
+
+              </div>
+            ))}
+
+          </div>
         </div>
 
         {/* Section 2: Riwayat Hasil Ujian & Rekap Evaluasi Peserta */}
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
+
 
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
             <div>
