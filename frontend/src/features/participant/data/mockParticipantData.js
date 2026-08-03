@@ -49,7 +49,21 @@ export const MOCK_CURRENT_LIVE_STAGE = {
   examiner_name: "dr. Alexander Budiman, Sp.JP",
   duration_seconds: 15 * 60, // 15 menit
   remaining_seconds: 11 * 60 + 45, // 11:45
+  waiting_room_info: {
+    wave_number: 1,
+    rotation_round: 2,
+    total_rounds: 6,
+    briefing_countdown_seconds: 30, // 30 detik briefing ruang tunggu
+    location: "Gedung Skill Lab Ruang 101 (Ruang Tunggu Station 1)",
+    rules: [
+      "Persiapkan stetoskop & penlight sebelum memasuki ruang stase.",
+      "Durasi pengerjaan stase 1 adalah 15 menit.",
+      "Lakukan salam, perkenalan diri, anamnesis terarah, & pemeriksaan fisik sesuai SOP.",
+      "Sampaikan diagnosis & rekomendasi terapi secara jelas kepada penguji.",
+    ],
+  },
   scenario: "Pasien laki-laki 52 tahun datang ke UGD dengan keluhan nyeri dada kiri khas infark miokard (seperti ditindih beban berat) menjalar ke lengan kiri sejak 2 jam lalu.",
+
   participant_instructions: [
     "1. Lakukan anamnesis terarah mengenai keluhan nyeri dada (Onset, Lokasi, Kualitas, Radiasi, Keparahan, Onset).",
     "2. Lakukan auskultasi 4 katup jantung menggunakan stetoskop dengan posisi & teknik yang benar.",
