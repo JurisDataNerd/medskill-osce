@@ -1,29 +1,14 @@
 import AdminLayout from "@/layouts/AdminLayout";
+import ComingSoon from "@/components/ComingSoon";
 
-export default function ReportsPage(){
-
-return(
-
-<AdminLayout>
-
-<h1 className="mb-8 text-3xl font-bold">
-
-Reports
-
-</h1>
-
-<div className="rounded-2xl bg-white p-6 shadow">
-
-Generate PDF
-
-<br/>
-
-Send Email
-
-</div>
-
-</AdminLayout>
-
-);
-
+export default function ReportsPage() {
+  return (
+    <AdminLayout>
+      <ComingSoon
+        title="Laporan & Ekspor Rekapitulasi OSCE"
+        description="Fitur pencetakan laporan PDF otomatis, statistik analitik per stase, dan pengiriman rekapitulasi via email sedang dalam pengembangan."
+        backPath="/admin"
+      />
+    </AdminLayout>
+  );
 }
