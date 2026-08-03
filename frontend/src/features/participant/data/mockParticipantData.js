@@ -42,6 +42,40 @@ export const OPEN_OSCE_SESSIONS = [
   },
 ];
 
+export const MOCK_CURRENT_LIVE_STAGE = {
+  station_number: 1,
+  title: "Stase 1: Kardiovaskular & Kegawatdaruratan Infark Miokard",
+  case_title: "Sindrom Koroner Akut (STEMI Anteroseptal)",
+  examiner_name: "dr. Alexander Budiman, Sp.JP",
+  duration_seconds: 15 * 60, // 15 menit
+  remaining_seconds: 11 * 60 + 45, // 11:45
+  scenario: "Pasien laki-laki 52 tahun datang ke UGD dengan keluhan nyeri dada kiri khas infark miokard (seperti ditindih beban berat) menjalar ke lengan kiri sejak 2 jam lalu.",
+  participant_instructions: [
+    "1. Lakukan anamnesis terarah mengenai keluhan nyeri dada (Onset, Lokasi, Kualitas, Radiasi, Keparahan, Onset).",
+    "2. Lakukan auskultasi 4 katup jantung menggunakan stetoskop dengan posisi & teknik yang benar.",
+    "3. Interpretasikan EKG 12 Lead & sampaikan diagnosis STEMI Anteroseptal serta tata laksana awal kepada penguji.",
+  ],
+  patient_profile: {
+    name: "Tn. Budi Santoso",
+    age: 52,
+    gender: "Laki-laki",
+    chief_complaint: "Nyeri dada hebat seperti ditindih beban berat sejak 2 jam lalu.",
+    avatar: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80",
+  },
+  initial_messages: [
+    {
+      role: "assistant",
+      content: "Selamat pagi, Dokter. Dada saya rasanya sakit sekali seperti ditindih beban berat sejak 2 jam yang lalu. Keringat dingin saya juga bercucuran, Dok...",
+    },
+  ],
+  quick_prompts: [
+    "Apakah nyerinya menjalar ke lengan kiri atau rahang?",
+    "Apakah Bapak merasa sesak napas atau mual?",
+    "Apakah Bapak memiliki riwayat hipertensi atau merokok?",
+    "Saya akan melakukan auskultasi 4 katup jantung Bapak.",
+  ],
+};
+
 export const MY_PAST_RESULTS = [
   {
     id: "res-001",
