@@ -17,7 +17,9 @@ import {
   Users,
   AlertCircle,
   Sparkles,
+  Info,
 } from "lucide-react";
+
 
 import { useAuth } from "@/context/AuthProvider";
 import {
@@ -265,18 +267,33 @@ export default function ParticipantDashboardPage() {
               </div>
             ))}
           </div>
-        </div>
-
-        {/* Section 2: Riwayat Hasil Ujian & Rekap Evaluasi Peserta */}
+        </di        {/* Section 2: Riwayat Hasil Ujian & Rekap Evaluasi Peserta */}
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
-          <div className="border-b border-slate-100 pb-3">
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <Award size={18} className="text-blue-600" />
-              Hasil & Rekap Nilai Ujian OSCE Sebelumnya
-            </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Riwayat perolehan skor dan catatan evaluasi dari dokter penguji pada sesi ujian terdahulu.
-            </p>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+            <div>
+              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Award size={18} className="text-blue-600" />
+                Hasil & Rekap Nilai Ujian OSCE Sebelumnya (Minimal 6 Stase)
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Riwayat perolehan akumulasi skor 6 stase dan umpan balik dokter penguji spesialis.
+              </p>
+            </div>
+
+            <span className="rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-[11px] font-bold text-blue-700">
+              1 Sesi = Minimal 6 Stase & 6 Dokter Penguji
+            </span>
+          </div>
+
+          {/* Info Banner 6 Stase OSCE */}
+          <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-3.5 flex items-start gap-3 text-xs text-slate-700">
+            <Info size={18} className="text-blue-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold text-blue-900">Catatan Struktur Ujian OSCE:</p>
+              <p className="mt-0.5 text-slate-600 font-medium">
+                Setiap 1 Sesi Ujian OSCE terdiri dari <strong>minimal 6 Stase Keterampilan Medis</strong> yang berjalan secara rotasi. Setiap stase diuji secara independen oleh Dokter Penguji Spesialis yang berbeda dengan rubrik penilaian baku. Nilai akhir merupakan akumulasi rata-rata perolehan dari seluruh 6 stase.
+              </p>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -284,10 +301,10 @@ export default function ParticipantDashboardPage() {
               <thead className="border-b border-slate-200 bg-slate-100/80 font-bold text-slate-600 uppercase tracking-wider">
                 <tr>
                   <th className="px-4 py-3">Nama Sesi OSCE</th>
-                  <th className="px-4 py-3">Stase Ujian</th>
-                  <th className="px-4 py-3">Dokter Penguji</th>
+                  <th className="px-4 py-3">Jumlah Stase</th>
+                  <th className="px-4 py-3">Lokasi Ujian</th>
                   <th className="px-4 py-3">Tanggal</th>
-                  <th className="px-4 py-3">Nilai Akhir</th>
+                  <th className="px-4 py-3">Rata-Rata Skor (6 Stase)</th>
                   <th className="px-4 py-3">Global Rating</th>
                   <th className="px-4 py-3 text-right">Aksi</th>
                 </tr>
@@ -298,35 +315,37 @@ export default function ParticipantDashboardPage() {
                     <td className="px-4 py-3.5 font-bold text-slate-900">
                       {res.title}
                     </td>
-                    <td className="px-4 py-3.5 font-medium text-slate-800">
-                      {res.station_name}
+                    <td className="px-4 py-3.5 font-semibold text-slate-800">
+                      <span className="rounded-md bg-slate-100 border border-slate-200 px-2 py-0.5 font-bold text-slate-700">
+                        {res.evaluated_stations || res.total_stations} Stase Selesai
+                      </span>
                     </td>
-                    <td className="px-4 py-3.5 text-slate-600 font-semibold">
-                      {res.examiner_name}
+                    <td className="px-4 py-3.5 text-slate-600 font-medium">
+                      {res.location}
                     </td>
                     <td className="px-4 py-3.5 text-slate-500 whitespace-nowrap">
                       {res.session_date}
                     </td>
                     <td className="px-4 py-3.5 font-black text-blue-700 text-sm">
-                      {res.score} / 100
+                      {res.avg_score || res.score} / 100
                     </td>
                     <td className="px-4 py-3.5">
                       <span
                         className={`inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-extrabold ${
-                          res.global_rating === "SUPERIOR"
+                          (res.final_global_rating || res.global_rating) === "SUPERIOR"
                             ? "bg-indigo-100 text-indigo-800 border-indigo-200"
                             : "bg-emerald-100 text-emerald-800 border-emerald-200"
                         }`}
                       >
-                        {res.global_rating}
+                        {res.final_global_rating || res.global_rating}
                       </span>
                     </td>
                     <td className="px-4 py-3.5 text-right">
                       <button
                         onClick={() => navigate(`/participant/results/${res.id}`)}
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 hover:text-blue-600 transition active:scale-95"
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 hover:text-blue-600 transition active:scale-95"
                       >
-                        Detail & PDF
+                        Detail 6 Stase & PDF
                         <ArrowRight size={13} />
                       </button>
                     </td>
@@ -335,8 +354,8 @@ export default function ParticipantDashboardPage() {
               </tbody>
             </table>
           </div>
-
         </div>
+div>
       </main>
     </div>
   );
