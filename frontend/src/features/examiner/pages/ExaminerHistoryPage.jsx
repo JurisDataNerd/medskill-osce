@@ -34,9 +34,9 @@ export default function ExaminerHistoryPage() {
   });
 
   return (
-    <ExaminerLayout>
-      <div className="space-y-6">
-        {/* Page Header */}
+    <div className="space-y-6">
+      {/* Page Header */}
+
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <button
@@ -146,9 +146,9 @@ export default function ExaminerHistoryPage() {
                 Tutup Detail
               </button>
             </div>
-          </div>
         </div>
       )}
-    </ExaminerLayout>
+    </div>
   );
 }
+

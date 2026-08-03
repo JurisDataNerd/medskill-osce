@@ -85,8 +85,9 @@ export default function ExaminerStagePage() {
   }
 
   return (
-    <ExaminerLayout>
+    <div className="space-y-6">
       {/* Top Action Bar */}
+
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <button
           onClick={() => navigate("/examiner")}
@@ -383,6 +384,6 @@ export default function ExaminerStagePage() {
         </div>
 
       </div>
-    </ExaminerLayout>
+    </div>
   );
 }

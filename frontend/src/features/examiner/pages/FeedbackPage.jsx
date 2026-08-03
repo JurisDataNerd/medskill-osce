@@ -57,8 +57,9 @@ export default function FeedbackPage() {
   }
 
   return (
-    <ExaminerLayout>
+    <div className="space-y-6">
       <div className="mb-8">
+
         <h1 className="text-3xl font-bold">Penilaian Peserta</h1>
         <p className="text-slate-500">Berikan feedback kepada peserta.</p>
       </div>
@@ -137,6 +138,7 @@ export default function FeedbackPage() {
           </div>
         </div>
       )}
-    </ExaminerLayout>
+    </div>
   );
 }
+
