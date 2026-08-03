@@ -110,8 +110,8 @@ export default function ExaminerHistoryPage() {
                 </div>
 
                 <button
-                  onClick={() => setSelectedHistory(hist)}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition"
+                  onClick={() => navigate(`/examiner/history/${hist.id}`)}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 hover:text-blue-600 transition active:scale-95"
                 >
                   <Eye size={14} />
                   Detail Rekap
@@ -119,36 +119,10 @@ export default function ExaminerHistoryPage() {
               </div>
             </div>
           ))}
-        {/* Detail Modal */}
-        {selectedHistory && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-            <div className="rounded-2xl bg-white p-6 max-w-md w-full shadow-2xl space-y-4">
-              <h3 className="font-bold text-base text-slate-900 border-b pb-2">
-                Rekapitulasi {selectedHistory.title}
-              </h3>
-
-              <div className="space-y-2 text-xs text-slate-700">
-                <p>Stase: <strong>{selectedHistory.station_name}</strong></p>
-                <p>Tanggal: <strong>{selectedHistory.session_date}</strong></p>
-                <p>Total Peserta Diuji: <strong>{selectedHistory.evaluated_count} Peserta</strong></p>
-                <p>Nilai Rata-Rata: <strong className="text-blue-700 text-sm">{selectedHistory.avg_score} / 100</strong></p>
-                <p>Status: <strong className="text-indigo-700">Dipublikasikan ke Peserta</strong></p>
-              </div>
-
-              <div className="flex justify-end border-t pt-3">
-                <button
-                  onClick={() => setSelectedHistory(null)}
-                  className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800"
-                >
-                  Tutup Detail
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+        </div>
     </div>
   );
 }
+
 
 

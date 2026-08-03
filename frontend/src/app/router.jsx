@@ -40,6 +40,8 @@ import ExaminerLiveMonitorPage from "@/features/examiner/pages/LiveMonitorPage";
 import ExaminerFeedbackPage from "@/features/examiner/pages/FeedbackPage";
 import ExaminerStagePage from "@/features/examiner/pages/ExaminerStagePage";
 import ExaminerHistoryPage from "@/features/examiner/pages/ExaminerHistoryPage";
+import ExaminerHistoryDetailPage from "@/features/examiner/pages/ExaminerHistoryDetailPage";
+
 
 
 function ExaminerRoot() {
@@ -241,6 +243,11 @@ export const router = createBrowserRouter([
         path: "history",
         element: <ExaminerHistoryPage />,
       },
+      {
+        path: "history/:historyId",
+        element: <ExaminerHistoryDetailPage />,
+      },
+
       {
         path: "feedback/:answerId",
         element: <ExaminerFeedbackPage />,
