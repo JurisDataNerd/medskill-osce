@@ -39,6 +39,8 @@ import ExaminerDashboardPage from "@/features/examiner/pages/DashboardPage";
 import ExaminerLiveMonitorPage from "@/features/examiner/pages/LiveMonitorPage";
 import ExaminerFeedbackPage from "@/features/examiner/pages/FeedbackPage";
 import ExaminerStagePage from "@/features/examiner/pages/ExaminerStagePage";
+import ExaminerHistoryPage from "@/features/examiner/pages/ExaminerHistoryPage";
+
 
 function ExaminerRoot() {
   return (
@@ -236,9 +238,13 @@ export const router = createBrowserRouter([
         element: <ExaminerStagePage />,
       },
       {
+        path: "history",
+        element: <ExaminerHistoryPage />,
+      },
+      {
         path: "feedback/:answerId",
         element: <ExaminerFeedbackPage />,
       },
     ],
   },
-]);
+]);
