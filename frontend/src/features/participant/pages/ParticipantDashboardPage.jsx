@@ -289,6 +289,7 @@ export default function ParticipantDashboardPage() {
                   <th className="px-4 py-3">Tanggal</th>
                   <th className="px-4 py-3">Nilai Akhir</th>
                   <th className="px-4 py-3">Global Rating</th>
+                  <th className="px-4 py-3 text-right">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -320,11 +321,21 @@ export default function ParticipantDashboardPage() {
                         {res.global_rating}
                       </span>
                     </td>
+                    <td className="px-4 py-3.5 text-right">
+                      <button
+                        onClick={() => navigate(`/participant/results/${res.id}`)}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 hover:text-blue-600 transition active:scale-95"
+                      >
+                        Detail & PDF
+                        <ArrowRight size={13} />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+
         </div>
       </main>
     </div>

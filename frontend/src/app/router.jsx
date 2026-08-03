@@ -29,6 +29,8 @@ import CreateSessionPage from "@/features/admin/pages/CreateSessionPage";
 
 import ParticipantDashboardPage from "@/features/participant/pages/ParticipantDashboardPage";
 import ParticipantSessionPage from "@/features/participant/pages/ParticipantSessionPage";
+import ParticipantResultDetailPage from "@/features/participant/pages/ParticipantResultDetailPage";
+
 
 // ======================
 // EXAMINER
@@ -206,6 +208,16 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
   },
+
+  {
+    path: "/participant/results/:resultId",
+    element: (
+      <ProtectedRoute allow={["participant"]}>
+        <ParticipantResultDetailPage />
+      </ProtectedRoute>
+    ),
+  },
+
 
   // ==================================================
   // EXAMINER
