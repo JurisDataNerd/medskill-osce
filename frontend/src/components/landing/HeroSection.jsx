@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion, useScroll, useTransform } from "framer-motion";
 import {
@@ -12,11 +12,60 @@ import {
   MessageSquare,
   ChevronDown,
   Activity,
+  LayoutDashboard,
 } from "lucide-react";
+import { supabase } from "@/supabase/client";
 import ParticleBackground from "./ParticleBackground";
 
 export default function HeroSection() {
   const containerRef = useRef(null);
+  const [user, setUser] = useState(null);
+  const [role, setRole] = useState("participant");
+
+  useEffect(() => {
+    async function loadUser() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      setUser(session?.user ?? null);
+
+      if (session?.user) {
+        const { data } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", session.user.id)
+          .single();
+
+        setRole(data?.role ?? "participant");
+      }
+    }
+    loadUser();
+  }, []);
+
+  function getDashboardLink() {
+    switch (role) {
+      case "admin":
+        return "/admin";
+      case "examiner":
+      case "mentor":
+        return "/examiner";
+      default:
+        return "/participant";
+    }
+  }
+
+  function getRoleLabel() {
+    switch (role) {
+      case "admin":
+        return "Admin";
+      case "examiner":
+      case "mentor":
+        return "Penguji";
+      default:
+        return "Peserta";
+    }
+  }
+
 
   // Smooth lightweight scroll parallax
   const { scrollYProgress } = useScroll({
@@ -130,14 +179,26 @@ export default function HeroSection() {
                 <ArrowRight className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-1" />
               </a>
 
-              <Link
-                to="/login"
-                className="inline-flex items-center justify-center gap-2.5 rounded-xl border border-blue-200 bg-white px-8 py-4 text-base font-bold text-[#1E3A8A] shadow-md shadow-slate-200/50 backdrop-blur-md transition-all duration-300 hover:border-[#1E3A8A] hover:bg-blue-50 hover:scale-[1.02] w-full sm:w-auto"
-              >
-                <ShieldCheck className="h-5 w-5 text-[#1E3A8A]" />
-                <span>Masuk Portal Ujian</span>
-              </Link>
+              {user ? (
+                <Link
+                  to={getDashboardLink()}
+                  className="inline-flex items-center justify-center gap-2.5 rounded-xl border border-blue-600 bg-blue-600 px-8 py-4 text-base font-bold text-white shadow-xl shadow-blue-600/30 backdrop-blur-md transition-all duration-300 hover:bg-blue-700 hover:scale-[1.02] active:scale-[0.98] w-full sm:w-auto"
+                >
+                  <LayoutDashboard className="h-5 w-5 text-white" />
+                  <span>Buka Dashboard Saya ({getRoleLabel()})</span>
+                  <ArrowRight className="h-5 w-5 text-white" />
+                </Link>
+              ) : (
+                <Link
+                  to="/login"
+                  className="inline-flex items-center justify-center gap-2.5 rounded-xl border border-blue-200 bg-white px-8 py-4 text-base font-bold text-[#1E3A8A] shadow-md shadow-slate-200/50 backdrop-blur-md transition-all duration-300 hover:border-[#1E3A8A] hover:bg-blue-50 hover:scale-[1.02] w-full sm:w-auto"
+                >
+                  <ShieldCheck className="h-5 w-5 text-[#1E3A8A]" />
+                  <span>Masuk Portal Ujian</span>
+                </Link>
+              )}
             </motion.div>
+
           </div>
 
           {/* Right Column: Prominent Praxis App Screenshot Showcase (/praxis.png) */}

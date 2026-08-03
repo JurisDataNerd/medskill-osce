@@ -162,71 +162,87 @@ export default function Navbar() {
                 </Link>
               </div>
             ) : (
-              <div className="relative">
-                <button
-                  onClick={() => setDropdownOpen((v) => !v)}
-                  className="flex items-center gap-3 rounded-xl border border-blue-100 bg-blue-50/60 px-4 py-2 text-slate-800 transition hover:border-blue-300 hover:bg-blue-50"
+              <div className="flex items-center gap-3">
+                {/* Prominent Buka Dashboard Header CTA */}
+                <Link
+                  to={getDashboardLink()}
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#1E3A8A] px-4 py-2 text-xs font-bold text-white shadow-md shadow-blue-900/20 transition hover:bg-blue-900 active:scale-95"
                 >
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#1E3A8A] font-bold text-white shadow-sm">
-                    {user.email?.charAt(0).toUpperCase()}
-                  </div>
+                  <LayoutDashboard size={15} />
+                  <span>Buka Dashboard</span>
+                </Link>
 
-                  <div className="text-left">
-                    <p className="text-sm font-bold text-[#1E3A8A] leading-tight">
-                      {user.email?.split("@")[0]}
-                    </p>
-                    <p className="text-[11px] text-blue-600 flex items-center gap-1 font-medium">
-                      <ShieldCheck className="h-3 w-3 inline" />
-                      {getRoleLabel()}
-                    </p>
-                  </div>
+                <div className="relative">
+                  <button
+                    onClick={() => setDropdownOpen((v) => !v)}
+                    className="flex items-center gap-3 rounded-xl border border-blue-100 bg-blue-50/60 px-3.5 py-1.5 text-slate-800 transition hover:border-blue-300 hover:bg-blue-50"
+                  >
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#1E3A8A] font-bold text-white text-xs shadow-sm">
+                      {user.email?.charAt(0).toUpperCase()}
+                    </div>
 
-                  <ChevronDown
-                    size={16}
-                    className={`text-slate-500 transition-transform duration-300 ${dropdownOpen ? "rotate-180" : ""
+                    <div className="text-left">
+                      <p className="text-xs font-bold text-[#1E3A8A] leading-tight">
+                        {user.email?.split("@")[0]}
+                      </p>
+                      <p className="text-[10px] text-blue-600 flex items-center gap-1 font-semibold">
+                        <ShieldCheck className="h-3 w-3 inline" />
+                        {getRoleLabel()}
+                      </p>
+                    </div>
+
+                    <ChevronDown
+                      size={15}
+                      className={`text-slate-500 transition-transform duration-300 ${
+                        dropdownOpen ? "rotate-180" : ""
                       }`}
-                  />
-                </button>
+                    />
+                  </button>
 
-                <AnimatePresence>
-                  {dropdownOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                      transition={{ duration: 0.15 }}
-                      className="absolute right-0 mt-3 w-60 overflow-hidden rounded-2xl border border-blue-100 bg-white p-2 shadow-2xl backdrop-blur-xl"
-                    >
-                      <div className="px-3 py-2 border-b border-slate-100">
-                        <p className="text-xs text-slate-400">Masuk sebagai</p>
-                        <p className="text-xs font-semibold text-slate-800 truncate">
-                          {user.email}
-                        </p>
-                      </div>
-
-                      {canAccessDashboard && (
-                        <Link
-                          to={getDashboardLink()}
-                          onClick={() => setDropdownOpen(false)}
-                          className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-[#1E3A8A] hover:bg-blue-50 transition"
-                        >
-                          <LayoutDashboard className="h-4 w-4 text-[#1E3A8A]" />
-                          <span>Buka Dashboard</span>
-                        </Link>
-                      )}
-
-                      <button
-                        onClick={handleLogout}
-                        className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 transition"
+                  <AnimatePresence>
+                    {dropdownOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute right-0 mt-3 w-64 overflow-hidden rounded-2xl border border-blue-100 bg-white p-2 shadow-2xl backdrop-blur-xl"
                       >
-                        <LogOut className="h-4 w-4" />
-                        <span>Keluar Sistem</span>
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                        <div className="px-3 py-2 border-b border-slate-100">
+                          <p className="text-[10px] uppercase font-bold text-slate-400">Masuk Sebagai:</p>
+                          <p className="text-xs font-bold text-slate-900 truncate">
+                            {user.email}
+                          </p>
+                          <p className="text-[11px] font-semibold text-blue-700 mt-0.5">
+                            Role: {getRoleLabel()}
+                          </p>
+                        </div>
+
+                        {canAccessDashboard && (
+                          <Link
+                            to={getDashboardLink()}
+                            onClick={() => setDropdownOpen(false)}
+                            className="flex items-center gap-2.5 rounded-xl bg-blue-50 px-3 py-2.5 text-xs font-bold text-[#1E3A8A] border border-blue-200/80 hover:bg-blue-100 transition my-1"
+                          >
+                            <LayoutDashboard className="h-4 w-4 text-[#1E3A8A]" />
+                            <span>Buka Dashboard ({getRoleLabel()})</span>
+                          </Link>
+                        )}
+
+                        <button
+                          onClick={handleLogout}
+                          className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 transition"
+                        >
+                          <LogOut className="h-4 w-4" />
+                          <span>Keluar Sistem</span>
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
             )}
+
           </div>
 
           {/* Mobile Hamburger Button */}
