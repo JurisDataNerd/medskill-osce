@@ -3,6 +3,7 @@ import { supabase } from "@/supabase/client";
 import { getProfile } from "@/services/profile.service";
 import { updatePresence } from "@/services/presence.service";
 import { logout as logoutService } from "@/services/auth.service";
+import LogoutConfirmModal from "@/components/LogoutConfirmModal";
 
 const AuthContext = createContext();
 
@@ -11,6 +12,10 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Modal logout states
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   async function load(session) {
     setLoading(true);
@@ -37,14 +42,41 @@ export function AuthProvider({ children }) {
     setLoading(false);
   }
 
-  async function logout() {
+  function requestLogout() {
+    setShowLogoutModal(true);
+  }
+
+  function cancelLogout() {
+    if (!isLoggingOut) {
+      setShowLogoutModal(false);
+    }
+  }
+
+  async function performLogout(redirectUrl = "/login") {
     try {
+      setIsLoggingOut(true);
       await updatePresence("offline");
     } catch (err) {
       console.error(err);
     }
 
-    await logoutService();
+    try {
+      await logoutService();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoggingOut(false);
+      setShowLogoutModal(false);
+      window.location.href = redirectUrl;
+    }
+  }
+
+  async function logout(options = {}) {
+    if (options?.force || options?.silent) {
+      await performLogout(options?.redirectUrl ?? "/login");
+    } else {
+      requestLogout();
+    }
   }
 
   useEffect(() => {
@@ -91,9 +123,17 @@ export function AuthProvider({ children }) {
         profile,
         loading,
         logout,
+        requestLogout,
+        performLogout,
       }}
     >
       {children}
+      <LogoutConfirmModal
+        isOpen={showLogoutModal}
+        onClose={cancelLogout}
+        onConfirm={() => performLogout("/login")}
+        isLoading={isLoggingOut}
+      />
     </AuthContext.Provider>
   );
 }

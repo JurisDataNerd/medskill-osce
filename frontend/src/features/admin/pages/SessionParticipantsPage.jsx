@@ -352,7 +352,7 @@ export default function SessionParticipantsPage() {
 
                         {item.status === "approved" && (
                           <button
-                            onClick={() => setSelectedScorecard(item)}
+                            onClick={() => navigate(`/admin/live/participant/${item.id || "p1"}`)}
                             className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 font-semibold text-blue-600 transition hover:bg-blue-50"
                             title="Lihat Rekap Nilai Peserta"
                           >
@@ -369,14 +369,6 @@ export default function SessionParticipantsPage() {
           </table>
         </div>
       )}
-
-      {/* Participant Scorecard Modal */}
-      <ParticipantAnswerModal
-        open={Boolean(selectedScorecard)}
-        onClose={() => setSelectedScorecard(null)}
-        participantId={selectedScorecard?.id}
-        participantName={selectedScorecard?.profiles?.full_name}
-      />
     </AdminLayout>
   );
 }

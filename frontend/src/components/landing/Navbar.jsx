@@ -4,9 +4,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Activity, LogOut, LayoutDashboard, Menu, X, ArrowRight, ShieldCheck, } from "lucide-react";
 
 import { supabase } from "@/supabase/client";
-import { logout } from "@/services/auth.service";
+import { useAuth } from "@/context/AuthProvider";
 
 export default function Navbar() {
+  const { logout } = useAuth();
   const [user, setUser] = useState(null);
   const [role, setRole] = useState("participant");
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -64,9 +65,10 @@ export default function Navbar() {
     return () => subscription.unsubscribe();
   }, []);
 
-  async function handleLogout() {
-    await logout();
-    window.location.reload();
+  function handleLogout() {
+    setDropdownOpen(false);
+    setMobileMenuOpen(false);
+    if (logout) logout();
   }
 
   function getDashboardLink() {

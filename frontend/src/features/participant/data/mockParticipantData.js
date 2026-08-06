@@ -13,32 +13,66 @@ export const OPEN_OSCE_SESSIONS = [
   {
     id: "session-osce-001",
     title: "Ujian OSCE Periodik Dokter Spesialis - Batch III 2026",
-    session_date: "2026-08-03",
-    start_time: "08:00",
-    end_time: "12:00",
-    location: "Gedung Skill Lab Ruang OSCE Utama (Ruang 101 - 106)",
-    total_stations: 6,
+    session_date: "2026-08-05",
+    start_time: "08:00 WIB",
+    end_time: "12:00 WIB",
+    location: "Gedung Skill Lab Ruang OSCE Utama (Ruang 101 - 108)",
+    total_stations: 8, // 6 Aktif + 2 Break
     duration_per_station: "15 Menit",
     registered_participants: 24,
     max_participants: 36,
-    status: "published", // published, running, open_registration
-    description: "Sesi ujian OSCE periodik komprehensif 6 stase yang mencakup stase Kardiovaskular, Pulmonologi, Neurologi, Bedah, Gastroentero-Hepatologi, dan Resusitasi/Gawat Darurat.",
-    is_registered: true, // User already enrolled in this one
+    status: "approved", // approved / assigned by admin
+    process_stage: "Disetujui Admin • Siap Ujian Live",
+    description: "Sesi ujian OSCE periodik komprehensif yang mencakup stase Kardiovaskular, Pulmonologi, Neurologi, Bedah, Gastroentero-Hepatologi, dan Resusitasi/Gawat Darurat.",
+    is_registered: true,
   },
   {
     id: "session-osce-002",
     title: "Tryout Nasional OSCE Kedokteran Klinik 2026",
     session_date: "2026-08-10",
-    start_time: "09:00",
-    end_time: "13:00",
+    start_time: "09:00 WIB",
+    end_time: "13:00 WIB",
     location: "Pusat Pelatihan Resusitasi & Simulasi Klinik",
-    total_stations: 6,
+    total_stations: 8,
     duration_per_station: "15 Menit",
-    registered_participants: 12,
+    registered_participants: 18,
     max_participants: 40,
-    status: "published",
-    description: "Simulasi tryout nasional komprehensif 6 stase uji kompetensi dokter dengan penilaian langsung dari 6 dokter penguji spesialis senior.",
-    is_registered: false,
+    status: "pending", // pending admin approval
+    process_stage: "Verifikasi Pendaftaran Admin",
+    description: "Simulasi tryout nasional komprehensif uji kompetensi dokter dengan penilaian langsung dari dokter penguji spesialis senior.",
+    is_registered: true,
+  },
+  {
+    id: "session-osce-003",
+    title: "Simulasi OSCE Kegawatdaruratan Medis (ACLS/ATLS)",
+    session_date: "2026-08-15",
+    start_time: "13:00 WIB",
+    end_time: "17:00 WIB",
+    location: "Gedung Skill Lab Ruang Resusitasi 204",
+    total_stations: 8,
+    duration_per_station: "15 Menit",
+    registered_participants: 30,
+    max_participants: 30,
+    status: "running", // running live
+    process_stage: "Ujian Live Berlangsung",
+    description: "Sesi khusus simulasi penanganan henti jantung, syok, dekompresi pneumotoraks, dan resusitasi cairan.",
+    is_registered: true,
+  },
+  {
+    id: "session-osce-004",
+    title: "Ujian OSCE Bedah & Traumatologi Sub-Spesialis",
+    session_date: "2026-07-28",
+    start_time: "10:00 WIB",
+    end_time: "14:00 WIB",
+    location: "Skill Lab Bedah Ruang 302",
+    total_stations: 8,
+    duration_per_station: "15 Menit",
+    registered_participants: 15,
+    max_participants: 20,
+    status: "rejected", // rejected by admin
+    process_stage: "Pendaftaran Ditolak Admin (Kuota Penuh / Verifikasi Syarat)",
+    description: "Ujian simulasi prosedur pembidaian, perawatan luka terbuka, dan penanganan trauma akut.",
+    is_registered: true,
   },
 ];
 
@@ -47,19 +81,19 @@ export const MOCK_CURRENT_LIVE_STAGE = {
   title: "Stase 1: Kardiovaskular & Kegawatdaruratan Infark Miokard",
   case_title: "Sindrom Koroner Akut (STEMI Anteroseptal)",
   examiner_name: "dr. Alexander Budiman, Sp.JP",
-  duration_seconds: 15 * 60, // 15 menit
-  remaining_seconds: 11 * 60 + 45, // 11:45
+  duration_seconds: 12 * 60, // 12 menit per stase (1m Reading, 10m Action, 1m Transition)
+  remaining_seconds: 10 * 60 + 30, // 10:30 (Action Time)
   waiting_room_info: {
     wave_number: 1,
     rotation_round: 2,
-    total_rounds: 6,
+    total_rounds: 8,
     briefing_countdown_seconds: 30, // 30 detik briefing ruang tunggu
     location: "Gedung Skill Lab Ruang 101 (Ruang Tunggu Station 1)",
     rules: [
       "Persiapkan stetoskop & penlight sebelum memasuki ruang stase.",
-      "1 Sesi OSCE terdiri dari minimal 6 Stase yang wajib diikuti secara berurutan.",
-      "Setiap stase diuji oleh Dokter Penguji Spesialis yang berbeda.",
-      "Durasi pengerjaan masing-masing stase adalah 15 menit.",
+      "1 Sesi OSCE terdiri dari sirkuit 8 Stase (6 Stase Ujian + 2 Stase Break) yang wajib diikuti secara berurutan.",
+      "Setiap stase aktif diuji oleh Dokter Penguji Spesialis yang berbeda.",
+      "Durasi pengerjaan masing-masing stase adalah 12 menit (Reading 1m, Action 10m, Transition 1m).",
       "Lakukan salam, perkenalan diri, anamnesis terarah, & pemeriksaan fisik sesuai SOP.",
     ],
   },

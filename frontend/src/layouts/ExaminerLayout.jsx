@@ -34,9 +34,8 @@ export default function ExaminerLayout({ children }) {
   const { logout } = useAuth();
   const location = useLocation();
 
-  async function handleLogout() {
-    await logout();
-    window.location.href = "/";
+  function handleLogout() {
+    logout();
   }
 
   return (
@@ -46,8 +45,8 @@ export default function ExaminerLayout({ children }) {
         {/* Brand Header */}
         <div className="border-b border-slate-200 p-6">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white font-black shadow-md shadow-blue-600/30">
-              <Stethoscope size={22} />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white shadow-md shadow-blue-600/30">
+              <span className="text-xl font-black text-white leading-none">P</span>
             </div>
             <div>
               <h1 className="text-xl font-black text-slate-900 tracking-tight">

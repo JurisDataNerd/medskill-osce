@@ -207,41 +207,84 @@ export default function SessionDetailPage() {
 
       {/* Stages Showcase & Scenarios Preview */}
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
           <div>
             <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
               <Building2 size={18} className="text-blue-600" />
-              Preview Stase, Skenario Kasus Medis & Checklist Soal
+              Arsitektur Sirkuit 8 Stase & Urutan Rotasi (Kanban Order)
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Rincian lengkap kasus klinis, instruksi peserta, dan item rubrik penilaian per stase.
+              Urutan 6 Stase Ujian Aktif & 2 Stase Break (Rest) yang disusun secara fleksibel untuk rotasi peserta.
             </p>
           </div>
 
-          <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
-            {stages.length} Stase Siap
+          <span className="rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-bold text-blue-700">
+            Sirkuit 8 Stase (6 Ujian + 2 Break)
           </span>
         </div>
 
-        <div className="space-y-4">
+        {/* Station Order List with Reordering Controls */}
+        <div className="space-y-3">
           {stages.map((stage, idx) => {
             const isExpanded = expandedStageIndex === idx;
+            const isBreakStation = stage.is_break || stage.title.toLowerCase().includes("istirahat") || stage.title.toLowerCase().includes("break");
+
+            const moveUp = (e) => {
+              e.stopPropagation();
+              if (idx === 0) return;
+              const newStages = [...stages];
+              const temp = newStages[idx];
+              newStages[idx] = newStages[idx - 1];
+              newStages[idx - 1] = temp;
+              // Re-index station_number
+              setStages(newStages.map((st, i) => ({ ...st, station_number: i + 1 })));
+            };
+
+            const moveDown = (e) => {
+              e.stopPropagation();
+              if (idx === stages.length - 1) return;
+              const newStages = [...stages];
+              const temp = newStages[idx];
+              newStages[idx] = newStages[idx + 1];
+              newStages[idx + 1] = temp;
+              setStages(newStages.map((st, i) => ({ ...st, station_number: i + 1 })));
+            };
 
             return (
               <div
-                key={stage.id}
-                className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xs transition hover:border-blue-300"
+                key={stage.id || idx}
+                className={`overflow-hidden rounded-xl border transition ${
+                  isBreakStation
+                    ? "border-amber-200 bg-amber-50/60 hover:border-amber-400"
+                    : "border-slate-200 bg-white shadow-2xs hover:border-blue-300"
+                }`}
               >
                 <div
                   onClick={() => setExpandedStageIndex(isExpanded ? null : idx)}
-                  className="flex cursor-pointer items-center justify-between p-4 bg-slate-50/50 hover:bg-slate-100/60 transition"
+                  className="flex cursor-pointer items-center justify-between p-4 hover:bg-slate-100/50 transition gap-4"
                 >
                   <div className="flex items-center gap-3">
-                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600 font-extrabold text-white text-xs">
-                      {stage.station_number}
+                    <span
+                      className={`flex h-8 w-8 items-center justify-center rounded-lg font-extrabold text-white text-xs ${
+                        isBreakStation ? "bg-amber-600" : "bg-blue-600"
+                      }`}
+                    >
+                      {idx + 1}
                     </span>
+
                     <div>
-                      <h3 className="font-bold text-xs text-slate-900">{stage.title}</h3>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-xs text-slate-900">{stage.title}</h3>
+                        {isBreakStation ? (
+                          <span className="rounded-md bg-amber-200/90 border border-amber-300 px-2 py-0.5 text-[10px] font-extrabold text-amber-900">
+                            STASE BREAK / ISTIRAHAT
+                          </span>
+                        ) : (
+                          <span className="rounded-md bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-[10px] font-extrabold text-emerald-800">
+                            STASE UJIAN AKTIF
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[11px] text-slate-500 mt-0.5">
                         Kasus: <strong className="text-slate-800">{stage.case_title}</strong>
                       </p>
@@ -249,9 +292,32 @@ export default function SessionDetailPage() {
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <span className="text-xs font-semibold text-slate-600 bg-white border border-slate-200 px-2.5 py-1 rounded-md">
-                      {stage.duration_minutes || 15} Menit
+                    {/* Order Move Up/Down Controls */}
+                    <div className="flex items-center gap-1 border-r border-slate-200 pr-3">
+                      <button
+                        type="button"
+                        disabled={idx === 0}
+                        onClick={moveUp}
+                        className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-200 hover:text-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                        title="Geser Stase Ke Atas"
+                      >
+                        <ChevronUp size={15} />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={idx === stages.length - 1}
+                        onClick={moveDown}
+                        className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-200 hover:text-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                        title="Geser Stase Ke Bawah"
+                      >
+                        <ChevronDown size={15} />
+                      </button>
+                    </div>
+
+                    <span className="text-xs font-semibold text-slate-600 bg-white border border-slate-200 px-2.5 py-1 rounded-md whitespace-nowrap">
+                      12 Menit (1m/10m/1m)
                     </span>
+
                     {isExpanded ? (
                       <ChevronUp size={16} className="text-slate-400" />
                     ) : (

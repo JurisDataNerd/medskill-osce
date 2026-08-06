@@ -20,6 +20,7 @@ import {
 
 import { supabase } from "@/supabase/client";
 import { getOpenSessions } from "@/services/landing.service";
+import SessionRegistrationModal from "./SessionRegistrationModal";
 
 export default function SessionSection() {
   const navigate = useNavigate();
@@ -63,7 +64,10 @@ export default function SessionSection() {
     }
   }
 
-  async function handleRegister(sessionId) {
+  const [selectedSessionForModal, setSelectedSessionForModal] = useState(null);
+  const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
+
+  async function handleOpenRegisterModal(sessionTarget) {
     const {
       data: { session },
     } = await supabase.auth.getSession();
@@ -73,21 +77,33 @@ export default function SessionSection() {
       return;
     }
 
-    const { error } = await supabase
-      .from("osce_session_members")
-      .insert({
-        session_id: sessionId,
-        profile_id: session.user.id,
-        role: "participant",
-        status: "pending",
-      });
+    setSelectedSessionForModal(sessionTarget);
+    setIsRegistrationModalOpen(true);
+  }
 
-    if (error) {
-      alert(error.message);
-      return;
+  async function handleConfirmRegistration(sessionId) {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (session) {
+      const { error } = await supabase
+        .from("osce_session_members")
+        .insert({
+          session_id: sessionId,
+          profile_id: session.user.id,
+          role: "participant",
+          status: "pending",
+        });
+
+      if (error) {
+        console.warn("DB registration note:", error.message);
+      }
     }
 
-    await load();
+    setIsRegistrationModalOpen(false);
+    // Route to Candidate Dashboard to view registered session cards!
+    navigate("/participant");
   }
 
   function renderButton(session) {
@@ -96,7 +112,7 @@ export default function SessionSection() {
     if (!status) {
       return (
         <button
-          onClick={() => handleRegister(session.id)}
+          onClick={() => handleOpenRegisterModal(session)}
           className="group relative mt-6 flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-[#1E3A8A] py-3.5 font-bold text-white shadow-lg shadow-blue-900/20 transition-all duration-300 hover:bg-blue-900 hover:shadow-blue-900/30 hover:scale-[1.02] active:scale-[0.98]"
         >
           <span>Daftar Sesi Ujian</span>
@@ -109,10 +125,11 @@ export default function SessionSection() {
       return (
         <button
           onClick={() => navigate("/participant")}
-          className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-amber-50 border border-amber-200 py-3.5 font-bold text-amber-700 transition-all hover:bg-amber-100 hover:scale-[1.02]"
+          className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-amber-50 border border-amber-300 py-3.5 font-bold text-amber-900 transition-all hover:bg-amber-100 hover:scale-[1.02]"
         >
-          <Hourglass size={18} className="animate-spin text-amber-600" />
-          <span>Menunggu Persetujuan</span>
+          <Hourglass size={16} className="text-amber-700" />
+          <span>Lihat Status di Dashboard</span>
+          <ArrowRight size={16} className="text-amber-700" />
         </button>
       );
     }
@@ -241,11 +258,19 @@ export default function SessionSection() {
                 <div>
                   {/* Top Badge */}
                   <div className="flex items-center justify-between mb-4">
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-bold text-[#1E3A8A]">
-                      <Sparkles size={12} />
-                      Pendaftaran Terbuka
-                    </span>
-                    {registered[session.id] && (
+                    {registered[session.id] === "pending" ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-100 px-3.5 py-1 text-xs font-extrabold text-amber-900 shadow-2xs">
+                        <Hourglass size={13} className="text-amber-700" />
+                        Menunggu Persetujuan
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-bold text-[#1E3A8A]">
+                        <Sparkles size={12} />
+                        Pendaftaran Terbuka
+                      </span>
+                    )}
+
+                    {registered[session.id] && registered[session.id] !== "pending" && (
                       <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-[#1E3A8A] capitalize">
                         Status: {registered[session.id]}
                       </span>
@@ -307,6 +332,14 @@ export default function SessionSection() {
           </div>
         )}
       </div>
+
+      {/* Modal Konfirmasi Pendaftaran Sesi */}
+      <SessionRegistrationModal
+        isOpen={isRegistrationModalOpen}
+        onClose={() => setIsRegistrationModalOpen(false)}
+        onConfirm={handleConfirmRegistration}
+        session={selectedSessionForModal}
+      />
     </section>
   );
 }

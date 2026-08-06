@@ -74,7 +74,7 @@ export default function ParticipantResultDetailPage() {
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-5">
             <div>
               <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-md">
-                Transkrip Nilai Resmi Ujian OSCE (6 Stase Rotasi)
+                Transkrip Nilai Resmi Ujian OSCE
               </span>
               <h1 className="text-xl font-bold text-slate-900 mt-2">
                 {resultItem.title}
@@ -98,8 +98,8 @@ export default function ParticipantResultDetailPage() {
 
             <div>
               <p className="text-[10px] font-bold uppercase text-slate-400">Struktur Sesi Ujian OSCE:</p>
-              <p className="font-bold text-slate-900 text-sm mt-0.5">6 Stase Rotasi Medis Keterampilan</p>
-              <p className="text-slate-600 font-semibold mt-0.5">6 Dokter Penguji Spesialis Penilai</p>
+              <p className="font-bold text-slate-900 text-sm mt-0.5">Rotasi Stase Medis Keterampilan</p>
+              <p className="text-slate-600 font-semibold mt-0.5">Dokter Penguji Spesialis Penilai</p>
               <p className="text-slate-500">Status: Selesai Seluruh Rotasi Stase</p>
             </div>
           </div>
@@ -107,7 +107,7 @@ export default function ParticipantResultDetailPage() {
           {/* Stat Summary Cards Grid */}
           <div className="grid gap-4 sm:grid-cols-3 text-xs">
             <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-4 text-center">
-              <span className="text-[10px] font-bold uppercase text-blue-700">Rata-Rata Skor Akumulasi (6 Stase)</span>
+              <span className="text-[10px] font-bold uppercase text-blue-700">Rata-Rata Skor Akumulasi</span>
               <p className="text-3xl font-black text-blue-700 mt-0.5">{avgScore} <span className="text-xs font-medium text-slate-500">/ 100</span></p>
             </div>
 
@@ -122,22 +122,22 @@ export default function ParticipantResultDetailPage() {
             </div>
           </div>
 
-          {/* Info Banner Structure 6 Stations */}
+          {/* Info Banner Structure Stations */}
           <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 flex items-start gap-3 text-xs text-slate-700 print:hidden">
             <Info size={18} className="text-amber-700 shrink-0 mt-0.5" />
             <div>
-              <p className="font-bold text-amber-900">Catatan Penilaian 6 Stase Ujian OSCE:</p>
+              <p className="font-bold text-amber-900">Catatan Penilaian Ujian OSCE:</p>
               <p className="mt-0.5 text-slate-700 font-medium">
-                Di bawah ini adalah rekapitulasi penilaian dari <strong>6 Dokter Penguji Spesialis yang berbeda</strong> untuk masing-masing stase. Klik setiap stase untuk membuka rincian perolehan poin rubrik dan catatan umpan balik dokter penguji.
+                Di bawah ini adalah rekapitulasi penilaian dari <strong>Dokter Penguji Spesialis yang berbeda</strong> untuk masing-masing stase. Klik setiap stase untuk membuka rincian perolehan poin rubrik dan catatan umpan balik dokter penguji.
               </p>
             </div>
           </div>
 
-          {/* 6 STATIONS RECAP & RUBRIC BREAKDOWN */}
+          {/* STATIONS RECAP & RUBRIC BREAKDOWN */}
           <div className="space-y-4 pt-2">
             <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
               <Award size={16} className="text-blue-600" />
-              Rekapitulasi Penilaian 6 Stase Ujian OSCE (6 Dokter Penguji)
+              Rekapitulasi Penilaian Stase Ujian OSCE
             </h2>
 
             <div className="space-y-3">

@@ -1,26 +1,112 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Plus, Trash2, Save } from "lucide-react";
+import {
+  ArrowLeft,
+  Plus,
+  Trash2,
+  Save,
+  FileText,
+  FlaskConical,
+  Stethoscope,
+  Award,
+  HelpCircle,
+  CheckCircle2,
+  Image as ImageIcon,
+} from "lucide-react";
 import AdminLayout from "@/layouts/AdminLayout";
 import { getStageById, updateStageQuestion } from "@/services/stage.service";
 
-const MOCK_DEFAULT_QUESTION = {
-  id: "stg-mock",
+const MOCK_INITIAL_STAGE = {
+  id: "stg-101",
   session_id: "session-osce-001",
   station_number: 1,
-  title: "Stase 1: Anamnesis & Pemeriksaan Fisik Jantung",
-  osce_stage_questions: [
+  title: "Stase 1: Kardiovaskular (STEMI Anteroseptal)",
+  case_title: "Nyeri Dada Khas Infark Miokard Akut (STEMI Anteroseptal)",
+  system_organ: "Kardiovaskular",
+  competency_level: "4A (Tuntas Mandiri)",
+  scenario: "Seorang laki-laki berusia 55 tahun datang ke UGD dengan keluhan nyeri dada kiri hebat seperti ditindih beban berat sejak 2 jam sebelum masuk rumah sakit. Nyeri menjalar ke lengan kiri dan leher, disertai keringat dingin dan mual.",
+  participant_instruction: "1. Lakukan anamnesis terarah mengenai nyeri dada.\n2. Lakukan pemeriksaan fisik kardiovaskular.\n3. Usulkan & interpretasikan pemeriksaan penunjang.\n4. Tegakkan diagnosis kerja (WDx), diagnosis banding (DDx), dan tuliskan resep medis awal.",
+  examiner_instruction: "1. Amati kesantunan & sambung rasa (Komunikasi).\n2. Amati kelengkapan anamnesis (PQRST nyeri dada).\n3. Amati teknik pemeriksaan fisik & auskultasi 4 katup.\n4. Amati interpretasi EKG & pengusulan Troponin T.\n5. Evaluasi ketepatan resep antiplatelet ganda & ISDN sublingual.",
+  duration_minutes: 15,
+  
+  // Kunci Penunjang (Tahap 3)
+  auxiliary_answer_key: "Indikasi Utama: Foto Thorax PA (Cardiomegaly / Normal), EKG 12 Lead (Elevasi ST V1-V4), Troponin T (Positif Tinggi). Non-Indikasi: Darah Lengkap (Normal).",
+  auxiliary_files: [
+    { id: "ax-1", name: "Foto Thorax PA", category: "Radiologi", matched_key: true, file_url: "https://images.unsplash.com/photo-1530497610245-94d3c16cda28?w=800" },
+    { id: "ax-2", name: "EKG 12 Lead", category: "EKG", matched_key: true, file_url: "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800" },
+    { id: "ax-3", name: "Troponin T & Cardiac Markers", category: "Laboratorium", matched_key: true, file_url: "https://images.unsplash.com/photo-1579154204601-01588f351e67?w=800" },
+    { id: "ax-4", name: "Darah Lengkap & Elektrolit", category: "Laboratorium", matched_key: false, file_url: "" },
+  ],
+
+  // Kunci Diagnosis & Resep (Tahap 4)
+  gold_standard_keys: {
+    wdx: "STEMI Anteroseptal Akut (ICD-10: I21.0) / Penyakit Jantung Koroner (PJK)",
+    ddx: [
+      "NSTEMI (Non-ST Segment Elevation Myocardial Infarction)",
+      "Angina Pektoris Tidak Stabil (UAP)",
+      "Diseksi Aorta Thorakalis Akut",
+      "Perikarditis Akut",
+    ],
+    recipe: "R/ Isosorbide Dinitrate 5 mg tab No. III\n   S 1 dd tab I sublingual (pc/prn)\n\nR/ Aspirin 80 mg tab No. IV\n   S 1 dd tab IV (chewable / kunyah)\n\nR/ Clopidogrel 75 mg tab No. IV\n   S 1 dd tab IV (loading dose)",
+  },
+
+  // Rubrik Penilaian Penguji (Items 1-4)
+  rubric_items: [
     {
-      scenario: "Pasien pria usia 55 tahun datang ke UGD dengan keluhan nyeri dada khas infark miokard sejak 2 jam lalu.",
-      participant_instruction: "Lakukan anamnesis terarah, pemeriksaan fisik kardiovaskular, dan interpretasi EKG 12 tetapan.",
-      examiner_instruction: "Amati kesesuaian prosedur auskultasi, teknik inspeksi VJP, dan ketepatan diagnosis STEMI.",
-      duration_minutes: 15,
-      checklist: [
-        { item: "Menyapa pasien & membina sambung rasa", score: 1 },
-        { item: "Menanyakan onset, kualitas, dan radiasi nyeri dada", score: 2 },
-        { item: "Melakukan auskultasi 4 katup jantung dengan benar", score: 3 },
-        { item: "Mengidentifikasi elevasi segmen ST pada V1-V4 EKG", score: 4 },
-      ],
+      id: "r1",
+      question: "Komunikasi & Membina Sambung Rasa",
+      competency: "Komunikasi & Edukasi",
+      weight: 2,
+      max_points: 3,
+      answer_key: "Peserta mengucapkan salam, memperkenalkan diri, mengonfirmasi identitas pasien, empati pada rasa nyeri dada pasien.",
+      descriptors: {
+        0: "Peserta tidak melakukan pembinaan sambung rasa dan tidak empati.",
+        1: "Peserta hanya menyapa tanpa memperkenalkan diri atau tidak empati.",
+        2: "Peserta menyapa, memperkenalkan diri, dan menanyakan identitas pasien.",
+        3: "Peserta menyapa, memperkenalkan diri, mengonfirmasi identitas, dan empati sempurna terhadap kondisi darurat pasien.",
+      },
+    },
+    {
+      id: "r2",
+      question: "Anamnesis Terarah Nyeri Dada Infark",
+      competency: "Anamnesis",
+      weight: 4,
+      max_points: 3,
+      answer_key: "Menanyakan onset (2 jam), lokasi/radiasi (dada kiri ke lengan/leher), kualitas (ditindih beban berat), gejala penyerta (keringat dingin, mual), dan faktor risiko (hipertensi, merokok).",
+      descriptors: {
+        0: "Peserta tidak melakukan anamnesis nyeri dada.",
+        1: "Peserta menanyakan keluhan utama tetapi tidak menanyakan karakteristik/radiasi nyeri.",
+        2: "Peserta menanyakan onset, lokasi, dan radiasi tetapi lupa menanyakan faktor risiko.",
+        3: "Peserta melakukan anamnesis PQRST lengkap beserta faktor risiko kardiovaskular secara terstruktur.",
+      },
+    },
+    {
+      id: "r3",
+      question: "Pemeriksaan Penunjang (Radiologi, EKG, Lab)",
+      competency: "Pemeriksaan Penunjang",
+      weight: 3,
+      max_points: 3,
+      answer_key: "Meminta EKG 12 lead (identifikasi ST elevasi V1-V4), Foto Thorax PA, dan Troponin T.",
+      descriptors: {
+        0: "Peserta tidak merencanakan pemeriksaan penunjang.",
+        1: "Peserta meminta EKG tetapi tidak bisa menginterpretasikan elevasi segmen ST.",
+        2: "Peserta meminta EKG & Troponin T serta mampu membaca ST elevasi anteroseptal.",
+        3: "Peserta mengusulkan Thorax PA, EKG, & Troponin T serta menginterpretasikan ST elevasi V1-V4 dan peningkatan Troponin T dengan sangat tepat.",
+      },
+    },
+    {
+      id: "r4",
+      question: "Penetapan Diagnosis & Penulisan Resep Medis",
+      competency: "Diagnosis & Resep Medis",
+      weight: 4,
+      max_points: 3,
+      answer_key: "WDx: STEMI Anteroseptal Akut. DDx: NSTEMI, UAP, Perikarditis. Resep: ISDN 5mg sublingual + DAPT (Aspirin 320mg + Clopidogrel 300mg).",
+      descriptors: {
+        0: "Peserta salah menetapkan diagnosis dan tidak menulis resep medis.",
+        1: "Peserta menyebutkan diagnosis tetapi tidak lengkap (hanya PJK) dan dosis resep salah.",
+        2: "Peserta menegakkan WDx STEMI dan DDx tepat, serta menuliskan resep DAPT tetapi aturan minum kurang lengkap.",
+        3: "Peserta menegakkan WDx STEMI Anteroseptal, minimal 2 DDx tepat, dan menuliskan resep DAPT + ISDN sublingual dengan dosis loading & aturan pakai yang sempurna.",
+      },
     },
   ],
 };
@@ -29,19 +115,36 @@ export default function StageQuestionPage() {
   const { stageId } = useParams();
   const navigate = useNavigate();
 
+  const [activeTab, setActiveTab] = useState("info"); // info, penunjang, diagnosis, rubric
   const [loading, setLoading] = useState(true);
   const [stage, setStage] = useState(null);
+
+  // Form State
+  const [caseTitle, setCaseTitle] = useState("");
+  const [systemOrgan, setSystemOrgan] = useState("Kardiovaskular");
+  const [competencyLevel, setCompetencyLevel] = useState("4A (Tuntas Mandiri)");
   const [scenario, setScenario] = useState("");
   const [participantInstruction, setParticipantInstruction] = useState("");
   const [examinerInstruction, setExaminerInstruction] = useState("");
-  const [duration, setDuration] = useState(15);
-  const [checklist, setChecklist] = useState([]);
+  const [durationMinutes, setDurationMinutes] = useState(15);
+
+  // Auxiliary State (Tahap 3)
+  const [auxAnswerKey, setAuxAnswerKey] = useState("");
+  const [auxFiles, setAuxFiles] = useState([]);
+
+  // Diagnosis State (Tahap 4)
+  const [wdxKey, setWdxKey] = useState("");
+  const [ddxKeys, setDdxKeys] = useState([]);
+  const [recipeKey, setRecipeKey] = useState("");
+
+  // Rubric Items State
+  const [rubricItems, setRubricItems] = useState([]);
 
   useEffect(() => {
-    load();
+    loadData();
   }, [stageId]);
 
-  async function load() {
+  async function loadData() {
     setLoading(true);
     let data = null;
     try {
@@ -50,67 +153,148 @@ export default function StageQuestionPage() {
       console.error(err);
     }
 
-    if (!data) {
-      data = { ...MOCK_DEFAULT_QUESTION, id: stageId };
+    if (!data || !data.case_title) {
+      data = { ...MOCK_INITIAL_STAGE, id: stageId || "stg-101" };
     }
 
     setStage(data);
+    setCaseTitle(data.case_title || "");
+    setSystemOrgan(data.system_organ || "Kardiovaskular");
+    setCompetencyLevel(data.competency_level || "4A (Tuntas Mandiri)");
+    setScenario(data.scenario || "");
+    setParticipantInstruction(data.participant_instruction || "");
+    setExaminerInstruction(data.examiner_instruction || "");
+    setDurationMinutes(data.duration_minutes || 15);
 
-    const question = data.osce_stage_questions?.[0] || MOCK_DEFAULT_QUESTION.osce_stage_questions[0];
+    setAuxAnswerKey(data.auxiliary_answer_key || "");
+    setAuxFiles(data.auxiliary_files || []);
 
-    if (question) {
-      setScenario(question.scenario ?? "");
-      setParticipantInstruction(question.participant_instruction ?? "");
-      setExaminerInstruction(question.examiner_instruction ?? "");
-      setDuration(question.duration_minutes ?? 15);
-      setChecklist(question.checklist ?? []);
-    }
+    setWdxKey(data.gold_standard_keys?.wdx || "");
+    setDdxKeys(data.gold_standard_keys?.ddx || []);
+    setRecipeKey(data.gold_standard_keys?.recipe || "");
 
+    setRubricItems(data.rubric_items || []);
     setLoading(false);
   }
 
-  function addChecklist() {
-    setChecklist([
-      ...checklist,
+  // Handlers for Aux Files
+  function addAuxFile() {
+    setAuxFiles([
+      ...auxFiles,
       {
-        item: "",
-        score: 1,
+        id: `ax-${Date.now()}`,
+        name: "",
+        category: "Radiologi",
+        matched_key: true,
+        file_url: "",
       },
     ]);
   }
 
-  function removeChecklist(index) {
-    const arr = [...checklist];
-    arr.splice(index, 1);
-    setChecklist(arr);
+  function removeAuxFile(idx) {
+    const updated = [...auxFiles];
+    updated.splice(idx, 1);
+    setAuxFiles(updated);
   }
 
-  function updateChecklist(index, field, value) {
-    const arr = [...checklist];
-    arr[index][field] = value;
-    setChecklist(arr);
+  function updateAuxFile(idx, field, value) {
+    const updated = [...auxFiles];
+    updated[idx][field] = value;
+    setAuxFiles(updated);
   }
 
-  async function save() {
+  // Handlers for DDx
+  function addDdxKey() {
+    setDdxKeys([...ddxKeys, ""]);
+  }
+
+  function removeDdxKey(idx) {
+    const updated = [...ddxKeys];
+    updated.splice(idx, 1);
+    setDdxKeys(updated);
+  }
+
+  function updateDdxKey(idx, val) {
+    const updated = [...ddxKeys];
+    updated[idx] = val;
+    setDdxKeys(updated);
+  }
+
+  // Handlers for Rubric Items
+  function addRubricItem() {
+    setRubricItems([
+      ...rubricItems,
+      {
+        id: `r-${Date.now()}`,
+        question: "Item Kompetensi Baru",
+        competency: "Pemeriksaan Fisik",
+        weight: 2,
+        max_points: 3,
+        answer_key: "",
+        descriptors: {
+          0: "Tidak dilakukan.",
+          1: "Minimal / Tidak lengkap.",
+          2: "Memadai.",
+          3: "Sempurna & Tepat.",
+        },
+      },
+    ]);
+  }
+
+  function removeRubricItem(idx) {
+    const updated = [...rubricItems];
+    updated.splice(idx, 1);
+    setRubricItems(updated);
+  }
+
+  function updateRubricItem(idx, field, value) {
+    const updated = [...rubricItems];
+    updated[idx][field] = value;
+    setRubricItems(updated);
+  }
+
+  function updateDescriptor(itemIdx, level, value) {
+    const updated = [...rubricItems];
+    updated[itemIdx].descriptors = {
+      ...updated[itemIdx].descriptors,
+      [level]: value,
+    };
+    setRubricItems(updated);
+  }
+
+  async function handleSaveAll() {
+    const payload = {
+      case_title: caseTitle,
+      system_organ: systemOrgan,
+      competency_level: competencyLevel,
+      scenario,
+      participant_instruction: participantInstruction,
+      examiner_instruction: examinerInstruction,
+      duration_minutes: Number(durationMinutes),
+      auxiliary_answer_key: auxAnswerKey,
+      auxiliary_files: auxFiles,
+      gold_standard_keys: {
+        wdx: wdxKey,
+        ddx: ddxKeys,
+        recipe: recipeKey,
+      },
+      rubric_items: rubricItems,
+    };
+
     try {
-      await updateStageQuestion(stageId, {
-        scenario,
-        participant_instruction: participantInstruction,
-        examiner_instruction: examinerInstruction,
-        duration_minutes: Number(duration),
-        checklist,
-      });
+      await updateStageQuestion(stageId, payload);
     } catch (err) {
       console.error(err);
     }
-    alert("Soal dan lembar checklist berhasil disimpan (Mockup Mode).");
+
+    alert("Seluruh konfigurasi soal, kunci jawaban baku, berkas penunjang, dan rubrik 0-3 berhasil disimpan!");
   }
 
   if (loading) {
     return (
       <AdminLayout>
-        <div className="flex h-[400px] items-center justify-center text-slate-500">
-          Loading...
+        <div className="flex h-[400px] items-center justify-center text-xs font-semibold text-slate-500">
+          Memuat Konfigurasi Soal Stase...
         </div>
       </AdminLayout>
     );
@@ -118,142 +302,531 @@ export default function StageQuestionPage() {
 
   return (
     <AdminLayout>
-      <button
-        onClick={() => navigate(`/admin/sessions/${stage.session_id || "session-osce-001"}`)}
-        className="mb-4 inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-blue-600 transition"
-      >
-        <ArrowLeft size={16} />
-        Kembali ke Detail Sesi
-      </button>
+      {/* Top Bar */}
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <button
+          onClick={() => navigate(`/admin/sessions/${stage.session_id || "session-osce-001"}`)}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-blue-600 transition"
+        >
+          <ArrowLeft size={16} />
+          Kembali ke Detail Sesi OSCE
+        </button>
 
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">
-          Stase {stage.station_number}
-        </h1>
-        <p className="text-sm text-slate-500">{stage.title}</p>
+        <button
+          onClick={handleSaveAll}
+          className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-xs font-extrabold text-white shadow-md hover:bg-emerald-700 active:scale-95 transition"
+        >
+          <Save size={16} />
+          Simpan Seluruh Soal & Rubrik
+        </button>
       </div>
 
-      <div className="space-y-6 rounded-xl border border-slate-200 bg-white p-6 shadow-xs">
-        <div>
-          <label className="mb-2 block text-xs font-bold text-slate-700 uppercase">
-            Skenario Kasus Medis
-          </label>
-          <textarea
-            rows={5}
-            className="w-full rounded-lg border border-slate-200 p-3 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            value={scenario}
-            onChange={(e) => setScenario(e.target.value)}
-          />
+      {/* Header Info */}
+      <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-1">
+        <div className="flex items-center gap-2">
+          <span className="rounded-md bg-blue-600 px-3 py-1 text-xs font-extrabold text-white">
+            STASE {stage.station_number}
+          </span>
+          <span className="rounded-md bg-slate-100 border border-slate-200 px-3 py-1 text-xs font-bold text-slate-700">
+            {systemOrgan} • SKDI {competencyLevel}
+          </span>
         </div>
+        <h1 className="text-xl font-black text-slate-900 pt-1">
+          {stage.title}
+        </h1>
+        <p className="text-xs text-slate-500">
+          Kelola skenario klinis, kunci indikasi penunjang, jawaban baku diagnosis/resep, serta deskriptor rubrik penilaian 0-3.
+        </p>
+      </div>
 
-        <div>
-          <label className="mb-2 block text-xs font-bold text-slate-700 uppercase">
-            Instruksi Peserta Ujian
-          </label>
-          <textarea
-            rows={4}
-            className="w-full rounded-lg border border-slate-200 p-3 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            value={participantInstruction}
-            onChange={(e) => setParticipantInstruction(e.target.value)}
-          />
+      {/* Tabbed Navigation */}
+      <div className="flex border-b border-slate-200 mb-6 gap-2">
+        {[
+          { id: "info", label: "1. Skenario & Instruksi Stase", icon: FileText },
+          { id: "penunjang", label: "2. Kunci Penunjang (Tahap 3)", icon: FlaskConical },
+          { id: "diagnosis", label: "3. Kunci Diagnosis & Resep (Tahap 4)", icon: Stethoscope },
+          { id: "rubric", label: "4. Rubrik Penilaian Penguji (0-3)", icon: Award },
+        ].map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-4 py-3 text-xs font-bold transition border-b-2 ${
+                isActive
+                  ? "border-blue-600 text-blue-600 bg-white rounded-t-xl"
+                  : "border-transparent text-slate-500 hover:text-slate-900"
+              }`}
+            >
+              <Icon size={16} />
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* TAB 1: SKENARIO & INSTRUKSI STASE */}
+      {activeTab === "info" && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-5 animate-in fade-in duration-150">
+          <h2 className="text-sm font-black text-slate-900 border-b border-slate-100 pb-3">
+            Identitas Soal & Skenario Klinis
+          </h2>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                Judul Kasus / Topik Medis
+              </label>
+              <input
+                type="text"
+                value={caseTitle}
+                onChange={(e) => setCaseTitle(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 p-3 text-xs text-slate-800 focus:border-blue-500 focus:outline-none font-semibold"
+                placeholder="misal: STEMI Anteroseptal Akut"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                  Sistem Organ SKDI
+                </label>
+                <select
+                  value={systemOrgan}
+                  onChange={(e) => setSystemOrgan(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 p-3 text-xs text-slate-800 focus:border-blue-500 focus:outline-none font-medium"
+                >
+                  <option value="Kardiovaskular">Kardiovaskular</option>
+                  <option value="Respirasi">Respirasi</option>
+                  <option value="Neurologi">Neurologi</option>
+                  <option value="Digestif">Digestif</option>
+                  <option value="Muskuloskeletal">Muskuloskeletal</option>
+                  <option value="Endokrin">Endokrin & Metabolik</option>
+                  <option value="Urologi">Urologi & Nefrologi</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                  Durasi Stase (Menit)
+                </label>
+                <input
+                  type="number"
+                  min={5}
+                  max={30}
+                  value={durationMinutes}
+                  onChange={(e) => setDurationMinutes(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 p-3 text-xs text-slate-800 font-bold focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+              Skenario Kasus Medis (Ditampilkan di Lembar Peserta & Penguji)
+            </label>
+            <textarea
+              rows={4}
+              value={scenario}
+              onChange={(e) => setScenario(e.target.value)}
+              placeholder="Tuliskan skenario klinis pasien secara naratif..."
+              className="w-full rounded-xl border border-slate-200 p-3 text-xs text-slate-800 leading-relaxed focus:border-blue-500 focus:outline-none font-medium"
+            />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                Instruksi Peserta Ujian
+              </label>
+              <textarea
+                rows={5}
+                value={participantInstruction}
+                onChange={(e) => setParticipantInstruction(e.target.value)}
+                placeholder="Tuliskan daftar tugas yang harus dilakukan peserta..."
+                className="w-full rounded-xl border border-slate-200 p-3 text-xs text-slate-800 leading-relaxed focus:border-blue-500 focus:outline-none font-medium"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                Instruksi Dokter Penguji (Panduan Observasi)
+              </label>
+              <textarea
+                rows={5}
+                value={examinerInstruction}
+                onChange={(e) => setExaminerInstruction(e.target.value)}
+                placeholder="Tuliskan hal-hal penting yang harus diamati dokter penguji..."
+                className="w-full rounded-xl border border-slate-200 p-3 text-xs text-slate-800 leading-relaxed focus:border-blue-500 focus:outline-none font-medium"
+              />
+            </div>
+          </div>
         </div>
+      )}
 
-        <div>
-          <label className="mb-2 block text-xs font-bold text-slate-700 uppercase">
-            Instruksi Penguji (Internal Note)
-          </label>
-          <textarea
-            rows={4}
-            className="w-full rounded-lg border border-slate-200 p-3 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            value={examinerInstruction}
-            onChange={(e) => setExaminerInstruction(e.target.value)}
-          />
-        </div>
-
-        <div>
-          <label className="mb-2 block text-xs font-bold text-slate-700 uppercase">
-            Durasi Stase (Menit)
-          </label>
-          <input
-            type="number"
-            min={1}
-            className="w-36 rounded-lg border border-slate-200 p-2.5 text-sm text-slate-800 focus:border-blue-500 focus:outline-none"
-            value={duration}
-            onChange={(e) => setDuration(e.target.value)}
-          />
-        </div>
-
-        <div>
-          <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
-            <h2 className="text-base font-bold text-slate-900">
-              Checklist Penilaian Penguji
+      {/* TAB 2: KUNCI PENUNJANG (TAHAP 3) */}
+      {activeTab === "penunjang" && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-5 animate-in fade-in duration-150">
+          <div className="border-b border-slate-100 pb-3">
+            <h2 className="text-sm font-black text-slate-900">
+              Konfigurasi Pemeriksaan Penunjang (Candidate Step 3)
             </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Atur kunci indikasi penunjang serta berkas hasil (Foto X-Ray, EKG, Hasil Lab) yang muncul saat diminta peserta.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+              Kunci Indikasi Pemeriksaan Penunjang (Kunci Baku Stase)
+            </label>
+            <textarea
+              rows={3}
+              value={auxAnswerKey}
+              onChange={(e) => setAuxAnswerKey(e.target.value)}
+              placeholder="Tuliskan daftar pemeriksaan penunjang yang berindikasi dan tepat..."
+              className="w-full rounded-xl border border-slate-200 p-3 text-xs text-slate-800 leading-relaxed focus:border-blue-500 focus:outline-none font-semibold"
+            />
+          </div>
+
+          {/* Auxiliary Files Management */}
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <h3 className="text-xs font-extrabold text-slate-900 uppercase">
+                Daftar Berkas Lampiran Hasil Penunjang ({auxFiles.length} Berkas)
+              </h3>
+              <button
+                type="button"
+                onClick={addAuxFile}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-blue-700 active:scale-95 transition"
+              >
+                <Plus size={15} />
+                Tambah Berkas Penunjang
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {auxFiles.map((file, idx) => (
+                <div
+                  key={file.id || idx}
+                  className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/60 pb-2">
+                    <span className="text-xs font-bold text-slate-900">
+                      Berkas #{idx + 1}: {file.name || "Nama Berkas Belum Diisi"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeAuxFile(idx)}
+                      className="text-xs font-bold text-rose-600 hover:text-rose-800 flex items-center gap-1"
+                    >
+                      <Trash2 size={14} /> Hapus
+                    </button>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-0.5">Nama Berkas</label>
+                      <input
+                        type="text"
+                        value={file.name}
+                        onChange={(e) => updateAuxFile(idx, "name", e.target.value)}
+                        placeholder="misal: EKG 12 Lead"
+                        className="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none font-medium"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-0.5">Kategori Berkas</label>
+                      <select
+                        value={file.category}
+                        onChange={(e) => updateAuxFile(idx, "category", e.target.value)}
+                        className="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none font-medium"
+                      >
+                        <option value="Radiologi">Radiologi (X-Ray / CT / USG)</option>
+                        <option value="EKG">EKG / Elektrokardiogram</option>
+                        <option value="Laboratorium">Laboratorium Darah / Urin</option>
+                        <option value="Lainnya">Pemeriksaan Lainnya</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-0.5">Status Indikasi Medis</label>
+                      <select
+                        value={file.matched_key ? "true" : "false"}
+                        onChange={(e) => updateAuxFile(idx, "matched_key", e.target.value === "true")}
+                        className="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none font-bold"
+                      >
+                        <option value="true">✓ Kunci Indikasi (Matched Key)</option>
+                        <option value="false">• Non-Indikasi (Tambahan)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-0.5">URL Berkas Gambar / PDF Hasil</label>
+                    <input
+                      type="text"
+                      value={file.file_url}
+                      onChange={(e) => updateAuxFile(idx, "file_url", e.target.value)}
+                      placeholder="https://images.unsplash.com/... atau URL berkas hasil"
+                      className="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none font-mono"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 3: KUNCI DIAGNOSIS & RESEP (TAHAP 4) */}
+      {activeTab === "diagnosis" && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-5 animate-in fade-in duration-150">
+          <div className="border-b border-slate-100 pb-3">
+            <h2 className="text-sm font-black text-slate-900">
+              Kunci Jawaban Baku Diagnosis & Resep (Candidate Step 4)
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Tentukan kunci diagnosis kerja (WDx), diagnosis banding (DDx), dan lembar resep medis baku sebagai acuan pembanding penguji.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+              1. Kunci Diagnosis Kerja Baku (Working Diagnosis - WDx)
+            </label>
+            <input
+              type="text"
+              value={wdxKey}
+              onChange={(e) => setWdxKey(e.target.value)}
+              placeholder="misal: STEMI Anteroseptal Akut (ICD-10: I21.0)"
+              className="w-full rounded-xl border border-slate-200 p-3 text-xs text-slate-900 font-bold focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-2">
+              <label className="block text-xs font-bold text-slate-700 uppercase">
+                2. Kunci Diagnosis Banding Baku (Differential Diagnosis - DDx)
+              </label>
+              <button
+                type="button"
+                onClick={addDdxKey}
+                className="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1"
+              >
+                <Plus size={14} /> Tambah DDx
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {ddxKeys.map((ddx, dIdx) => (
+                <div key={dIdx} className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-400 w-6">{dIdx + 1}.</span>
+                  <input
+                    type="text"
+                    value={ddx}
+                    onChange={(e) => updateDdxKey(dIdx, e.target.value)}
+                    placeholder={`Diagnosis Banding #${dIdx + 1}`}
+                    className="flex-1 rounded-xl border border-slate-200 p-2.5 text-xs text-slate-800 font-semibold focus:border-blue-500 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeDdxKey(dIdx)}
+                    className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+              3. Kunci Penulisan Resep Medis Baku (Prescription Sheet Key)
+            </label>
+            <textarea
+              rows={6}
+              value={recipeKey}
+              onChange={(e) => setRecipeKey(e.target.value)}
+              placeholder="Tuliskan format penulisan resep obat baku lengkap beserta dosis & signa..."
+              className="w-full rounded-xl border border-slate-200 p-3 text-xs text-slate-900 font-mono whitespace-pre-line leading-relaxed focus:border-blue-500 focus:outline-none font-semibold"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* TAB 4: RUBRIK PENILAIAN PENGUJI (0-3) */}
+      {activeTab === "rubric" && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-6 animate-in fade-in duration-150">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+            <div>
+              <h2 className="text-sm font-black text-slate-900">
+                Pengaturan Item Rubrik & Matriks Deskriptor Kriteria (0 - 3)
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Konfigurasi item penilaian, bobot kompetensi, kunci baku, serta acuan deskriptor skor 0, 1, 2, dan 3.
+              </p>
+            </div>
 
             <button
               type="button"
-              onClick={addChecklist}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700 active:scale-95 shadow-xs"
+              onClick={addRubricItem}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-blue-700 active:scale-95 transition"
             >
               <Plus size={15} />
-              Tambah Item Checklist
+              Tambah Item Kompetensi
             </button>
           </div>
 
-          <div className="space-y-2.5">
-            {checklist.length === 0 && (
-              <div className="rounded-lg border border-dashed border-slate-200 p-6 text-center text-xs text-slate-400">
-                Belum ada checklist penilaian.
-              </div>
-            )}
-
-            {checklist.map((item, index) => (
+          <div className="space-y-6">
+            {rubricItems.map((item, idx) => (
               <div
-                key={index}
-                className="flex items-center gap-2.5 rounded-lg border border-slate-200 p-3 bg-slate-50/50"
+                key={item.id || idx}
+                className="rounded-2xl border border-slate-200 bg-slate-50/50 p-5 space-y-4 shadow-2xs"
               >
-                <div className="flex-1">
-                  <input
-                    className="w-full rounded-md border border-slate-200 bg-white p-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
-                    placeholder={`Langkah Penilaian ${index + 1}`}
-                    value={item.item}
-                    onChange={(e) => updateChecklist(index, "item", e.target.value)}
+                {/* Header Row */}
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
+                  <span className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                    Item Kompetensi #{idx + 1}
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() => removeRubricItem(idx)}
+                    className="text-xs font-bold text-rose-600 hover:text-rose-800 flex items-center gap-1"
+                  >
+                    <Trash2 size={14} /> Hapus Item
+                  </button>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="sm:col-span-2">
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">Pertanyaan / Prosedur Kompetensi</label>
+                    <input
+                      type="text"
+                      value={item.question}
+                      onChange={(e) => updateRubricItem(idx, "question", e.target.value)}
+                      placeholder="misal: 1. Anamnesis Terarah"
+                      className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs text-slate-900 font-bold focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Area Kompetensi</label>
+                      <select
+                        value={item.competency}
+                        onChange={(e) => updateRubricItem(idx, "competency", e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs text-slate-800 font-medium focus:border-blue-500 focus:outline-none"
+                      >
+                        <option value="Komunikasi & Edukasi">Komunikasi & Edukasi</option>
+                        <option value="Anamnesis">Anamnesis</option>
+                        <option value="Pemeriksaan Fisik">Pemeriksaan Fisik</option>
+                        <option value="Pemeriksaan Penunjang">Pemeriksaan Penunjang</option>
+                        <option value="Diagnosis & DDx">Diagnosis & DDx</option>
+                        <option value="Tata Laksana & Resep">Tata Laksana & Resep</option>
+                        <option value="Perilaku Profesional">Perilaku Profesional</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Bobot Soal</label>
+                      <select
+                        value={item.weight}
+                        onChange={(e) => updateRubricItem(idx, "weight", Number(e.target.value))}
+                        className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs text-slate-900 font-bold focus:border-blue-500 focus:outline-none"
+                      >
+                        <option value={1}>1x (Standar)</option>
+                        <option value={2}>2x (Sedang)</option>
+                        <option value={3}>3x (Tinggi)</option>
+                        <option value={4}>4x (Sangat Tinggi)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Kunci Jawaban & Prosedur Baku Penguji</label>
+                  <textarea
+                    rows={2}
+                    value={item.answer_key}
+                    onChange={(e) => updateRubricItem(idx, "answer_key", e.target.value)}
+                    placeholder="Tuliskan rangkuman kunci tindakan yang benar..."
+                    className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs text-slate-800 leading-relaxed font-semibold focus:border-blue-500 focus:outline-none"
                   />
                 </div>
 
-                <div className="w-24">
-                  <input
-                    type="number"
-                    min={1}
-                    className="w-full rounded-md border border-slate-200 bg-white p-2 text-xs text-slate-800 text-center font-bold focus:border-blue-500 focus:outline-none"
-                    value={item.score}
-                    onChange={(e) => updateChecklist(index, "score", Number(e.target.value))}
-                  />
-                </div>
+                {/* Deskriptor Kriteria Level 0, 1, 2, 3 */}
+                <div className="space-y-2 pt-2 border-t border-slate-200/60">
+                  <label className="block text-[11px] font-extrabold text-slate-800 uppercase tracking-wider">
+                    Matriks Deskriptor Kriteria Penilaian (Level 0 - 3)
+                  </label>
+                  <div className="grid gap-2 sm:grid-cols-4">
+                    <div className="rounded-xl border border-rose-200 bg-rose-50/60 p-2.5 space-y-1">
+                      <span className="text-[10px] font-black text-rose-900 block uppercase">Skor 0 (Tidak Dilakukan)</span>
+                      <textarea
+                        rows={3}
+                        value={item.descriptors?.[0] || ""}
+                        onChange={(e) => updateDescriptor(idx, 0, e.target.value)}
+                        className="w-full rounded-lg border border-rose-200 bg-white p-2 text-[11px] text-rose-950 font-medium focus:outline-none"
+                      />
+                    </div>
 
-                <button
-                  type="button"
-                  onClick={() => removeChecklist(index)}
-                  className="p-2 rounded-md text-slate-400 transition hover:bg-red-50 hover:text-red-600"
-                  title="Hapus Item"
-                >
-                  <Trash2 size={16} />
-                </button>
+                    <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-2.5 space-y-1">
+                      <span className="text-[10px] font-black text-amber-900 block uppercase">Skor 1 (Minimal)</span>
+                      <textarea
+                        rows={3}
+                        value={item.descriptors?.[1] || ""}
+                        onChange={(e) => updateDescriptor(idx, 1, e.target.value)}
+                        className="w-full rounded-lg border border-amber-200 bg-white p-2 text-[11px] text-amber-950 font-medium focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-2.5 space-y-1">
+                      <span className="text-[10px] font-black text-blue-900 block uppercase">Skor 2 (Memadai)</span>
+                      <textarea
+                        rows={3}
+                        value={item.descriptors?.[2] || ""}
+                        onChange={(e) => updateDescriptor(idx, 2, e.target.value)}
+                        className="w-full rounded-lg border border-blue-200 bg-white p-2 text-[11px] text-blue-950 font-medium focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-2.5 space-y-1">
+                      <span className="text-[10px] font-black text-emerald-900 block uppercase">Skor 3 (Sempurna)</span>
+                      <textarea
+                        rows={3}
+                        value={item.descriptors?.[3] || ""}
+                        onChange={(e) => updateDescriptor(idx, 3, e.target.value)}
+                        className="w-full rounded-lg border border-emerald-200 bg-white p-2 text-[11px] text-emerald-950 font-medium focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
         </div>
+      )}
 
-        <div className="flex justify-end pt-3 border-t border-slate-100">
-          <button
-            type="button"
-            onClick={save}
-            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-emerald-700 active:scale-95"
-          >
-            <Save size={16} />
-            Simpan Soal & Checklist
-          </button>
-        </div>
+      {/* Floating Bottom Save Action */}
+      <div className="mt-6 flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
+        <span className="text-xs font-semibold text-slate-500">
+          Pastikan seluruh skenario, berkas penunjang, dan rubrik 0-3 telah terisi sebelum menyimpan.
+        </span>
+        <button
+          onClick={handleSaveAll}
+          className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-xs font-extrabold text-white shadow-md hover:bg-emerald-700 active:scale-95 transition"
+        >
+          <Save size={16} />
+          Simpan Seluruh Soal & Rubrik
+        </button>
       </div>
     </AdminLayout>
   );
-}
+}

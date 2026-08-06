@@ -9,6 +9,7 @@ import {
   Settings,
   LogOut,
   Bell,
+  BookOpen,
 } from "lucide-react";
 
 import { useAuth } from "@/context/AuthProvider";
@@ -28,6 +29,11 @@ const menus = [
     title: "Kelola Sesi OSCE",
     icon: CalendarDays,
     path: "/admin/sessions",
+  },
+  {
+    title: "Bank Soal & Kasus",
+    icon: BookOpen,
+    path: "/admin/cases",
   },
   {
     title: "Peserta",
@@ -54,9 +60,8 @@ const menus = [
 export default function AdminLayout({ children }) {
   const { logout, user } = useAuth();
 
-  async function handleLogout() {
-    await logout();
-    window.location.href = "/";
+  function handleLogout() {
+    logout();
   }
 
   return (
@@ -66,16 +71,20 @@ export default function AdminLayout({ children }) {
 
       <aside className="flex w-72 flex-col border-r bg-white">
 
-        <div className="border-b p-6">
-
-          <h1 className="text-3xl font-bold text-blue-700">
-            MedSkill
-          </h1>
-
-          <p className="mt-1 text-sm text-slate-500">
-            Pusat Kendali Simulasi OSCE
-          </p>
-
+        <div className="border-b border-slate-200 p-6">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white shadow-md shadow-blue-600/30">
+              <span className="text-xl font-black text-white leading-none">P</span>
+            </div>
+            <div>
+              <h1 className="text-xl font-black text-slate-900 tracking-tight leading-none">
+                Praxis <span className="text-blue-600">OSCE</span>
+              </h1>
+              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
+                Portal Admin Institusi
+              </p>
+            </div>
+          </div>
         </div>
 
         <nav className="flex-1 space-y-2 overflow-y-auto p-4">

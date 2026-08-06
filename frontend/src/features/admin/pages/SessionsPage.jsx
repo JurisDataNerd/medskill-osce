@@ -588,7 +588,7 @@ function StatSummaryCard({ label, value, icon, bgColor, badgeText }) {
   );
 }
 
-function FilterTabBtn({ label, count, active, activeColor, onClick }) {
+function FilterTabBtn({ label, active, activeColor, onClick }) {
   const defaultActiveColor = "text-blue-700 bg-blue-50 border-blue-200";
 
   return (
@@ -601,13 +601,6 @@ function FilterTabBtn({ label, count, active, activeColor, onClick }) {
       }`}
     >
       <span>{label}</span>
-      <span
-        className={`rounded-full px-1.5 py-0.2 text-[10px] ${
-          active ? "bg-white/80 font-bold" : "bg-slate-100 text-slate-600"
-        }`}
-      >
-        {count}
-      </span>
     </button>
   );
 }

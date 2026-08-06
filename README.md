@@ -1,16 +1,16 @@
 # MedSkill OSCE
 
-Sistem manajemen ujian **OSCE (Objective Structured Clinical Examination)** berbasis web yang digunakan untuk mengelola seluruh proses ujian mulai dari registrasi peserta, pelaksanaan setiap stase, penilaian oleh penguji, hingga publikasi hasil.
+Sistem manajemen ujian **OSCE (Objective Structured Clinical Examination)** berbasis web yang digunakan untuk mengelola seluruh proses ujian mulai dari registrasi peserta, pelaksanaan setiap stase dalam sirkuit 8 stase (6 stase aktif + 2 stase break dengan timer 12 menit: 1m Reading, 10m Action, 1m Transition), penilaian oleh penguji dengan acuan kunci jawaban baku, hingga publikasi hasil dan pengiriman email otomatis.
 
 ---
 
 # Tujuan
 
-- Mengelola pelaksanaan OSCE secara digital.
+- Mengelola pelaksanaan OSCE secara digital dan terstandarisasi.
 - Mengurangi proses manual selama ujian.
-- Mengotomatisasi perpindahan peserta (rolling).
-- Menyediakan penilaian real-time oleh penguji.
-- Menghasilkan hasil akhir yang dapat diakses peserta.
+- Mengotomatisasi perpindahan peserta (rolling sirkuit 8 stase).
+- Menyediakan penilaian real-time oleh penguji dengan acuan kunci jawaban resmi.
+- Menghasilkan hasil akhir yang dapat diakses peserta, ditranskripsikan ke PDF, dan dikirimkan otomatis via Email.
 
 ---
 
@@ -22,375 +22,114 @@ Memiliki akses penuh terhadap seluruh sistem.
 
 Fitur:
 
-- Membuat sesi OSCE
-- Mengatur stase
-- Menyetujui peserta
-- Memulai ujian
-- Pause / Resume ujian
-- Mengakhiri ujian
-- Monitoring seluruh peserta
-- Review hasil
-- Publish hasil
-- Mengirim hasil ke Email
+- Membuat sesi OSCE & **Duplikasi Templat Stase (Paket Soal A, Paket Soal B)**
+- **Mengatur urutan stase aktif & stase istirahat via Kanban Board (Drag & Drop)**
+- Mengatur timer terstruktur per stase (Reading 1m, Action 10m, Transition 1m = Total 12m)
+- Mengatur bank soal, rubrik penilaian, form diagnosis (1 WDx + 3 DDx), blangko resep, & kunci jawaban pemeriksaan penunjang
+- Kontrol penuh: Memulai simulasi (*Start Session*) dan Menghentikan simulasi (*Stop Session*)
+- Monitoring seluruh peserta secara realtime (*Master Live Board*)
+- Review hasil, Publish hasil, Cetak PDF, & Pengiriman Email Otomatis ke peserta
 
 ---
 
 ## Penguji
 
-Setiap penguji bertanggung jawab pada satu stase.
+Setiap penguji bertanggung jawab pada satu stase aktif.
 
 Fitur:
 
-- Melihat peserta pada stase saat ini
-- Melihat jawaban peserta
-- Memberikan nilai
-- Mengisi checklist penilaian
-- Menambahkan catatan internal
-- Menunggu peserta berikutnya setelah rolling
+- Memilih 1 stase penugasan
+- Melihat rekap peserta secara realtime (otomatis ter-update saat peserta klik *Next* / *Submit*)
+- **Melihat isian Form Diagnosis (1 WDx + 3 DDx) & Blangko Resep obat peserta secara realtime**
+- **Melihat Tampilan Acuan Kunci Jawaban Baku (Gold Standard) dari Admin sebagai pembanding penilaian**
+- Memberikan nilai (Skor Rubrik & Global Rating Scale - GRS)
+- Mengisi checklist penilaian & catatan *feedback* internal
+- Menekan tombol *Submit* untuk *auto-next* ke penilaian peserta berikutnya sampai peserta terakhir
 
 Catatan:
 
 - Penguji tidak berpindah stase.
-- Catatan penguji tidak dapat dilihat peserta.
+- Catatan penguji tidak dapat dilihat peserta saat ujian berlangsung.
 
 ---
 
 ## Peserta
 
-Peserta mengikuti seluruh rangkaian OSCE.
+Peserta mengikuti seluruh rangkaian sirkuit OSCE (8 Stase: 6 Stase Aktif + 2 Stase Break).
 
 Fitur:
 
-- Registrasi
-- Login
-- Waiting Room
-- Mengerjakan soal setiap stase
-- Mengikuti perpindahan stase secara otomatis
-- Melihat hasil setelah dipublikasikan
+- Registrasi & Login (Dilengkapi fitur *Forget Password*)
+- Waiting Room & Briefing (*stay in page* hingga Admin menekan *Start Simulation*)
+- Mengerjakan soal setiap stase aktif dengan timer 12 menit (Reading 1m, Action 10m, Transition 1m):
+  - **Blangko 1: Anamnesis & Pemeriksaan Fisik**
+  - **Blangko 2: Checklist Pemeriksaan Penunjang** (Hasil rilis jika benar, tidak rilis jika tidak dicentang, "Tidak ada data" jika salah)
+  - **Blangko 3: Diagnosis (1 WDx + 3 DDx) & Blangko Resep Obat (Long Text Area)**
+- Mengikuti perpindahan stase secara otomatis (rolling sirkuit 8 stase)
+- Menerima hasil & umpan balik via Email serta mengunduh Transkrip Nilai PDF setelah dipublikasikan
 
 ---
 
-# Alur Sistem
+# Alur Sistem & Sirkuit 8 Stase
 
-## 1. Registrasi
+## 1. Registrasi & Approval
 
-Peserta melakukan registrasi akun.
-
-```
-Register
-      │
-      ▼
-Waiting Approval
-      │
-      ▼
-Approved Admin
-      │
-      ▼
-Dashboard
-```
-
-Peserta yang belum disetujui tidak dapat mengikuti OSCE.
-
----
-
-## 2. Persiapan OSCE
-
-Admin membuat sesi OSCE.
-
-Contoh:
-
-- Nama Sesi
-- Jumlah Stase
-- Durasi Stase
-- Durasi Istirahat
-- Penguji
-- Peserta
-
-Status awal:
+Peserta melakukan registrasi akun dan memilih sesi.
 
 ```
-Draft
+Register ──► Waiting Approval ──► Approved Admin ──► Dashboard
 ```
 
 ---
 
-## 3. Waiting Room
+## 2. Persiapan OSCE & Kanban Ordering
 
-Peserta login sebelum ujian dimulai.
-
-Dashboard hanya menampilkan informasi bahwa ujian belum dimulai.
+Admin membuat sesi OSCE, mengimpor/duplikasi paket soal, dan mengatur urutan **6 Stase Aktif** dan **2 Stase Break** menggunakan Kanban Board (Drag & Drop).
 
 ```
-Waiting Room
-
-OSCE belum dimulai
-Silakan menunggu...
+Draft ──► Import Paket Soal ──► Susun Kanban Urutan Stase & Break ──► Published
 ```
 
 ---
 
-## 4. Start OSCE
+## 3. Waiting Room & Start OSCE
 
-Admin menekan tombol:
-
-```
-Start OSCE
-```
-
-Sistem otomatis:
-
-- Mengaktifkan timer
-- Membuka stase pertama
-- Menampilkan soal
-- Menentukan peserta pada stase masing-masing
+Peserta masuk ke Ruang Tunggu Briefing (*stay in waiting page*). Admin menekan tombol `Start Simulation` untuk memulai timer otomatis sirkuit 8 stase (12 menit per stase).
 
 ---
 
-## 5. Pengerjaan Stase
+## 4. Pengerjaan Stase & Rotasi (Sirkuit 8 Stase)
 
-Peserta mengerjakan soal.
-
-Selama waktu berjalan peserta dapat:
-
-- Membaca soal
-- Menjawab soal
-- Menyimpan jawaban
-
-Dashboard peserta:
+Peserta melewati sirkuit 8 stase (6 Stase Ujian Aktif + 2 Stase Break).
 
 ```
-Stase 1
-
-Timer
-
-Soal
-
-Jawaban
+Round 1: [Stase 1 Aktif] ──► [Stase 2 Aktif] ──► [Stase Break 1] ──► [Stase 3 Aktif] ──► ...
+                                     │
+                                     ▼ (Rolling Otomatis)
+Round 2: [Stase Terakhir] ──► [Stase 1 Aktif] ──► [Stase 2 Aktif] ──► ...
 ```
+
+Selama waktu berjalan pada stase aktif (12m: 1m Reading, 10m Action, 1m Transition):
+- Mengerjakan Blangko Anamnesis & Fisik
+- Mengisi Checklist Penunjang (Rilis Hasil / Tidak / No Data)
+- Mengisi 1 WDx, 3 DDx, dan Textarea Blangko Resep
+
+Penguji menilai dengan melihat **Acuan Kunci Jawaban Baku** di dasbor penguji.
 
 ---
 
-## 6. Penilaian Penguji
+## 5. Finish, PDF & Auto Email
 
-Penguji melihat peserta yang sedang berada pada stasenya.
-
-Penguji dapat:
-
-- Memberikan nilai
-- Mengisi checklist
-- Menambahkan catatan
-
-Catatan hanya dapat dilihat penguji dan admin.
+Setelah seluruh peserta menyelesaikan 8 stase sirkuit, status berubah menjadi `Completed`. Admin mereview nilai, mengeklik `Publish Result`, dan sistem secara otomatis men-generate **PDF Transkrip** serta mengirirkannya ke **Email Peserta**.
 
 ---
 
-## 7. Timer Habis
+# Rule Utama OSCE
 
-Saat waktu habis sistem otomatis:
-
-- Mengunci jawaban
-- Mengakhiri stase
-- Masuk ke masa istirahat
-
-Tidak diperlukan intervensi admin.
-
----
-
-## 8. Istirahat
-
-Peserta melihat halaman istirahat.
-
-```
-Break Time
-
-02:00
-```
-
-Pada waktu ini penguji dapat menyelesaikan penilaian.
-
----
-
-## 9. Rolling
-
-Setelah waktu istirahat selesai sistem otomatis memindahkan peserta ke stase berikutnya.
-
-Contoh:
-
-```
-Round 1
-
-A -> Stase 1
-B -> Stase 2
-C -> Stase 3
-
-↓
-
-Round 2
-
-A -> Stase 2
-B -> Stase 3
-C -> Stase 1
-```
-
-Penguji tetap berada pada stase yang sama.
-
----
-
-## 10. Sesi Berikutnya
-
-Langkah berikut akan terus berulang.
-
-```
-Start
-
-↓
-
-Timer
-
-↓
-
-Break
-
-↓
-
-Rolling
-
-↓
-
-Timer
-
-↓
-
-Break
-
-↓
-
-Rolling
-```
-
-Hingga seluruh peserta menyelesaikan seluruh stase.
-
----
-
-## 11. Finish OSCE
-
-Setelah seluruh ronde selesai.
-
-Status berubah menjadi:
-
-```
-Completed
-```
-
-Admin dapat melakukan review hasil.
-
----
-
-## 12. Publish Result
-
-Admin menekan:
-
-```
-Publish Result
-```
-
-Sistem akan:
-
-- Menghitung nilai akhir
-- Menampilkan hasil pada dashboard peserta
-- Mengirim hasil melalui Email
-
----
-
-# Flow Keseluruhan
-
-```
-Registrasi
-      │
-      ▼
-Approval Admin
-      │
-      ▼
-Dashboard
-      │
-      ▼
-Waiting Room
-      │
-      ▼
-Start OSCE
-      │
-      ▼
-Stase 1
-      │
-      ▼
-Break
-      │
-      ▼
-Rolling
-      │
-      ▼
-Stase 2
-      │
-      ▼
-Break
-      │
-      ▼
-Rolling
-      │
-      ▼
-...
-      │
-      ▼
-Stase Terakhir
-      │
-      ▼
-Review
-      │
-      ▼
-Publish Result
-      │
-      ▼
-Dashboard Peserta + Email
-```
-
----
-
-# Siklus Setiap Stase
-
-```
-Start Stase
-      │
-      ▼
-Timer Berjalan
-      │
-      ▼
-Peserta Mengerjakan
-      │
-      ▼
-Penguji Menilai
-      │
-      ▼
-Timer Selesai
-      │
-      ▼
-Break
-      │
-      ▼
-Rolling
-      │
-      ▼
-Start Stase Berikutnya
-```
-
----
-
-# Rule OSCE
-
-- 1 Penguji menangani 1 Stase.
-- Penguji tidak berpindah stase.
-- Peserta berpindah stase sesuai aturan rolling.
-- Timer berjalan otomatis.
-- Jawaban terkunci ketika timer selesai.
-- Catatan penguji bersifat internal.
-- Hasil hanya dapat dilihat setelah dipublikasikan admin.
-- Seluruh proses perpindahan peserta dilakukan otomatis oleh sistem.
+- Sirkuit terdiri dari **8 Stase (6 Stase Ujian Aktif + 2 Stase Break)**.
+- Timer 12 Menit/stase: Reading (1m) + Action (10m) + Transition (1m).
+- Urutan stase ujian & break dapat diubah-ubah oleh Admin via **Kanban Drag & Drop Board**.
+- Admin dapat menyimpan templat stase untuk diduplikasi (**Paket Soal A / B**).
+- 1 Penguji menangani 1 Stase Aktif (Penguji tidak berpindah stase).
+- Penguji mendapat rekap realtime & acuan **Kunci Jawaban Baku**.
+- PDF Transkrip & Email Feedback dikirim otomatis ke peserta setelah publish.

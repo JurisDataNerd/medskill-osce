@@ -21,6 +21,9 @@ import SessionParticipantsPage from "@/features/admin/pages/SessionParticipantsP
 import SessionExaminersPage from "@/features/admin/pages/SessionExaminersPage";
 import StageQuestionPage from "@/features/admin/pages/StageQuestionPage";
 import CreateSessionPage from "@/features/admin/pages/CreateSessionPage";
+import CasesPage from "@/features/admin/pages/CasesPage";
+import SettingsPage from "@/features/admin/pages/SettingsPage";
+import ParticipantAnswerPage from "@/features/admin/pages/ParticipantAnswerPage";
 
 
 // ======================
@@ -92,6 +95,15 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute allow={["admin"]}>
         <AdminLiveMonitorPage />
+      </ProtectedRoute>
+    ),
+  },
+
+  {
+    path: "/admin/live/participant/:participantId",
+    element: (
+      <ProtectedRoute allow={["admin"]}>
+        <ParticipantAnswerPage />
       </ProtectedRoute>
     ),
   },
@@ -183,6 +195,24 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute allow={["admin"]}>
         <StageQuestionPage />
+      </ProtectedRoute>
+    ),
+  },
+
+  {
+    path: "/admin/cases",
+    element: (
+      <ProtectedRoute allow={["admin"]}>
+        <CasesPage />
+      </ProtectedRoute>
+    ),
+  },
+
+  {
+    path: "/admin/settings",
+    element: (
+      <ProtectedRoute allow={["admin"]}>
+        <SettingsPage />
       </ProtectedRoute>
     ),
   },
