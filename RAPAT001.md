@@ -27,17 +27,13 @@
 
 ### 3. Struktur Rotasi Stase: 6 Stase Aktif + 2 Stase Break (Total 8 Stase)
 * **Arsitektur Sesi OSCE**:
-  * 1 Sesi Ujian OSCE terdiri dari total **8 Stase Circuit (Sirkuit 8 Ruangan)**:
-    * **6 Stase Keterampilan Medis (Active Exam Stations)**: Tempat peserta diuji langsung oleh Dokter Penguji Spesialis pada kasus medis/simulator pasien.
-    * **2 Stase Break / Rest (Break Stations)**: Stase istirahat di mana peserta berada di ruangan khusus untuk pemulihan/persiapan sebelum masuk stase berikutnya, sekaligus memberikan jeda bagi penguji untuk mengunci penilaian.
+  * 1 Sesi Ujian OSCE terdiri dari total **6 Stase Keterampilan Medis Aktif** yang wajib diikuti oleh setiap peserta secara berurutan dalam sirkuit dengan timer jeda rotasi/istirahat antar-ronde.
 
 ---
 
-### 4. Manajemen Kanban Urutan Stase & Stase Break (Admin Dynamic Order)
+### 4. Manajemen Kanban Urutan Stase (Admin Dynamic Order)
 * **Kanban Drag & Drop Management**:
-  * Admin dapat mengatur dan mengubah urutan posisi stase ujian maupun stase istirahat secara dinamis menggunakan antarmuka **Kanban Board** pada Dashboard Admin.
-* **Fleksibilitas Posisi Break**:
-  * Stase Break bersifat modular sebagai kartu Kanban tersendiri, sehingga Admin bebas menempatkan Stase Break di mana saja dalam urutan sirkuit 8 stase (misal: di posisi pertengahan rotasi, di awal, atau di akhir sesuai kapasitas gedung/ruangan skill lab institusi).
+  * Admin dapat mengatur dan mengubah urutan posisi stase ujian medis secara dinamis menggunakan antarmuka **Kanban Board** pada Dashboard Admin.
 
 ---
 
@@ -45,8 +41,8 @@
 
 | Dokumen | Bagian / Komponen | Penyesuaian / Perubahan yang Diperlukan |
 | :--- | :--- | :--- |
-| **`OSCE.md`** | Section 1 & Section 6 | Memperbarui jumlah total stase sirkuit dari 6 stase menjadi **8 Stase (6 Stase Ujian + 2 Stase Break)**. |
+| **`OSCE.md`** | Section 1 & Section 6 | Memperbarui arsitektur sirkuit menjadi **6 Stase Keterampilan Medis Aktif** dengan timer jeda rotasi/istirahat antar-ronde. |
 | **`OSCE.md`** | Section 2.C (Live Exam) | Menambahkan aturan pengisian **Form Diagnosis (DDx/WDx)**, **Form Penulisan Resep**, dan **Logika Pemeriksaan Penunjang (Kondisional Gambar / No Data)**. |
 | **`OSCE.md`** | Section 3.B (Examiner) | Menambahkan fitur **Acuan Kunci Jawaban Baku (Reference Answer Key)** pada Dashboard Penguji untuk Form Diagnosis & Resep Peserta. |
-| **`OSCE.md`** | Section 4.A (Admin) | Menambahkan fitur **Kanban Drag & Drop Urutan Stase & Stase Break**. |
-| **`README.md`** | Role Admin & Penguji & Peserta | Memperbarui deskripsi fitur Admin (Kanban Urutan Stase/Break), Penguji (Kunci Jawaban Acuan), Peserta (Form Diagnosis/Resep & Modal Penunjang), dan siklus rolling 8 stase. |
+| **`OSCE.md`** | Section 4.A (Admin) | Menambahkan fitur **Kanban Drag & Drop Urutan Stase**. |
+| **`README.md`** | Role Admin & Penguji & Peserta | Memperbarui deskripsi fitur Admin (Kanban Urutan Stase), Penguji (Kunci Jawaban Acuan), Peserta (Form Diagnosis/Resep & Modal Penunjang), dan siklus rolling 6 stase. |

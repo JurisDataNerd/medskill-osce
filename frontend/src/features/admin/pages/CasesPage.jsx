@@ -4,6 +4,7 @@ import { Plus, Pencil, Trash2, Search, Filter, BookOpen, Layers, Award } from "l
 
 import AdminLayout from "@/layouts/AdminLayout";
 import CaseModal from "@/features/admin/components/CaseModal";
+import ConfirmModal from "@/components/ConfirmModal";
 
 import {
   getCases,
@@ -55,6 +56,7 @@ export default function CasesPage() {
   const navigate = useNavigate();
 
   const [cases, setCases] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState(null);
 
@@ -62,16 +64,15 @@ export default function CasesPage() {
   const [selectedOrgan, setSelectedOrgan] = useState("ALL");
 
   async function loadCases() {
-    let data = [];
     try {
-      data = await getCases();
+      setLoading(true);
+      const data = await getCases();
+      setCases(data || []);
     } catch (err) {
-      console.error(err);
-    }
-    if (!data || data.length === 0) {
-      setCases(MOCK_DEFAULT_CASES);
-    } else {
-      setCases(data);
+      console.error("Error loading cases from Supabase:", err);
+      setCases([]);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -99,14 +100,31 @@ export default function CasesPage() {
     setSelected(null);
   }
 
-  async function handleDelete(id) {
-    if (!confirm("Hapus kasus medis ini dari bank soal?")) return;
+  // Delete confirmation state
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [targetCaseToDelete, setTargetCaseToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
+  function requestDeleteCase(caseItem) {
+    setTargetCaseToDelete(caseItem);
+    setDeleteModalOpen(true);
+  }
+
+  async function handleConfirmDeleteCase() {
+    if (!targetCaseToDelete) return;
 
     try {
-      await deleteCase(id);
-    } catch (e) {}
-
-    setCases((prev) => prev.filter((c) => c.id !== id));
+      setDeleting(true);
+      await deleteCase(targetCaseToDelete.id);
+      setCases((prev) => prev.filter((c) => c.id !== targetCaseToDelete.id));
+    } catch (e) {
+      console.error("Error deleting case:", e);
+      alert("Gagal menghapus kasus medis dari Supabase.");
+    } finally {
+      setDeleting(false);
+      setDeleteModalOpen(false);
+      setTargetCaseToDelete(null);
+    }
   }
 
   const filteredCases = cases.filter((item) => {
@@ -135,10 +153,7 @@ export default function CasesPage() {
         </div>
 
         <button
-          onClick={() => {
-            setSelected(null);
-            setOpen(true);
-          }}
+          onClick={() => navigate("/admin/cases/create")}
           className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-xs font-extrabold text-white shadow-xs hover:bg-blue-700 active:scale-95 transition"
         >
           <Plus size={16} />
@@ -179,6 +194,8 @@ export default function CasesPage() {
             "Muskuloskeletal",
             "Endokrin",
             "Urologi",
+            "Pediatri",
+            "THT-KL",
           ].map((org) => (
             <button
               key={org}
@@ -229,24 +246,22 @@ export default function CasesPage() {
 
                 <div className="flex flex-wrap items-center gap-2">
                   <button
-                    onClick={() => {
-                      setSelected(item);
-                      setOpen(true);
-                    }}
+                    onClick={() => navigate(`/admin/cases/${item.id}/edit`)}
                     className="inline-flex items-center gap-1 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
                   >
                     <Pencil size={14} /> Edit
                   </button>
 
                   <button
-                    onClick={() => navigate(`/admin/stages/stg-101`)}
+                    onClick={() => navigate(`/admin/cases/${item.id}/edit`)}
                     className="inline-flex items-center gap-1 rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-bold text-white shadow-2xs hover:bg-blue-700 transition"
                   >
                     <BookOpen size={14} /> Rubrik & Skenario
                   </button>
 
                   <button
-                    onClick={() => handleDelete(item.id)}
+                    type="button"
+                    onClick={() => requestDeleteCase(item)}
                     className="rounded-xl border border-rose-200 p-2 text-rose-600 hover:bg-rose-50 transition"
                     title="Hapus Kasus"
                   >
@@ -284,6 +299,22 @@ export default function CasesPage() {
           setSelected(null);
         }}
         onSave={handleSave}
+      />
+
+      {/* Delete Case Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setTargetCaseToDelete(null);
+        }}
+        onConfirm={handleConfirmDeleteCase}
+        title="Hapus Kasus Medis"
+        message={`Apakah Anda yakin ingin menghapus kasus medis "${targetCaseToDelete?.title || ""}" ini dari Bank Soal Supabase? Tindakan ini tidak dapat dibatalkan.`}
+        confirmText="Ya, Hapus Kasus"
+        cancelText="Batal"
+        variant="danger"
+        loading={deleting}
       />
     </AdminLayout>
   );

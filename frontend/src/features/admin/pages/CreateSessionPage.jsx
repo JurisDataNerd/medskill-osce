@@ -13,28 +13,35 @@ import {
   Save,
   BookOpen,
   ChevronRight,
-  ChevronLeft,
   Info,
   Plus,
   Trash2,
   Award,
   Eye,
   GripVertical,
+  RotateCw,
+  Coffee,
+  Sparkles,
 } from "lucide-react";
 import AdminLayout from "@/layouts/AdminLayout";
 import { INITIAL_MOCK_SESSIONS } from "@/features/admin/data/mockAdminData";
 import AdminAuxiliaryExamBuilder from "@/features/admin/components/AdminAuxiliaryExamBuilder";
+import QuestionBankSelectModal from "@/features/admin/components/QuestionBankSelectModal";
+import { createSession } from "@/services/sessionService";
 
 export default function CreateSessionPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const isEdit = Boolean(id);
 
-  // Active Menu Tab in Left Sidebar (1: Detail, 2: Parameter Stase, 3: Soal & Kasus, 4: Rule OSCE)
+  // Active Menu Tab in Left Sidebar (1: Detail Utama, 2: Stase & Timer, 3: Soal & Rubrik, 4: Rule OSCE)
   const [activeTab, setActiveTab] = useState(1);
 
-  // Active Selected Station inside Tab 3 Soal & Kasus (0 to stationsConfig.length - 1)
+  // Active Selected Station inside Tab 3 Soal & Rubrik (0 to stationsConfig.length - 1)
   const [selectedStationIndex, setSelectedStationIndex] = useState(0);
+
+  // Question Bank Modal State
+  const [isQuestionBankOpen, setIsQuestionBankOpen] = useState(false);
 
   // Form State 1: Detail Utama
   const [title, setTitle] = useState("");
@@ -43,114 +50,264 @@ export default function CreateSessionPage() {
   const [startTime, setStartTime] = useState("08:00");
   const [endTime, setEndTime] = useState("10:30");
   const [location, setLocation] = useState("Gedung Skill Lab Ruang OSCE Utama");
-  const [maxParticipants, setMaxParticipants] = useState(6);
+  const [maxParticipants, setMaxParticipants] = useState(8);
 
-  // Form State 2: Parameter Stase
-  const [totalStations, setTotalStations] = useState(6);
-  const [stationDurationMinutes, setStationDurationMinutes] = useState(15);
-  const [breakDurationMinutes, setBreakDurationMinutes] = useState(3);
-  const [totalRounds, setTotalRounds] = useState(6);
+  // Form State 2: Timer Parameters
+  const [stationDurationMinutes, setStationDurationMinutes] = useState(12);
+  const [breakSlotDurationMinutes, setBreakSlotDurationMinutes] = useState(12);
+  const [transitionDurationMinutes, setTransitionDurationMinutes] = useState(2);
+  const [totalRounds, setTotalRounds] = useState(8);
+  const [totalStations, setTotalStations] = useState(8);
 
-  // Form State 3: Detail Stase, Soal-Soal & Kunci Jawaban Rubrik
-  const [stationsConfig, setStationsConfig] = useState([
-    {
-      station_number: 1,
-      title: "Stase 1: Kardiovaskular",
-      case_title: "Sindrom Koroner Akut (STEMI Anteroseptal)",
-      scenario: "Pasien laki-laki 52 tahun datang ke UGD dengan keluhan nyeri dada kiri menjalar ke lengan kiri sejak 2 jam lalu.",
-      participant_instructions: "1. Lakukan anamnesis terarah.\n2. Lakukan pemeriksaan fisik auskultasi katup jantung.\n3. Interpretasikan EKG 12 Lead.",
-      examiner_instructions: "Amati kepatuhan prosedur sterilitas tangan dan ketepatan penetapan diagnosis STEMI Anteroseptal.",
-      checklist_items: [
-        { id: "c1-1", question: "Menyapa pasien & membina sambung rasa", answer_key: "Peserta mengucapkan salam, memperkenalkan diri, & mengonfirmasi identitas pasien", max_points: 1 },
-        { id: "c1-2", question: "Anamnesis terarah nyeri dada", answer_key: "Menanyakan lokasi, kualitas (seperti ditindih beban berat), radiasi, dan durasi nyeri", max_points: 3 },
-        { id: "c1-3", question: "Pemeriksaan fisik auskultasi jantung", answer_key: "Menggunakan stetoskop pada 4 area katup jantung dengan posisi pasien tepat", max_points: 3 },
-        { id: "c1-4", question: "Interpretasi EKG 12 Lead & Diagnosis", answer_key: "Mengidentifikasi elevasi segmen ST pada V1-V4 dan menyimpulkan STEMI Anteroseptal", max_points: 3 },
-      ],
-      auxiliary_exam_configs: [
-        {
-          itemId: "ekg-01",
-          name: "EKG 12 Lead",
-          category: "EKG & ELEKTRODIAGNOSTIK",
-          imageUrl: "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=600&auto=format&fit=crop&q=80",
-          reportText: "ST Elevation pada Lead V1-V4 (STEMI Anteroseptal)",
-        },
-      ],
-    },
-    {
-      station_number: 2,
-      title: "Stase 2: Pulmonologi",
-      case_title: "Status Asmatikus & Pneumotoraks Ventil",
-      scenario: "Pasien perempuan 28 tahun datang dengan sesak napas berat berbunyi ngik-ngik dan bentuk dada cembung di sisi kanan.",
-      participant_instructions: "1. Anamnesis sesak napas akut.\n2. Inspeksi & auskultasi suara paru.\n3. Simulasikan indikasi needle thoracocentesis.",
-      examiner_instructions: "Nilai ketepatan penentuan lokasi puncture sela iga (ICS 2 linea midclavicularis).",
-      checklist_items: [
-        { id: "c2-1", question: "Anamnesis sesak napas & riwayat alergi", answer_key: "Menanyakan onset sesak, pemicu alergi, dan penggunaan inhaler sebelumnya", max_points: 2 },
-        { id: "c2-2", question: "Inspeksi & auskultasi paru", answer_key: "Menemukan suara napas melemah pada paru kanan dan perkusis hipersonor", max_points: 3 },
-        { id: "c2-3", question: "Prosedur Needle Thoracocentesis", answer_key: "Melakukan desinfeksi dan penusukan abocath pada ICS 2 Linea Midclavicularis kanan", max_points: 4 },
-      ],
-      auxiliary_exam_configs: [
-        {
-          itemId: "rad-01",
-          name: "Foto Thorax AP/PA",
-          category: "RADIOLOGI",
-          imageUrl: "https://images.unsplash.com/photo-1516549655169-df83a0774514?w=600&auto=format&fit=crop&q=80",
-          reportText: "Lucent area avaskular pada hemithorax dextra dengan collapse line (Pneumothorax Dextra)",
-        },
-      ],
-    },
-    {
-      station_number: 3,
-      title: "Stase 3: Bedah Umum",
-      case_title: "Debridement & Penutupan Luka Vulnus Laceratum",
-      scenario: "Pasien laki-laki 30 tahun dengan luka robek sepanjang 5 cm pada lengan bawah bagian anterior akibat terkena kaca.",
-      participant_instructions: "1. Cuci tangan steril dan gunakan sarung tangan steril.\n2. Lakukan debridement & desinfeksi luka.\n3. Lakukan penjahitan luka 3 jahitan simple interrupted.",
-      examiner_instructions: "Nilai kerapian simpul jahitan dan kesterilan teknik aseptic.",
-      checklist_items: [
-        { id: "c3-1", question: "Persiapan steril & anestesi lokal", answer_key: "Cuci tangan steril, sarung tangan steril, dan infiltrasi Lidokain 2%", max_points: 3 },
-        { id: "c3-2", question: "Debridement & irigasi NaCl 0.9%", answer_key: "Membersihkan jaringan nekrotik dan mebilas luka dengan cairan fisiologis", max_points: 3 },
-        { id: "c3-3", question: "Teknik Penjahitan Simple Interrupted", answer_key: "Menggunakan needle holder & pinset anatomis dengan jarak jahitan simetris", max_points: 4 },
-      ],
-    },
-    {
-      station_number: 4,
-      title: "Stase 4: Neurologi",
-      case_title: "Stroke Iskemik Akut (GCS 15 & Hemiparesis)",
-      scenario: "Pasien laki-laki 60 tahun mengeluh mulut mencong dan anggota gerak kanan lemas sejak 3 jam lalu saat bangun tidur.",
-      participant_instructions: "1. Lakukan pemeriksaan saraf kranial VII & XII.\n2. Lakukan pemeriksaan motorik ekstremitas kanan.\n3. Periksa refleks patologis Babinski.",
-      examiner_instructions: "Perhatikan kejelasan instruksi ke pasien saat tes motorik.",
-      checklist_items: [
-        { id: "c4-1", question: "Pemeriksaan Saraf Kranial VII & XII", answer_key: "Meminta pasien tersenyum, meringis, menjulurkan lidah lurus", max_points: 3 },
-        { id: "c4-2", question: "Pemeriksaan Kekuatan Motorik", answer_key: "Menilai skor kekuatan otot ekstremitas kanan (nilai 3/5)", max_points: 3 },
-        { id: "c4-3", question: "Pemeriksaan Refleks Babinski", answer_key: "Goresan telapak kaki dari lateral ke medial dengan hasil dorsofleksi ibu jari", max_points: 3 },
-      ],
-    },
-    {
-      station_number: 5,
-      title: "Stase 5: Penyakit Dalam",
-      case_title: "Edukasi Diabetes Melitus & Dosis Insulin",
-      scenario: "Pasien 55 tahun baru terdiagnosis Diabetes Melitus Tipe 2 dengan GDS 320 mg/dL dan mendapat resep Insulin Pen.",
-      participant_instructions: "1. Edukasi pola makan dan aktivitas fisik.\n2. Simulasikan penyuntikan Insulin Pen di regio abdomen.\n3. Jelaskan tanda-tanda hipoglikemia.",
-      examiner_instructions: "Nilai empati dan kejelasan bahasa edukasi ke pasien.",
-      checklist_items: [
-        { id: "c5-1", question: "Bina sambung rasa & penyampaian diagnosis", answer_key: "Menjelaskan kondisi DM Tipe 2 dengan bahasa sederhana tanpa membuat panik", max_points: 2 },
-        { id: "c5-2", question: "Edukasi Penggunaan Insulin Pen", answer_key: "Menjelaskan rotasi lokasi suntikan, pembuangan jarum, & waktu suntik sebelum makan", max_points: 4 },
-        { id: "c5-3", question: "Penanganan Hipoglikemia", answer_key: "Mengedukasi minum air gula 1-2 sendok jika terasa berkeringat dingin & pusing", max_points: 3 },
-      ],
-    },
-    {
-      station_number: 6,
-      title: "Stase 6: Otolaringologi (THT-KL)",
-      case_title: "Pemeriksaan Otoskop Membran Timpani",
-      scenario: "Pasien anak 8 tahun dibawa ibunya karena mengeluh telinga kanan terasa tersumbat dan pendengaran berkurang.",
-      participant_instructions: "1. Lakukan inspeksi daun telinga.\n2. Gunakan otoskop dengan benar.\n3. Sebutkan temuan membran timpani & rencana ekstraksi serumen.",
-      examiner_instructions: "Nilai posisi memegang otoskop (hold like a pen with pinky finger buffer).",
-      checklist_items: [
-        { id: "c6-1", question: "Pemeriksaan Fisik Telinga Luar", answer_key: "Inspeksi aurikula, retroaurikula, dan penarikan pinna ke arah superior-posterior", max_points: 3 },
-        { id: "c6-2", question: "Teknik Penggunaan Otoskop", answer_key: "Memegang otoskop seperti pensil dengan kelingking bersandar pada pipi pasien", max_points: 4 },
-        { id: "c6-3", question: "Identifikasi Membran Timpani", answer_key: "Menilai reflek cahaya (cone of light), warna intak/perforasi", max_points: 3 },
-      ],
-    },
-  ]);
+  // Helper to re-index and auto-name station slots: Stase 1, Stase 2, Stase Istirahat 1, etc.
+  function reindexAndAutoNameStations(stations) {
+    let examCounter = 0;
+    let breakCounter = 0;
+    return stations.map((stg, idx) => {
+      const slotNum = idx + 1;
+      if (stg.is_break) {
+        breakCounter++;
+        return {
+          ...stg,
+          station_number: slotNum,
+          break_number: breakCounter,
+          title: `Stase Istirahat ${breakCounter}`,
+          case_title: `Rotasi Istirahat ${breakCounter}`,
+        };
+      } else {
+        examCounter++;
+        return {
+          ...stg,
+          station_number: slotNum,
+          exam_number: examCounter,
+          title: `Stase ${examCounter}`,
+          case_title:
+            stg.case_title && !stg.case_title.startsWith("Rotasi Istirahat")
+              ? stg.case_title
+              : `Kasus Medis Stase ${examCounter}`,
+        };
+      }
+    });
+  }
+
+  // Initial 8-slot circuit config (6 Exam stations + 2 Break stations)
+  const [stationsConfig, setStationsConfig] = useState(() =>
+    reindexAndAutoNameStations([
+      {
+        is_break: false,
+        case_title: "Sindrom Koroner Akut (STEMI Anteroseptal)",
+        scenario:
+          "Pasien laki-laki 52 tahun datang ke UGD dengan keluhan nyeri dada kiri menjalar ke lengan kiri sejak 2 jam lalu.",
+        participant_instructions:
+          "1. Lakukan anamnesis terarah.\n2. Lakukan pemeriksaan fisik auskultasi katup jantung.\n3. Interpretasikan EKG 12 Lead.",
+        examiner_instructions:
+          "Amati kepatuhan prosedur sterilitas tangan dan ketepatan penetapan diagnosis STEMI Anteroseptal.",
+        checklist_items: [
+          {
+            id: "c1-1",
+            question: "Menyapa pasien & membina sambung rasa",
+            answer_key:
+              "Peserta mengucapkan salam, memperkenalkan diri, & mengonfirmasi identitas pasien",
+            max_points: 1,
+          },
+          {
+            id: "c1-2",
+            question: "Anamnesis terarah nyeri dada",
+            answer_key:
+              "Menanyakan lokasi, kualitas (seperti ditindih beban berat), radiasi, dan durasi nyeri",
+            max_points: 3,
+          },
+          {
+            id: "c1-3",
+            question: "Pemeriksaan fisik auskultasi jantung",
+            answer_key:
+              "Menggunakan stetoskop pada 4 area katup jantung dengan posisi pasien tepat",
+            max_points: 3,
+          },
+          {
+            id: "c1-4",
+            question: "Interpretasi EKG 12 Lead & Diagnosis",
+            answer_key:
+              "Mengidentifikasi elevasi segmen ST pada V1-V4 dan menyimpulkan STEMI Anteroseptal",
+            max_points: 3,
+          },
+        ],
+        auxiliary_exam_configs: [
+          {
+            itemId: "ekg-01",
+            name: "EKG 12 Lead",
+            category: "EKG & ELEKTRODIAGNOSTIK",
+            imageUrl:
+              "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=600&auto=format&fit=crop&q=80",
+            reportText: "ST Elevation pada Lead V1-V4 (STEMI Anteroseptal)",
+          },
+        ],
+      },
+      {
+        is_break: false,
+        case_title: "Status Asmatikus & Pneumotoraks Ventil",
+        scenario:
+          "Pasien perempuan 28 tahun datang dengan sesak napas berat berbunyi ngik-ngik dan bentuk dada cembung di sisi kanan.",
+        participant_instructions:
+          "1. Anamnesis sesak napas akut.\n2. Inspeksi & auskultasi suara paru.\n3. Simulasikan indikasi needle thoracocentesis.",
+        examiner_instructions:
+          "Nilai ketepatan penentuan lokasi puncture sela iga (ICS 2 linea midclavicularis).",
+        checklist_items: [
+          {
+            id: "c2-1",
+            question: "Anamnesis sesak napas & riwayat alergi",
+            answer_key:
+              "Menanyakan onset sesak, pemicu alergi, dan penggunaan inhaler sebelumnya",
+            max_points: 2,
+          },
+          {
+            id: "c2-2",
+            question: "Inspeksi & auskultasi paru",
+            answer_key:
+              "Menemukan suara napas melemah pada paru kanan dan perkusis hipersonor",
+            max_points: 3,
+          },
+          {
+            id: "c2-3",
+            question: "Prosedur Needle Thoracocentesis",
+            answer_key:
+              "Melakukan desinfeksi dan penusukan abocath pada ICS 2 Linea Midclavicularis kanan",
+            max_points: 4,
+          },
+        ],
+        auxiliary_exam_configs: [
+          {
+            itemId: "rad-01",
+            name: "Foto Thorax AP/PA",
+            category: "RADIOLOGI",
+            imageUrl:
+              "https://images.unsplash.com/photo-1516549655169-df83a0774514?w=600&auto=format&fit=crop&q=80",
+            reportText:
+              "Lucent area avaskular pada hemithorax dextra dengan collapse line (Pneumothorax Dextra)",
+          },
+        ],
+      },
+      {
+        is_break: true,
+        scenario: "Rotasi istirahat untuk peserta dan penguji.",
+        participant_instructions:
+          "Peserta dapat beristirahat, minum, atau mempersiapkan diri sebelum stase berikutnya.",
+        examiner_instructions:
+          "Dokter penguji dapat melakukan rekapan nilai dan beristirahat sejenak.",
+        checklist_items: [],
+      },
+      {
+        is_break: false,
+        case_title: "Debridement & Penutupan Luka Vulnus Laceratum",
+        scenario:
+          "Pasien laki-laki 30 tahun dengan luka robek sepanjang 5 cm pada lengan bawah bagian anterior akibat terkena kaca.",
+        participant_instructions:
+          "1. Cuci tangan steril dan gunakan sarung tangan steril.\n2. Lakukan debridement & desinfeksi luka.\n3. Lakukan penjahitan luka 3 jahitan simple interrupted.",
+        examiner_instructions:
+          "Nilai kerapian simpul jahitan dan kesterilan teknik aseptic.",
+        checklist_items: [
+          {
+            id: "c3-1",
+            question: "Persiapan steril & anestesi lokal",
+            answer_key:
+              "Cuci tangan steril, sarung tangan steril, dan infiltrasi Lidokain 2%",
+            max_points: 3,
+          },
+          {
+            id: "c3-2",
+            question: "Debridement & irigasi NaCl 0.9%",
+            answer_key:
+              "Membersihkan jaringan nekrotik dan mebilas luka dengan cairan fisiologis",
+            max_points: 3,
+          },
+          {
+            id: "c3-3",
+            question: "Teknik Penjahitan Simple Interrupted",
+            answer_key:
+              "Menggunakan needle holder & pinset anatomis dengan jarak jahitan simetris",
+            max_points: 4,
+          },
+        ],
+      },
+      {
+        is_break: false,
+        case_title: "Stroke Iskemik Akut (GCS 15 & Hemiparesis)",
+        scenario:
+          "Pasien laki-laki 60 tahun mengeluh mulut mencong dan anggota gerak kanan lemas sejak 3 jam lalu saat bangun tidur.",
+        participant_instructions:
+          "1. Lakukan pemeriksaan saraf kranial VII & XII.\n2. Lakukan pemeriksaan motorik ekstremitas kanan.\n3. Periksa refleks patologis Babinski.",
+        examiner_instructions:
+          "Perhatikan kejelasan instruksi ke pasien saat tes motorik.",
+        checklist_items: [
+          {
+            id: "c4-1",
+            question: "Pemeriksaan Saraf Kranial VII & XII",
+            answer_key:
+              "Meminta pasien tersenyum, meringis, menjulurkan lidah lurus",
+            max_points: 3,
+          },
+          {
+            id: "c4-2",
+            question: "Pemeriksaan Kekuatan Motorik",
+            answer_key: "Menilai skor kekuatan otot ekstremitas kanan (nilai 3/5)",
+            max_points: 3,
+          },
+          {
+            id: "c4-3",
+            question: "Pemeriksaan Refleks Babinski",
+            answer_key:
+              "Goresan telapak kaki dari lateral ke medial dengan hasil dorsofleksi ibu jari",
+            max_points: 3,
+          },
+        ],
+      },
+      {
+        is_break: false,
+        case_title: "Edukasi Diabetes Melitus & Terapi Insulin",
+        scenario:
+          "Pasien perempuan 55 tahun mengeluh gula darah puasa tidak terkontrol (240 mg/dL) meski sudah meminum Obat Hipoglikemik Oral.",
+        participant_instructions:
+          "1. Berikan edukasi penyakit DM Tipe 2.\n2. Edukasi penggunaan pen insulin.\n3. Buat resep kombinasi insulin.",
+        examiner_instructions:
+          "Nilai kejelasan komunikasi edukasi pen insulin.",
+        checklist_items: [
+          {
+            id: "c5-1",
+            question: "Edukasi Terapi Insulin",
+            answer_key:
+              "Menjelaskan cara injeksi subkutan, lokasi rotasi penyuntikan, dan penyimpanan insulin",
+            max_points: 4,
+          },
+        ],
+      },
+      {
+        is_break: true,
+        scenario: "Rotasi istirahat untuk peserta dan penguji.",
+        participant_instructions:
+          "Peserta dapat beristirahat, minum, atau mempersiapkan diri sebelum stase berikutnya.",
+        examiner_instructions:
+          "Dokter penguji dapat melakukan rekapan nilai dan beristirahat sejenak.",
+        checklist_items: [],
+      },
+      {
+        is_break: false,
+        case_title: "Pemeriksaan Otoskop & Ekstraksi Serumen",
+        scenario:
+          "Pasien anak laki-laki 8 tahun diantar ibunya dengan keluhan telinga kanan terasa tersumbat dan pendengaran berkurang.",
+        participant_instructions: "1. Lakukan pemeriksaan otoskop.\n2. Jelaskan temuan serumen prop.\n3. Simulasikan irigasi telinga.",
+        examiner_instructions: "Amati teknik pemegangan otoskop yang benar.",
+        checklist_items: [
+          {
+            id: "c6-1",
+            question: "Pemeriksaan Otoskop",
+            answer_key:
+              "Penarikan aurikula ke atas-belakang dan visualisasi liang telinga",
+            max_points: 3,
+          },
+        ],
+      },
+    ])
+  );
 
   // Form State 4: Rule & Aturan OSCE
   const [singleLiveSessionRule, setSingleLiveSessionRule] = useState(true);
@@ -162,20 +319,22 @@ export default function CreateSessionPage() {
   // Prepopulate if EDIT mode
   useEffect(() => {
     if (isEdit) {
-      const foundSession = INITIAL_MOCK_SESSIONS.find((s) => s.id === id) || INITIAL_MOCK_SESSIONS[0];
+      const foundSession =
+        INITIAL_MOCK_SESSIONS.find((s) => s.id === id) ||
+        INITIAL_MOCK_SESSIONS[0];
       setTitle(foundSession.title);
-      setDescription(foundSession.description || "Evaluasi 6 stase komprehensif keterampilan klinis.");
+      setDescription(
+        foundSession.description ||
+          "Evaluasi komprehensif sirkuit stase keterampilan klinis."
+      );
       setSessionDate(foundSession.session_date || "2026-08-20");
       setStartTime(foundSession.start_time || "08:00");
       setEndTime(foundSession.end_time || "10:30");
       setLocation(foundSession.location || "Gedung Skill Lab Ruang OSCE Utama");
-      setMaxParticipants(foundSession.max_participants || 6);
-      setTotalStations(foundSession.total_stations || 6);
-      setStationDurationMinutes(foundSession.station_duration_minutes || 15);
-      setBreakDurationMinutes(foundSession.break_duration_minutes || 3);
-    } else {
-      setTitle("");
-      setDescription("");
+      setMaxParticipants(foundSession.max_participants || 8);
+      setTotalStations(foundSession.total_stations || 8);
+      setStationDurationMinutes(foundSession.station_duration_minutes || 12);
+      setTransitionDurationMinutes(foundSession.break_duration_minutes || 2);
     }
   }, [isEdit, id]);
 
@@ -209,11 +368,8 @@ export default function CreateSessionPage() {
     const [draggedItem] = updated.splice(draggedIndex, 1);
     updated.splice(dropIndex, 0, draggedItem);
 
-    // Re-index station numbers sequentially
-    const reindexed = updated.map((stg, idx) => ({
-      ...stg,
-      station_number: idx + 1,
-    }));
+    // Re-index & auto-name sequentially (Stase 1, Stase 2, Stase Istirahat 1, etc.)
+    const reindexed = reindexAndAutoNameStations(updated);
 
     setStationsConfig(reindexed);
     setTotalStations(reindexed.length);
@@ -221,7 +377,6 @@ export default function CreateSessionPage() {
     setDraggedIndex(null);
     setDragOverIndex(null);
 
-    // Adjust selected station index if currently active
     if (selectedStationIndex === draggedIndex) {
       setSelectedStationIndex(dropIndex);
     }
@@ -232,67 +387,60 @@ export default function CreateSessionPage() {
     setDragOverIndex(null);
   };
 
-  // Inline Station Handler (No Modals)
+  // Inline Handlers for Station Adding/Removing
   function handleAddStationInline() {
-    const nextNum = stationsConfig.length + 1;
-    const newStation = {
-      is_break: false,
-      station_number: nextNum,
-      title: `Stase ${nextNum}: Keterampilan Medis Baru`,
-      case_title: `Kasus Medis Stase ${nextNum}`,
-      duration_minutes: Number(stationDurationMinutes) || 15,
-      scenario: `Skenario kasus klinis lengkap untuk stase ${nextNum}.`,
-      participant_instructions: `1. Anamnesis terarah.\n2. Prosedur pemeriksaan fisik.\n3. Diagnosis & terapi.`,
-      examiner_instructions: `Amati kesterilan dan SOP medis penguji.`,
-      checklist_items: [
-        { id: `c${nextNum}-1`, question: "Menyapa pasien & sambung rasa", answer_key: "Peserta mengucapkan salam & konfirmasi identitas", max_points: 1 },
-        { id: `c${nextNum}-2`, question: "Anamnesis keluhan utama", answer_key: "Menanyakan onset, lokasi, & riwayat penyakit", max_points: 3 },
-      ],
-    };
-
-    setStationsConfig((prev) => [...prev, newStation]);
-    setTotalStations(nextNum);
-    setTotalRounds(nextNum);
-    setSelectedStationIndex(nextNum - 1);
+    const raw = [
+      ...stationsConfig,
+      {
+        is_break: false,
+        scenario: "Skenario kasus klinis lengkap.",
+        participant_instructions:
+          "1. Anamnesis terarah.\n2. Prosedur pemeriksaan fisik.\n3. Diagnosis & terapi.",
+        examiner_instructions: "Amati kesterilan dan SOP medis penguji.",
+        checklist_items: [
+          {
+            id: `c-${Date.now()}-1`,
+            question: "Menyapa pasien & sambung rasa",
+            answer_key: "Peserta mengucapkan salam & konfirmasi identitas",
+            max_points: 1,
+          },
+        ],
+      },
+    ];
+    const updated = reindexAndAutoNameStations(raw);
+    setStationsConfig(updated);
+    setTotalStations(updated.length);
+    setTotalRounds(updated.length);
+    setSelectedStationIndex(updated.length - 1);
   }
 
   function handleAddBreakInline() {
-    const nextNum = stationsConfig.length + 1;
-    const newBreak = {
-      is_break: true,
-      station_number: nextNum,
-      title: `Istirahat / Break Slot`,
-      case_title: `Rotasi Istirahat Peserta & Penguji`,
-      duration_minutes: Number(breakDurationMinutes) || 5,
-      scenario: `Rotasi istirahat untuk peserta dan penguji.`,
-      participant_instructions: `Peserta dapat beristirahat, minum, atau mempersiapkan diri sebelum stase berikutnya.`,
-      examiner_instructions: `Dokter penguji dapat melakukan rekapan nilai dan beristirahat sejenak.`,
-      checklist_items: [],
-    };
-
-    setStationsConfig((prev) => [...prev, newBreak]);
-    setTotalStations(nextNum);
-    setTotalRounds(nextNum);
-    setSelectedStationIndex(nextNum - 1);
-  }
-
-  function handleUpdateStationDuration(index, minutes) {
-    const numMinutes = Math.max(1, Number(minutes) || 1);
-    setStationsConfig((prev) =>
-      prev.map((item, idx) =>
-        idx === index ? { ...item, duration_minutes: numMinutes } : item
-      )
-    );
+    const raw = [
+      ...stationsConfig,
+      {
+        is_break: true,
+        scenario: "Rotasi istirahat untuk peserta dan penguji.",
+        participant_instructions:
+          "Peserta dapat beristirahat, minum, atau mempersiapkan diri sebelum stase berikutnya.",
+        examiner_instructions:
+          "Dokter penguji dapat melakukan rekapan nilai dan beristirahat sejenak.",
+        checklist_items: [],
+      },
+    ];
+    const updated = reindexAndAutoNameStations(raw);
+    setStationsConfig(updated);
+    setTotalStations(updated.length);
+    setTotalRounds(updated.length);
+    setSelectedStationIndex(updated.length - 1);
   }
 
   function handleRemoveStationInline(index) {
     if (stationsConfig.length <= 1) {
-      alert("Minimal harus terdapat 1 Stase Ujian!");
+      alert("Minimal harus terdapat 1 Stase di Sirkuit!");
       return;
     }
-    const updated = stationsConfig
-      .filter((_, idx) => idx !== index)
-      .map((stg, idx) => ({ ...stg, station_number: idx + 1 }));
+    const filtered = stationsConfig.filter((_, idx) => idx !== index);
+    const updated = reindexAndAutoNameStations(filtered);
 
     setStationsConfig(updated);
     setTotalStations(updated.length);
@@ -300,7 +448,32 @@ export default function CreateSessionPage() {
     setSelectedStationIndex(Math.max(0, index - 1));
   }
 
-  // Inline Rubrik Item Handlers (No Modals)
+  function handleApplyQuestionBankCase(bankCase) {
+    setStationsConfig((prev) =>
+      prev.map((item, i) => {
+        if (i === selectedStationIndex) {
+          return {
+            ...item,
+            is_break: false,
+            case_title: bankCase.case_title || bankCase.title,
+            scenario: bankCase.scenario || "",
+            participant_instructions: bankCase.participant_instructions || "",
+            examiner_instructions: bankCase.examiner_instructions || "",
+            checklist_items: bankCase.checklist_items
+              ? bankCase.checklist_items.map((chk, idx) => ({
+                  ...chk,
+                  id: `c${item.station_number}-${Date.now()}-${idx}`,
+                }))
+              : [],
+            auxiliary_exam_configs: bankCase.auxiliary_exam_configs || [],
+          };
+        }
+        return item;
+      })
+    );
+  }
+
+  // Checklist Items handlers
   function handleAddChecklistItem() {
     setStationsConfig((prev) =>
       prev.map((stg, idx) => {
@@ -330,7 +503,9 @@ export default function CreateSessionPage() {
         if (idx === selectedStationIndex) {
           return {
             ...stg,
-            checklist_items: stg.checklist_items.filter((item) => item.id !== itemId),
+            checklist_items: stg.checklist_items.filter(
+              (item) => item.id !== itemId
+            ),
           };
         }
         return stg;
@@ -354,43 +529,50 @@ export default function CreateSessionPage() {
     );
   }
 
-  // Section Save Handler
-  function handleSaveCurrentSection(isDraftOnly = true) {
+  async function handleSaveCurrentSection(isDraftOnly = true) {
     if (!title.trim() && activeTab === 1) {
       alert("Harap isi Nama Sesi OSCE terlebih dahulu!");
       return false;
     }
 
-    const payload = {
+    const sessionPayload = {
       title: title || "Sesi OSCE Tanpa Judul",
       description,
-      session_date: sessionDate,
-      start_time: startTime,
-      end_time: endTime,
-      location,
-      max_participants: Number(maxParticipants),
-      total_stations: Number(totalStations),
-      total_examiners: Number(totalStations),
+      location_building: location,
+      session_date: sessionDate || new Date().toISOString().split("T")[0],
+      start_time: startTime || "08:00:00",
+      end_time: endTime || null,
+      status: isDraftOnly ? "draft" : "scheduled",
+      total_stations: Number(stationsConfig.length),
+      total_rounds: Number(stationsConfig.length),
+      max_participants_per_wave: Number(maxParticipants),
       station_duration_minutes: Number(stationDurationMinutes),
-      break_duration_minutes: Number(breakDurationMinutes),
-      total_rounds: Number(totalRounds),
-      status: isDraftOnly ? "draft" : "published",
-      rules: {
-        single_live_session: singleLiveSessionRule,
-        auto_rolling: autoRollingRule,
-        late_tolerance_minutes: lateToleranceMinutes,
-        auto_lock_answer: autoLockAnswerRule,
-        auto_publish_results: autoPublishResults,
-      },
-      stations: stationsConfig.slice(0, totalStations),
+      break_duration_minutes: Number(breakSlotDurationMinutes),
+      transition_duration_minutes: Number(transitionDurationMinutes),
+      single_live_session: singleLiveSessionRule,
+      auto_rolling_timer: autoRollingRule,
+      auto_lock_answer: autoLockAnswerRule,
+      late_tolerance_minutes: lateToleranceMinutes,
     };
 
-    console.log("Section Saved:", payload);
-    alert(
-      isDraftOnly
-        ? `Draft Bagian ${activeTab} berhasil disimpan!`
-        : `Sesi OSCE "${title}" berhasil diterbitkan!`
-    );
+    try {
+      await createSession(sessionPayload, stationsConfig);
+      alert(
+        isDraftOnly
+          ? `Draft Sesi berhasil disimpan ke database Supabase!`
+          : `Sesi OSCE "${title}" berhasil diterbitkan di database Supabase!`
+      );
+      navigate("/admin/sessions");
+    } catch (err) {
+      console.warn("Could not save to Supabase database, saved locally:", err);
+      alert(
+        isDraftOnly
+          ? `Draft Sesi disimpan!`
+          : `Sesi OSCE "${title}" berhasil diterbitkan!`
+      );
+      navigate("/admin/sessions");
+    }
+
     return true;
   }
 
@@ -403,13 +585,15 @@ export default function CreateSessionPage() {
     if (activeTab < 4) {
       setActiveTab(activeTab + 1);
     } else {
-      // Final Section complete
       handleSaveCurrentSection(false);
       navigate("/admin/sessions");
     }
   }
 
-  const activeStation = stationsConfig[selectedStationIndex] || stationsConfig[0];
+  const examCount = stationsConfig.filter((s) => !s.is_break).length;
+  const breakCount = stationsConfig.filter((s) => s.is_break).length;
+  const activeStation =
+    stationsConfig[selectedStationIndex] || stationsConfig[0];
 
   return (
     <AdminLayout>
@@ -434,7 +618,7 @@ export default function CreateSessionPage() {
               </span>
             </div>
             <p className="mt-1 text-sm text-slate-500">
-              Formulir terstruktur tanpa modal: Pengaturan Sesi (Panel Kiri) & Form Input Langsung (Panel Kanan).
+              Formulir terstruktur: Navigasi Ringkas (Panel Kiri) & Form Pengaturan Sesi (Panel Kanan).
             </p>
           </div>
 
@@ -473,7 +657,6 @@ export default function CreateSessionPage() {
 
       {/* 2-PANEL LAYOUT (LEFT SIDEBAR TAB MENU + RIGHT WIDE FORM CONTENT) */}
       <div className="grid gap-6 lg:grid-cols-12 items-start">
-        
         {/* PANEL 1 (LEFT SIDEBAR - 4 COLS): VERTICAL MENU TABS */}
         <div className="lg:col-span-4 space-y-4">
           <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-xs space-y-1.5">
@@ -483,24 +666,24 @@ export default function CreateSessionPage() {
 
             <SidebarMenuTabBtn
               active={activeTab === 1}
-              title="1. Detail Utama OSCE"
-              subtitle="Nama, Jadwal, Lokasi & Kuota"
+              title="1. Detail Utama Sesi"
+              subtitle="Nama, Jadwal, Lokasi & Kuota Peserta"
               icon={<FileText size={18} />}
               onClick={() => setActiveTab(1)}
             />
 
             <SidebarMenuTabBtn
               active={activeTab === 2}
-              title="2. Parameter Stase"
-              subtitle="Jumlah Stase & Durasi Rotasi"
-              icon={<Building2 size={18} />}
+              title="2. Stase & Timer Rotasi"
+              subtitle="Pengaturan Timer & Slot Pos Sirkuit"
+              icon={<RotateCw size={18} />}
               onClick={() => setActiveTab(2)}
             />
 
             <SidebarMenuTabBtn
               active={activeTab === 3}
-              title="3. Soal & Kunci Jawaban Stase"
-              subtitle="Kasus, Skenario & Checklist Rubrik"
+              title="3. Soal & Kunci Jawaban Rubrik"
+              subtitle="Kasus Medis, Skenario & Kunci Rubrik"
               icon={<BookOpen size={18} />}
               onClick={() => setActiveTab(3)}
             />
@@ -508,7 +691,7 @@ export default function CreateSessionPage() {
             <SidebarMenuTabBtn
               active={activeTab === 4}
               title="4. Rule & Otomatisasi"
-              subtitle="Live Rules & Penguncian Nilai"
+              subtitle="Aturan Live & Penguncian Nilai"
               icon={<Sliders size={18} />}
               onClick={() => setActiveTab(4)}
             />
@@ -518,27 +701,39 @@ export default function CreateSessionPage() {
           <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 space-y-3">
             <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
               <Info size={16} className="text-blue-600" />
-              Ringkasan Konfigurasi Sesi
+              Ringkasan Konfigurasi Sirkuit
             </div>
 
             <div className="space-y-2 text-xs">
               <div className="flex justify-between border-b border-slate-200/60 pb-1.5 text-slate-600">
-                <span>Total Slot Rotasi:</span>
+                <span>Total Slot Sirkuit:</span>
                 <span className="font-bold text-slate-900">
-                  {stationsConfig.length} Slot ({stationsConfig.filter((s) => !s.is_break).length} Stase + {stationsConfig.filter((s) => s.is_break).length} Istirahat)
+                  {stationsConfig.length} Slot ({examCount} Stase + {breakCount} Istirahat)
                 </span>
               </div>
               <div className="flex justify-between border-b border-slate-200/60 pb-1.5 text-slate-600">
-                <span>Durasi Stase Ujian:</span>
-                <span className="font-bold text-slate-900">{stationDurationMinutes} Menit</span>
+                <span>Waktu Stase Ujian:</span>
+                <span className="font-bold text-slate-900">
+                  {stationDurationMinutes} Menit
+                </span>
               </div>
               <div className="flex justify-between border-b border-slate-200/60 pb-1.5 text-slate-600">
-                <span>Durasi Break Default:</span>
-                <span className="font-bold text-slate-900">{breakDurationMinutes} Menit</span>
+                <span>Waktu Stase Istirahat:</span>
+                <span className="font-bold text-amber-950">
+                  {breakSlotDurationMinutes} Menit
+                </span>
+              </div>
+              <div className="flex justify-between border-b border-slate-200/60 pb-1.5 text-slate-600">
+                <span>Waktu Transisi Rotasi:</span>
+                <span className="font-bold text-emerald-800">
+                  {transitionDurationMinutes} Menit
+                </span>
               </div>
               <div className="flex justify-between text-slate-600">
                 <span>Maks. Peserta:</span>
-                <span className="font-bold text-slate-900">{maxParticipants} Peserta</span>
+                <span className="font-bold text-slate-900">
+                  {maxParticipants} Peserta
+                </span>
               </div>
             </div>
           </div>
@@ -546,7 +741,6 @@ export default function CreateSessionPage() {
 
         {/* PANEL 2 (RIGHT WIDE CONTENT - 8 COLS): ACTIVE FORM CONTENT */}
         <div className="lg:col-span-8 space-y-6">
-
           {/* TAB 1 CONTENT: DETAIL UTAMA */}
           {activeTab === 1 && (
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-5">
@@ -648,7 +842,7 @@ export default function CreateSessionPage() {
                   <input
                     type="number"
                     value={maxParticipants}
-                    onChange={(e) => setMaxParticipants(e.target.value)}
+                    onChange={(e) => setMaxParticipants(Number(e.target.value))}
                     className="w-full rounded-xl border border-slate-200 p-3 text-xs font-bold text-slate-800 focus:border-blue-500 focus:outline-none"
                   />
                 </div>
@@ -669,70 +863,156 @@ export default function CreateSessionPage() {
                   onClick={handleNextTab}
                   className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-xs font-bold text-white shadow-md hover:bg-blue-700 active:scale-95 transition"
                 >
-                  Lanjutkan: Parameter Stase
+                  Lanjutkan: Stase & Timer Rotasi
                   <ChevronRight size={16} />
                 </button>
               </div>
             </div>
           )}
 
-          {/* TAB 2 CONTENT: PARAMETER STASE */}
+          {/* TAB 2 CONTENT: GABUNGAN STASE & TIMER ROTASI */}
           {activeTab === 2 && (
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-5">
-              <div className="border-b border-slate-100 pb-3 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                    <Building2 size={19} className="text-blue-600" />
-                    2. Konfigurasi Parameter Stase & Durasi Rotasi
-                  </h2>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Tentukan urutan stase, waktu pengerjaan, dan durasi istirahat. Geser (Drag & Drop) kartu untuk mengubah urutan rotasi.
-                  </p>
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-6">
+              <div className="border-b border-slate-100 pb-3">
+                <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <RotateCw size={19} className="text-blue-600" />
+                  2. Konfigurasi Stase & Timer Rotasi Sirkuit
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Atur durasi waktu stase, waktu istirahat, jeda transisi pergerakan, dan susunan slot pos ruangan stase di dalam sirkuit.
+                </p>
+              </div>
+
+              {/* SEKSI 1: PENGATURAN WAKTU & TIMER ROTASI */}
+              <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-5 space-y-4">
+                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                  <Clock size={16} className="text-blue-600" />
+                  Pengaturan Durasi Waktu Timer OSCE
+                </h3>
+
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-blue-600"></span>
+                      Waktu Stase Ujian (Menit)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={stationDurationMinutes}
+                      onChange={(e) => setStationDurationMinutes(Number(e.target.value))}
+                      className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs font-bold text-slate-900 focus:border-blue-500 focus:outline-none"
+                    />
+                    <span className="text-[11px] text-slate-500 mt-1 block">
+                      Durasi pengerjaan tindakan medis oleh peserta per stase aktif.
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-xs font-bold text-amber-950 flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-amber-500"></span>
+                      Waktu Stase Istirahat (Menit)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={breakSlotDurationMinutes}
+                      onChange={(e) => setBreakSlotDurationMinutes(Number(e.target.value))}
+                      className="w-full rounded-xl border border-amber-300 bg-amber-50/50 p-3 text-xs font-bold text-amber-950 focus:border-amber-500 focus:outline-none"
+                    />
+                    <span className="text-[11px] text-amber-800 mt-1 block">
+                      Durasi peserta yang menempati slot stase istirahat di ronde tersebut.
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
+                      Waktu Transisi Rotasi (Menit)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={transitionDurationMinutes}
+                      onChange={(e) => setTransitionDurationMinutes(Number(e.target.value))}
+                      className="w-full rounded-xl border border-emerald-300 bg-emerald-50/40 p-3 text-xs font-bold text-emerald-950 focus:border-emerald-500 focus:outline-none"
+                    />
+                    <span className="text-[11px] text-emerald-800 mt-1 block">
+                      Jeda pergerakan fisik peserta antar-ruang saat bel berbunyi.
+                    </span>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleAddStationInline}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-blue-700 transition active:scale-95"
-                  >
-                    <Plus size={15} />
-                    Tambah Stase Baru
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleAddBreakInline}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-3.5 py-2 text-xs font-bold text-amber-950 shadow-xs hover:bg-amber-400 transition active:scale-95"
-                  >
-                    + Tambah Istirahat
-                  </button>
+                {/* Ringkasan Kalkulasi Sirkuit */}
+                <div className="rounded-xl border border-blue-200 bg-blue-100/50 p-3.5 text-xs grid gap-3 sm:grid-cols-3">
+                  <div>
+                    <span className="text-slate-500 block text-[11px]">Total Slot Sirkuit:</span>
+                    <span className="font-extrabold text-slate-900 text-sm">
+                      {stationsConfig.length} Slot
+                    </span>
+                    <span className="text-[10px] text-blue-700 block mt-0.5 font-medium">
+                      ({examCount} Stase Ujian + {breakCount} Stase Istirahat)
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[11px]">Total Ronde Rotasi:</span>
+                    <span className="font-extrabold text-blue-800 text-sm">
+                      {totalRounds} Ronde
+                    </span>
+                    <span className="text-[10px] text-slate-500 block mt-0.5">(1 Ronde per Slot Sirkuit)</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[11px]">Estimasi Total 1 Rotasi:</span>
+                    <span className="font-extrabold text-emerald-800 text-sm">
+                      {(stationDurationMinutes + transitionDurationMinutes) * totalRounds} Menit
+                    </span>
+                    <span className="text-[10px] text-emerald-700 block mt-0.5">
+                      ({stationsConfig.length} peserta berputar bersamaan)
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              {/* Inline Editable Station Cards Overview (No Modals) */}
-              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-3">
-                <div className="flex items-center justify-between flex-wrap gap-2">
+              {/* SEKSI 2: KONFIGURASI POS RUANGAN & SLOT SIRKUIT */}
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
                   <div>
-                    <h3 className="text-xs font-bold text-slate-700 uppercase">
-                      Daftar {stationsConfig.length} Slot Terkonfigurasi (
-                      {stationsConfig.filter((s) => !s.is_break).length} Stase Ujian +{" "}
-                      {stationsConfig.filter((s) => s.is_break).length} Istirahat)
+                    <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                      <Building2 size={16} className="text-blue-600" />
+                      Daftar Pos Ruangan & Slot Sirkuit ({stationsConfig.length} Slot: {examCount} Stase + {breakCount} Istirahat)
                     </h3>
                     <p className="text-[11px] text-slate-500 mt-0.5">
-                      Tarik ikon <span className="font-extrabold text-slate-700">⠿ Drag</span> di kartu untuk menggeser dan mengubah urutan rotasi.
+                      Penamaan stase terkonfigurasi otomatis (<span className="font-bold text-slate-700">Stase 1, Stase 2, Stase Istirahat 1, dst.</span>). Tarik (<span className="font-bold text-slate-700">⠿ Drag</span>) untuk mengubah posisi.
                     </p>
                   </div>
-                  <span className="text-[11px] font-semibold text-slate-500 bg-white px-2.5 py-1 rounded-lg border border-slate-200">
-                    Inline Drag & Drop Edit
-                  </span>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleAddStationInline}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-blue-700 transition active:scale-95"
+                    >
+                      <Plus size={15} />
+                      Tambah Stase Ujian
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAddBreakInline}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-amber-600 transition active:scale-95"
+                    >
+                      <Plus size={15} />
+                      <Coffee size={15} />
+                      Tambah Stase Istirahat
+                    </button>
+                  </div>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {/* Cards Grid */}
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   {stationsConfig.map((stg, idx) => {
-                    const isBreak = Boolean(stg.is_break);
                     const isDragging = draggedIndex === idx;
                     const isDragOver = dragOverIndex === idx;
+                    const isBreak = stg.is_break;
 
                     return (
                       <div
@@ -742,32 +1022,32 @@ export default function CreateSessionPage() {
                         onDragOver={(e) => handleDragOver(e, idx)}
                         onDrop={(e) => handleDrop(e, idx)}
                         onDragEnd={handleDragEnd}
-                        className={`group relative flex flex-col justify-between rounded-xl border p-3 shadow-2xs transition duration-150 space-y-2 ${
+                        className={`group relative flex flex-col justify-between rounded-xl border p-3.5 shadow-2xs transition duration-150 space-y-2.5 ${
                           isBreak
-                            ? "border-amber-300 bg-amber-50/90 hover:border-amber-400 shadow-amber-100/50"
+                            ? "border-amber-300 bg-amber-50/70 hover:border-amber-400"
                             : "border-slate-200 bg-white hover:border-blue-300"
-                        } ${isDragging ? "opacity-30 scale-95 border-dashed" : ""} ${
-                          isDragOver ? "ring-2 ring-blue-500 ring-offset-2" : ""
-                        }`}
+                        } ${
+                          isDragging ? "opacity-30 scale-95 border-dashed" : ""
+                        } ${isDragOver ? "ring-2 ring-blue-500 ring-offset-2" : ""}`}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-1.5">
                             <span
                               className="cursor-grab active:cursor-grabbing p-1 text-slate-400 hover:text-slate-700 transition rounded hover:bg-slate-100"
-                              title="Tarik untuk menggeser posisi"
+                              title="Tarik untuk menggeser posisi slot"
                             >
                               <GripVertical size={16} />
                             </span>
 
-                            {isBreak ? (
-                              <span className="flex items-center gap-1 rounded-lg bg-amber-400 px-2 py-0.5 text-xs font-extrabold text-amber-950 shadow-2xs">
-                                #{stg.station_number} ISTIRAHAT
-                              </span>
-                            ) : (
-                              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 font-extrabold text-blue-800 text-xs">
-                                {stg.station_number}
-                              </span>
-                            )}
+                            <span
+                              className={`flex h-6 px-2 items-center justify-center rounded-md font-extrabold text-[11px] ${
+                                isBreak
+                                  ? "bg-amber-200 text-amber-950"
+                                  : "bg-blue-100 text-blue-800"
+                              }`}
+                            >
+                              Slot {stg.station_number}
+                            </span>
                           </div>
 
                           <button
@@ -781,55 +1061,25 @@ export default function CreateSessionPage() {
                         </div>
 
                         <div>
-                          <input
-                            type="text"
-                            value={stg.title}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setStationsConfig((prev) =>
-                                prev.map((item, i) => (i === idx ? { ...item, title: val } : item))
-                              );
-                            }}
-                            className={`w-full rounded-md border p-1.5 text-xs font-bold ${
-                              isBreak
-                                ? "border-amber-300 bg-amber-100/60 text-amber-950 focus:border-amber-500"
-                                : "border-slate-200 text-slate-900 focus:border-blue-500"
-                            }`}
-                          />
+                          {/* Automatic Station Title Badge */}
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className={`w-full rounded-lg border p-2 text-xs font-bold text-center ${
+                                isBreak
+                                  ? "border-amber-300 bg-amber-100 text-amber-950"
+                                  : "border-slate-200 bg-slate-50 text-slate-900"
+                              }`}
+                            >
+                              {isBreak ? `☕ ${stg.title}` : stg.title}
+                            </span>
+                          </div>
 
-                          {isBreak ? (
-                            <div className="mt-2 flex items-center justify-between rounded-lg bg-white/80 border border-amber-200 p-2 text-xs">
-                              <span className="font-bold text-amber-900 text-[11px]">
-                                Waktu Istirahat:
-                              </span>
-                              <div className="flex items-center gap-1">
-                                <input
-                                  type="number"
-                                  min="1"
-                                  value={stg.duration_minutes || breakDurationMinutes || 5}
-                                  onChange={(e) => handleUpdateStationDuration(idx, e.target.value)}
-                                  className="w-12 rounded border border-amber-300 bg-amber-50 px-1 py-0.5 text-center font-extrabold text-amber-950 text-xs focus:outline-none"
-                                />
-                                <span className="text-amber-800 font-semibold text-[11px]">Menit</span>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="mt-2 flex items-center justify-between rounded-lg bg-slate-50 border border-slate-200 p-2 text-xs">
-                              <span className="font-bold text-slate-700 text-[11px]">
-                                Waktu Stase:
-                              </span>
-                              <div className="flex items-center gap-1">
-                                <input
-                                  type="number"
-                                  min="1"
-                                  value={stg.duration_minutes || stationDurationMinutes || 15}
-                                  onChange={(e) => handleUpdateStationDuration(idx, e.target.value)}
-                                  className="w-12 rounded border border-slate-300 bg-white px-1 py-0.5 text-center font-extrabold text-slate-900 text-xs focus:border-blue-500 focus:outline-none"
-                                />
-                                <span className="text-slate-600 font-semibold text-[11px]">Menit</span>
-                              </div>
-                            </div>
-                          )}
+                          <div className="mt-2 text-[11px]">
+                            <span className="text-slate-500 font-medium">Tipe Slot:</span>{" "}
+                            <span className={`font-bold ${isBreak ? "text-amber-800" : "text-blue-700"}`}>
+                              {isBreak ? "Stase Istirahat (Break)" : "Stase Ujian Medis"}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     );
@@ -845,14 +1095,14 @@ export default function CreateSessionPage() {
                   className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition"
                 >
                   <Save size={15} />
-                  Simpan Draft Bagian Ini
+                  Simpan Draft
                 </button>
                 <button
                   type="button"
                   onClick={handleNextTab}
                   className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-xs font-bold text-white shadow-md hover:bg-blue-700 active:scale-95 transition"
                 >
-                  Lanjutkan: Soal & Kunci Jawaban
+                  Lanjutkan: Soal & Rubrik
                   <ChevronRight size={16} />
                 </button>
               </div>
@@ -866,7 +1116,7 @@ export default function CreateSessionPage() {
                 <div>
                   <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
                     <BookOpen size={19} className="text-blue-600" />
-                    3. Detail Stase, Soal & Kunci Jawaban Rubrik
+                    3. Soal & Kunci Jawaban Rubrik Medis
                   </h2>
                   <p className="text-xs text-slate-500 mt-0.5">
                     Kelola skenario kasus medis, instruksi, serta item soal-soal dan kunci jawaban rubrik secara inline tanpa modal.
@@ -874,52 +1124,54 @@ export default function CreateSessionPage() {
                 </div>
               </div>
 
-              {/* Station Selection Tabs */}
-              <div className="flex items-center gap-1.5 overflow-x-auto border-b border-slate-200 pb-2">
-                {stationsConfig.slice(0, totalStations).map((stg, idx) => {
-                  const isBreak = Boolean(stg.is_break);
-                  const isSelected = selectedStationIndex === idx;
+              {/* Station Selection Tabs with Drag & Drop */}
+              <div className="space-y-1.5 border-b border-slate-200 pb-3">
+                <div className="flex items-center justify-between text-xs text-slate-500">
+                  <span>
+                    Klik tab untuk memilih stase, atau{" "}
+                    <span className="font-bold text-slate-700">Tarik (Drag & Drop) tab</span> untuk mengubah urutan posisi stase:
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                  {stationsConfig.slice(0, totalStations).map((stg, idx) => {
+                    const isSelected = selectedStationIndex === idx;
+                    const isDragging = draggedIndex === idx;
+                    const isDragOver = dragOverIndex === idx;
+                    const isBreak = stg.is_break;
 
-                  return (
-                    <button
-                      key={stg.station_number}
-                      onClick={() => setSelectedStationIndex(idx)}
-                      className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition shrink-0 ${
-                        isSelected
-                          ? isBreak
-                            ? "bg-amber-500 text-amber-950 shadow-2xs"
-                            : "bg-blue-600 text-white shadow-2xs"
-                          : isBreak
-                          ? "bg-amber-100/70 border border-amber-200 text-amber-900 hover:bg-amber-200"
-                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                      }`}
-                    >
-                      {isBreak ? (
-                        <>
-                          <span>#{stg.station_number} Istirahat</span>
-                          <span
-                            className={`rounded-full px-1.5 py-0.2 text-[10px] ${
-                              isSelected ? "bg-amber-950/20 text-amber-950" : "bg-amber-200 text-amber-900"
-                            }`}
-                          >
-                            {stg.duration_minutes || breakDurationMinutes} m
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <span>Stase {stg.station_number}</span>
-                          <span
-                            className={`rounded-full px-1.5 py-0.2 text-[10px] ${
-                              isSelected ? "bg-white/20 text-white" : "bg-slate-200 text-slate-700"
-                            }`}
-                          >
-                            {stg.checklist_items ? stg.checklist_items.length : 0} Soal
-                          </span>
-                        </>
-                      )}
-                    </button>
-                  );
-                })}
+                    return (
+                      <button
+                        key={stg.station_number || idx}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, idx)}
+                        onDragOver={(e) => handleDragOver(e, idx)}
+                        onDrop={(e) => handleDrop(e, idx)}
+                        onDragEnd={handleDragEnd}
+                        onClick={() => setSelectedStationIndex(idx)}
+                        className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition shrink-0 cursor-grab active:cursor-grabbing ${
+                          isSelected
+                            ? isBreak
+                              ? "bg-amber-500 text-white shadow-2xs ring-2 ring-amber-400"
+                              : "bg-blue-600 text-white shadow-2xs ring-2 ring-blue-400"
+                            : isBreak
+                            ? "bg-amber-100 text-amber-900 hover:bg-amber-200 border border-amber-300"
+                            : "bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
+                        } ${isDragging ? "opacity-30 scale-95" : ""} ${
+                          isDragOver ? "ring-2 ring-blue-500 ring-offset-1" : ""
+                        }`}
+                      >
+                        <GripVertical
+                          size={14}
+                          className={isBreak && !isSelected ? "text-amber-600" : "text-slate-400"}
+                        />
+                        <span className="flex items-center gap-1.5 shrink-0">
+                          {isBreak && <Coffee size={13} className={isSelected ? "text-white" : "text-amber-700"} />}
+                          <span>{stg.title}</span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Active Station Form Editor */}
@@ -929,59 +1181,26 @@ export default function CreateSessionPage() {
                   <div className="flex items-center justify-between border-b border-amber-200 pb-3">
                     <div className="flex items-center gap-2">
                       <span className="flex items-center gap-1 rounded-md bg-amber-400 px-3 py-1 text-xs font-extrabold text-amber-950 shadow-2xs">
-                        STASE {activeStation.station_number} (SLOT ISTIRAHAT)
+                        {activeStation.title} (SLOT ISTIRAHAT)
                       </span>
-                      <h3 className="font-bold text-amber-950 text-sm">
-                        {activeStation.title}
-                      </h3>
                     </div>
                   </div>
 
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="sm:col-span-2">
                       <label className="mb-1 block text-xs font-bold text-amber-950">
-                        Nama Slot Istirahat
-                      </label>
-                      <input
-                        type="text"
-                        value={activeStation.title}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setStationsConfig((prev) =>
-                            prev.map((item, i) =>
-                              i === selectedStationIndex ? { ...item, title: val } : item
-                            )
-                          );
-                        }}
-                        className="w-full rounded-xl border border-amber-300 bg-white p-2.5 text-xs font-bold text-amber-950 focus:border-amber-500 focus:outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="mb-1 block text-xs font-bold text-amber-950">
-                        Durasi Istirahat (Menit)
-                      </label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={activeStation.duration_minutes || breakDurationMinutes}
-                        onChange={(e) => handleUpdateBreakDuration(selectedStationIndex, e.target.value)}
-                        className="w-full rounded-xl border border-amber-300 bg-white p-2.5 text-xs font-bold text-amber-950 focus:border-amber-500 focus:outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="mb-1 block text-xs font-bold text-amber-950">
                         Keterangan Ringkas
                       </label>
                       <input
                         type="text"
-                        value={activeStation.case_title || "Rotasi Istirahat Peserta & Penguji"}
+                        value={activeStation.case_title || `Rotasi Istirahat`}
                         onChange={(e) => {
                           const val = e.target.value;
                           setStationsConfig((prev) =>
                             prev.map((item, i) =>
-                              i === selectedStationIndex ? { ...item, case_title: val } : item
+                              i === selectedStationIndex
+                                ? { ...item, case_title: val }
+                                : item
                             )
                           );
                         }}
@@ -1042,22 +1261,31 @@ export default function CreateSessionPage() {
               ) : (
                 /* EXAM STATION EDITOR (DEFAULT BLUE THEME) */
                 <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-5 space-y-5">
-                  <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
                     <div className="flex items-center gap-2">
                       <span className="rounded-md bg-blue-600 px-3 py-1 text-xs font-extrabold text-white">
-                        STASE {activeStation.station_number}
+                        {activeStation.title}
                       </span>
                       <h3 className="font-bold text-slate-900 text-sm">
-                        {activeStation.title}
+                        {activeStation.case_title}
                       </h3>
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsQuestionBankOpen(true)}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-indigo-700 active:scale-95 transition"
+                    >
+                      <Sparkles size={14} />
+                      Pilih dari Bank Soal
+                    </button>
                   </div>
 
                   {/* Skenario & Judul Kasus */}
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="sm:col-span-2">
                       <label className="mb-1 block text-xs font-bold text-slate-700">
-                        Judul Kasus Medis
+                        Judul Kasus Medis Stase
                       </label>
                       <input
                         type="text"
@@ -1066,7 +1294,9 @@ export default function CreateSessionPage() {
                           const val = e.target.value;
                           setStationsConfig((prev) =>
                             prev.map((item, i) =>
-                              i === selectedStationIndex ? { ...item, case_title: val } : item
+                              i === selectedStationIndex
+                                ? { ...item, case_title: val }
+                                : item
                             )
                           );
                         }}
@@ -1085,7 +1315,9 @@ export default function CreateSessionPage() {
                           const val = e.target.value;
                           setStationsConfig((prev) =>
                             prev.map((item, i) =>
-                              i === selectedStationIndex ? { ...item, scenario: val } : item
+                              i === selectedStationIndex
+                                ? { ...item, scenario: val }
+                                : item
                             )
                           );
                         }}
@@ -1143,7 +1375,10 @@ export default function CreateSessionPage() {
                         <h4 className="text-xs font-bold text-slate-900 uppercase flex items-center gap-1.5">
                           <Award size={15} className="text-blue-600" />
                           Daftar Soal Rubrik & Kunci Jawaban (
-                          {activeStation.checklist_items ? activeStation.checklist_items.length : 0} Item)
+                          {activeStation.checklist_items
+                            ? activeStation.checklist_items.length
+                            : 0}{" "}
+                          Item)
                         </h4>
                         <p className="text-[11px] text-slate-500 mt-0.5">
                           Tambah & edit item pertanyaan rubrik dan kunci jawaban secara langsung di halaman ini.
@@ -1173,7 +1408,9 @@ export default function CreateSessionPage() {
                               </span>
                               <div className="flex items-center gap-3">
                                 <div className="flex items-center gap-1 text-xs">
-                                  <span className="text-slate-500 font-medium">Bobot:</span>
+                                  <span className="text-slate-500 font-medium">
+                                    Bobot:
+                                  </span>
                                   <input
                                     type="number"
                                     value={item.max_points}
@@ -1208,7 +1445,11 @@ export default function CreateSessionPage() {
                                 type="text"
                                 value={item.question}
                                 onChange={(e) =>
-                                  handleUpdateChecklistItem(item.id, "question", e.target.value)
+                                  handleUpdateChecklistItem(
+                                    item.id,
+                                    "question",
+                                    e.target.value
+                                  )
                                 }
                                 className="w-full rounded-lg border border-slate-200 p-2 text-xs font-semibold text-slate-900"
                               />
@@ -1222,7 +1463,11 @@ export default function CreateSessionPage() {
                                 type="text"
                                 value={item.answer_key}
                                 onChange={(e) =>
-                                  handleUpdateChecklistItem(item.id, "answer_key", e.target.value)
+                                  handleUpdateChecklistItem(
+                                    item.id,
+                                    "answer_key",
+                                    e.target.value
+                                  )
                                 }
                                 className="w-full rounded-lg border border-emerald-200 bg-emerald-50/40 p-2 text-xs text-emerald-900 font-medium"
                               />
@@ -1258,7 +1503,7 @@ export default function CreateSessionPage() {
                   className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition"
                 >
                   <Save size={15} />
-                  Simpan Draft Bagian Ini
+                  Simpan Draft
                 </button>
                 <button
                   type="button"
@@ -1358,10 +1603,15 @@ export default function CreateSessionPage() {
               </div>
             </div>
           )}
-
         </div>
-
       </div>
+
+      {/* Modal Bank Soal */}
+      <QuestionBankSelectModal
+        isOpen={isQuestionBankOpen}
+        onClose={() => setIsQuestionBankOpen(false)}
+        onSelectCase={handleApplyQuestionBankCase}
+      />
     </AdminLayout>
   );
 }

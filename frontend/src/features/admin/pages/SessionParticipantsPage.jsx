@@ -71,10 +71,10 @@ export default function SessionParticipantsPage() {
     try {
       setLoading(true);
       const data = await getSessionParticipants(id);
-      setParticipants(data && data.length > 0 ? data : MOCK_PARTICIPANTS);
+      setParticipants(data || []);
     } catch (err) {
       console.error(err);
-      setParticipants(MOCK_PARTICIPANTS);
+      setParticipants([]);
     } finally {
       setLoading(false);
     }

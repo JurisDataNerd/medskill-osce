@@ -1,224 +1,211 @@
-import { supabase } from "@/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 
 /**
- * Ambil semua member dari sesi yang sedang running,
- * dikelompokkan per station_number.
- * Return array of station objects:
- * {
- *   station_number,
- *   status: "running" | "waiting" | "finished",
- *   examiner: { full_name } | null,
- *   participant: { full_name } | null,
- *   started_at: string | null,
- * }
+ * Get dashboard statistics for Admin Control Room
+ */
+export async function getDashboardStats() {
+  try {
+    const [
+      { count: participants },
+      { count: examiners },
+      { count: mentors },
+      { count: sessions },
+      { data: activeSession },
+    ] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .eq("role", "participant"),
+
+      supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .eq("role", "examiner"),
+
+      supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .eq("role", "mentor"),
+
+      supabase
+        .schema("osce")
+        .from("sessions")
+        .select("id", { count: "exact", head: true }),
+
+      supabase
+        .schema("osce")
+        .from("sessions")
+        .select("id, title, status, started_at, total_stations, station_duration_minutes, location_building")
+        .eq("status", "ongoing")
+        .limit(1)
+        .maybeSingle(),
+    ]);
+
+    return {
+      participants: participants ?? 0,
+      examiners: examiners ?? 0,
+      mentors: mentors ?? 0,
+      sessions: sessions ?? 0,
+      activeSession: activeSession ?? null,
+    };
+  } catch (error) {
+    console.error("Error fetching dashboard stats:", error);
+    return {
+      participants: 0,
+      examiners: 0,
+      mentors: 0,
+      sessions: 0,
+      activeSession: null,
+    };
+  }
+}
+
+/**
+ * Get live station status for ongoing session
+ */
+export async function getLiveStations() {
+  try {
+    const { data: session, error: sessionError } = await supabase
+      .schema("osce")
+      .from("sessions")
+      .select("id, total_stations, started_at, status, current_round, current_wave")
+      .eq("status", "ongoing")
+      .limit(1)
+      .maybeSingle();
+
+    if (sessionError || !session) {
+      return { session: null, stations: [] };
+    }
+
+    const [
+      { data: stationsData },
+      { data: participantsData },
+      { data: examinersData },
+    ] = await Promise.all([
+      supabase
+        .schema("osce")
+        .from("stations")
+        .select("*")
+        .eq("session_id", session.id)
+        .order("station_number", { ascending: true }),
+
+      supabase
+        .schema("osce")
+        .from("session_participants")
+        .select("*")
+        .eq("session_id", session.id),
+
+      supabase
+        .schema("osce")
+        .from("session_examiners")
+        .select("*")
+        .eq("session_id", session.id),
+    ]);
+
+    const formattedStations = (stationsData || []).map((st) => {
+      const examiner = (examinersData || []).find(
+        (e) => e.assigned_station_number === st.station_number
+      );
+      const participant = (participantsData || []).find(
+        (p) => p.starting_station_number === st.station_number
+      );
+
+      return {
+        id: st.id,
+        station_number: st.station_number,
+        title: st.title,
+        is_break: st.is_break,
+        case_title: st.case_title,
+        examiner: examiner ? { full_name: examiner.full_name, specialty: examiner.specialty } : null,
+        participant: participant ? { full_name: participant.full_name, nim: participant.nim } : null,
+        status: st.is_break ? "break" : "running",
+      };
+    });
+
+    return { session, stations: formattedStations };
+  } catch (error) {
+    console.error("Error fetching live stations:", error);
+    return { session: null, stations: [] };
+  }
+}
+
+/**
+ * Legacy compatibility helper for assigned stations
  */
 export async function assignStation(stationId) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Assign examiner by creating/updating osce_session_members for role 'examiner'
-  // stationId here is expected to be a stage id
-  const { data: stage } = await supabase
-    .from("osce_stages")
+  if (!user) throw new Error("Unauthenticated");
+
+  const { data: station } = await supabase
+    .schema("osce")
+    .from("stations")
     .select("*")
     .eq("id", stationId)
-    .maybeSingle();
-
-  if (!stage) {
-    throw new Error("Stage not found");
-  }
-
-  // Find latest session for this stage
-  const { data: session } = await supabase
-    .from("osce_sessions")
-    .select("*")
-    .neq("status", "finished")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  const sessionId = session?.id ?? stage.session_id;
-
-  // Try update existing empty examiner member
-  const { data: updated, error: updateErr } = await supabase
-    .from("osce_session_members")
-    .update({ profile_id: user.id, status: "assigned" })
-    .eq("session_id", sessionId)
-    .eq("role", "examiner")
-    .eq("station_number", stage.station_number)
-    .is("profile_id", null)
-    .select()
     .single();
 
-  if (updated) return updated;
+  if (!station) throw new Error("Station not found");
 
-  // Otherwise insert a new member
-  const { data: inserted, error: insertErr } = await supabase
-    .from("osce_session_members")
+  const { data: inserted, error } = await supabase
+    .schema("osce")
+    .from("session_examiners")
     .insert({
-      session_id: sessionId,
-      profile_id: user.id,
-      role: "examiner",
-      station_number: stage.station_number,
-      status: "assigned",
+      session_id: station.session_id,
+      user_id: user.id,
+      full_name: user.email || "Dokter Penguji",
+      assigned_station_number: station.station_number,
+      status: "active",
     })
     .select()
     .single();
 
-  if (insertErr) throw insertErr;
-
+  if (error) throw error;
   return inserted;
 }
 
-export async function getLiveStations() {
-  // Ambil sesi yang sedang running
-  const { data: sessions, error: sessionError } = await supabase
-    .from("osce_sessions")
-    .select("id, total_stations, started_at, status")
-    .eq("status", "running")
-    .limit(1);
-
-  if (sessionError) throw sessionError;
-
-  // Jika tidak ada sesi running, kembalikan array kosong
-  if (!sessions || sessions.length === 0) {
-    return { session: null, stations: [] };
-  }
-
-  const session = sessions[0];
-
-  // Ambil semua member dari sesi ini
-  const { data: members, error: memberError } = await supabase
-    .from("osce_session_members")
-    .select(`
-      id,
-      role,
-      status,
-      station_number,
-      profiles (
-        full_name
-      )
-    `)
-    .eq("session_id", session.id)
-    .in("role", ["participant", "examiner"]);
-
-  if (memberError) throw memberError;
-
-  const totalStations = session.total_stations ?? 0;
-
-  // Build stations array
-  const stations = Array.from({ length: totalStations }, (_, i) => {
-    const stationNum = i + 1;
-    const stationMembers = (members ?? []).filter(
-      (m) => m.station_number === stationNum
-    );
-
-    const examiner = stationMembers.find((m) => m.role === "examiner");
-    const participant = stationMembers.find((m) => m.role === "participant");
-
-    // Tentukan status station
-    let stationStatus = "waiting";
-    if (participant) {
-      if (participant.status === "finished" || participant.status === "done") {
-        stationStatus = "finished";
-      } else if (
-        participant.status === "approved" ||
-        participant.status === "running"
-      ) {
-        stationStatus = "running";
-      }
-    }
-
-    return {
-      station_number: stationNum,
-      status: stationStatus,
-      examiner: examiner?.profiles ?? null,
-      participant: participant?.profiles ?? null,
-      session_started_at: session.started_at,
-    };
-  });
-
-  return { session, stations };
-}
-
-export async function getDashboardStats() {
-  const [
-    { count: participants },
-    { count: examiners },
-    { count: mentors },
-    { count: sessions },
-    { data: activeSession },
-  ] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select("id", { count: "exact", head: true })
-      .eq("role", "participant"),
-
-    supabase
-      .from("profiles")
-      .select("id", { count: "exact", head: true })
-      .eq("role", "examiner"),
-
-    supabase
-      .from("profiles")
-      .select("id", { count: "exact", head: true })
-      .eq("role", "mentor"),
-
-    supabase
-      .from("osce_sessions")
-      .select("id", { count: "exact", head: true }),
-
-    supabase
-      .from("osce_sessions")
-      .select("id, title, status, started_at, total_stations, station_duration_minutes")
-      .eq("status", "running")
-      .limit(1)
-      .maybeSingle(),
-  ]);
-
-  return {
-    participants: participants ?? 0,
-    examiners: examiners ?? 0,
-    mentors: mentors ?? 0,
-    sessions: sessions ?? 0,
-    activeSession: activeSession ?? null,
-  };
-}
-
-// Legacy function — dipakai oleh examiner LiveMonitorPage
+/**
+ * Helper to fetch live participants for examiner monitor
+ */
 export async function getLiveParticipants() {
-  const { data, error } = await supabase
-    .from("osce_session_members")
-    .select(`
-      id,
-      status,
-      station_number,
-      participant_order,
-      profiles (
-        full_name
-      ),
-      osce_sessions (
-        title
-      )
-    `)
-    .eq("role", "participant")
-    .order("station_number");
+  try {
+    const { data, error } = await supabase
+      .schema("osce")
+      .from("session_participants")
+      .select("*");
 
-  if (error) throw error;
-
-  return data ?? [];
+    if (error) throw error;
+    return (data || []).map((p) => ({
+      id: p.id,
+      status: p.status || "active",
+      station_number: p.starting_station_number,
+      participant_order: p.starting_station_number,
+      profiles: {
+        full_name: p.full_name,
+      },
+      osce_sessions: {
+        title: "Sesi OSCE Active",
+      },
+    }));
+  } catch (err) {
+    console.warn("Could not fetch live participants:", err);
+    return [];
+  }
 }
 
+/**
+ * Subscribe to live session changes in osce schema
+ */
 export function subscribeLive(callback) {
   return supabase
-    .channel("live-monitor")
+    .channel("osce-live-monitor")
     .on(
       "postgres_changes",
       {
         event: "*",
-        schema: "public",
-        table: "osce_session_members",
+        schema: "osce",
+        table: "sessions",
       },
       callback
     )
@@ -226,8 +213,17 @@ export function subscribeLive(callback) {
       "postgres_changes",
       {
         event: "*",
-        schema: "public",
-        table: "osce_sessions",
+        schema: "osce",
+        table: "rotation_states",
+      },
+      callback
+    )
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "osce",
+        table: "participant_answers",
       },
       callback
     )

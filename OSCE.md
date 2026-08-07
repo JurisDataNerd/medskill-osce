@@ -17,14 +17,14 @@
 
 1. **Definisi Sesi Ujian OSCE**:
    - Satu Sesi Ujian OSCE dirancang untuk menguji kompetensi klinis komprehensif mahasiswa kedokteran / dokter spesialis.
-   - **Arsitektur Sirkuit 8 Stase (6 Stase Aktif + 2 Stase Break)**: Setiap 1 Sesi Ujian OSCE terdiri dari **total 8 stase** yang wajib diikuti oleh setiap peserta secara berurutan dalam *rotasi sirkuit komprehensif*:
+   - **Arsitektur Sirkuit 6 Stase Ujian**: Setiap 1 Sesi Ujian OSCE terdiri dari **total 6 stase aktif** yang wajib diikuti oleh setiap peserta secara berurutan dalam *rotasi sirkuit komprehensif*:
      - **6 Stase Keterampilan Medis (Active Exam Stations)**: Diuji langsung oleh Dokter Penguji Spesialis pada kasus medis/simulator pasien.
-     - **2 Stase Break / Rest (Break Stations)**: Ruangan istirahat peserta untuk pemulihan sebelum masuk stase berikutnya, serta waktu rekap nilai bagi penguji.
+     - **Waktu Jeda Rotasi / Istirahat (Break Duration)**: Waktu pemulihan peserta dan pengisian rekap nilai bagi dokter penguji di antara perputaran ronde rotasi.
    - **Struktur Timer Baku Per Stase (Total 12 Menit/Stase)**:
      - **Reading Time**: 1 Menit (Membaca skenario di depan stase).
      - **Action Time**: 10 Menit (Pelaksanaan tindakan klinis & penulisan blangko).
      - **Transition Time**: 1 Menit (Jeda rotasi perpindahan ruangan stase).
-   - **Manajemen Urutan Stase Berbasis Kanban**: Admin dapat mengubah urutan stase aktif dan stase istirahat secara dinamis melalui antarmuka **Kanban Drag & Drop** pada Dashboard Admin.
+   - **Manajemen Urutan Stase Berbasis Kanban**: Admin dapat menyusun dan mengurutkan stase aktif secara dinamis melalui antarmuka **Kanban Drag & Drop** pada Dashboard Admin.
    - **Independensi Dokter Penguji**: Setiap stase aktif diuji secara mandiri oleh **Dokter Penguji Spesialis yang berbeda** sesuai bidang keahlian.
    - **Pasien Standar AI / Pasien Standar Real**: Setiap stase aktif dilengkapi Pasien Standar (AI Simulator atau Pasien Manusia) dengan prompt skenario kasus medis yang terstandarisasi.
 
@@ -44,7 +44,7 @@
 1. Sebelum memasuki ruang stase ujian live, peserta wajib melewati **Layar Ruang Tunggu (`Waiting Room`)**.
 2. Layar Ruang Tunggu menampilkan:
    - Lokasi Ruang Tunggu Stase (misal: *Gedung Skill Lab Ruang 101*).
-   - Penugasan Gelombang & Rotasi (misal: *Gelombang #1 • Ronde #2 dari 8 Rotasi*).
+   - Penugasan Gelombang & Rotasi (misal: *Gelombang #1 • Ronde #2 dari 6 Rotasi*).
    - Nama Dokter Penguji Penanggung Jawab & Pasien Standar AI yang bertugas.
    - Tata Tertib & Petunjuk Briefing Peserta.
    - Peserta tetap berada di halaman ini (*stay in waiting page*) hingga Admin menekan tombol **Start Simulation**.
@@ -83,7 +83,7 @@
 1. Selama peserta melakukan simulasi ujian stase, Dokter Penguji mengamati performa peserta dan mengisi **Rubrik Penilaian Baku** (skor 0, 1, atau 2 per indikator).
 2. **Tampilan Acuan Kunci Jawaban Baku (Gold Standard Answer Key)**:
    - Dokter Penguji melihat isian **1 WDx + 3 DDx** dan **Blangko Resep** milik peserta secara *real-time*, yang ditampilkan bersisian dengan **Kunci Jawaban Resmi dari Admin** sebagai acuan objektif pemberian skor.
-3. **Global Rating Scale (GRS) & Feedback**:
+3. **Global Performance Rating (GRS) & Feedback**:
    - Penguji memilih impresi klinis global (`SUPERIOR`, `LULUS`, `BORDERLINE`, `TIDAK LULUS`) dan mengisi kolom umpan balik (*feedback*).
 4. **Finalisasi Nilai Stase**:
    - Penguji mengeklik tombol `[Submit]` $\rightarrow$ otomatis *next* ke lembar penilaian peserta selanjutnya sampai peserta terakhir (**FINISH**).
@@ -96,8 +96,8 @@
 1. **Pembuatan Sesi Baru**: Admin membuat Sesi Ujian OSCE baru dengan mengatur Judul, Tanggal, Jam, Lokasi, Timer (1m/10m/1m), dan Kuota.
 2. **Templat / Duplikasi Stase (Paket Soal A / B)**:
    - Admin dapat menyimpan stase ke dalam library templat agar dapat diduplikasi secara efisien (misal: Paket Soal A, Paket Soal B).
-3. **Manajemen Urutan Stase & Break Berbasis Kanban**:
-   - Admin menyusun dan mengatur urutan **6 Stase Aktif** dan **2 Stase Break** secara fleksibel menggunakan antarmuka **Kanban Board (Drag & Drop)**.
+3. **Manajemen Urutan Stase Berbasis Kanban**:
+   - Admin menyusun dan mengatur urutan **6 Stase Aktif** secara fleksibel menggunakan antarmuka **Kanban Board (Drag & Drop)**.
 4. **Manajemen Kunci Penunjang & Rubrik**:
    - Admin menentukan item penunjang mana yang rilis hasilnya jika dicentang benar oleh peserta.
 
@@ -106,7 +106,7 @@
 2. Monitoring pergerakan rotasi seluruh peserta & bel pengingat otomatis.
 
 ### C. Evaluasi, Cetak PDF & Autogeneration Email
-1. **Review & Publish**: Admin meninjau rekapitulasi nilai akhir peserta setelah seluruh 8 stase completed.
+1. **Review & Publish**: Admin meninjau rekapitulasi nilai akhir peserta setelah seluruh 6 stase completed.
 2. **Cetak PDF & Auto Email Feedback**:
    - Hasil nilai & feedback masing-masing stase terekap per peserta dalam bentuk berkas **PDF**.
    - Sistem secara otomatis mengirimkan rekap nilai & feedback PDF ke **Email** masing-masing peserta.
@@ -120,7 +120,7 @@ graph TD
     A[DRAFT - Admin Susun Stase & Templat Paket Soal] -->|Publish Sesi| B[PUBLISHED / OPEN REGISTRATION]
     B -->|Peserta Daftar Sesi| C[REGISTERED]
     C -->|Jam Ujian Tiba| D[WAITING ROOM / LOADING PAGE]
-    D -->|Admin Klik Start Simulation| E[RUNNING - SIRKUIT 8 STASE 12 MINS]
+    D -->|Admin Klik Start Simulation| E[RUNNING - SIRKUIT 6 STASE 12 MINS]
     E -->|Reading 1m -> Action 10m -> Transition 1m| F[ROTASI SELESAI]
     F -->|Seluruh Peserta Selesai| G[COMPLETED / WAITING REVIEW]
     G -->|Admin Verifikasi & Approve Nilai| H[RESULT PUBLISHED]
@@ -131,17 +131,15 @@ graph TD
 
 ## 6. Struktur Rotasi & Perhitungan Nilai Akhir Sesi
 
-### Contoh Tabel Arsitektur Sirkuit 8 Stase OSCE (12 Menit/Stase):
+### Contoh Tabel Arsitektur Sirkuit 6 Stase OSCE (12 Menit/Stase):
 | Stase | Tipe Stase | Sub-Spesialisasi / Status | Judul Kasus / Deskripsi Stase | Penguji Penanggung Jawab | Durasi |
 | :---: | :---: | :--- | :--- | :--- | :---: |
 | **Stase 1** | Ujian Aktif | Kardiovaskular | STEMI Anteroseptal (Nyeri Dada Infark) | dr. Alexander Budiman, Sp.JP | 12 Mns |
 | **Stase 2** | Ujian Aktif | Pulmonologi | Eksaserbasi Akut Asma Bronkial | dr. Maya Indah, Sp.P | 12 Mns |
-| **Stase 3** | **ISTIRAHAT** | **Break Station #1** | **Ruang Istirahat & Pemulihan Peserta** | *- (Standby Pengawas)* | **12 Mns** |
+| **Stase 3** | Ujian Aktif | Bedah & Traumatologi | Fraktur Terbuka Femur & Balut Bidai | dr. Budi Santoso, Sp.OT | 12 Mns |
 | **Stase 4** | Ujian Aktif | Neurologi | Pemeriksaan Saraf Kranial (N. VII & N. XII) | dr. Hendra Wijaya, Sp.N | 12 Mns |
-| **Stase 5** | Ujian Aktif | Bedah & Traumatologi | Fraktur Terbuka Femur & Balut Bidai | dr. Budi Santoso, Sp.OT | 12 Mns |
-| **Stase 6** | Ujian Aktif | Gastroentero-Hepatologi | Appendicitis Akut (Pemeriksaan Abdomen) | dr. Rina Astuti, Sp.PD | 12 Mns |
-| **Stase 7** | **ISTIRAHAT** | **Break Station #2** | **Ruang Istirahat & Pemulihan Peserta** | *- (Standby Pengawas)* | **12 Mns** |
-| **Stase 8** | Ujian Aktif | Resusitasi / ACLS | Henti Jantung & Defibrilasi AED | dr. Denny Pratama, Sp.An | 12 Mns |
+| **Stase 5** | Ujian Aktif | Gastroentero-Hepatologi | Appendicitis Akut (Pemeriksaan Abdomen) | dr. Rina Astuti, Sp.PD | 12 Mns |
+| **Stase 6** | Ujian Aktif | Resusitasi / ACLS | Henti Jantung & Defibrilasi AED | dr. Denny Pratama, Sp.An | 12 Mns |
 
 *(Catatan: Timer 12 menit per stase terbagi menjadi Reading Time 1 m, Action Time 10 m, dan Transition 1 m).*
 

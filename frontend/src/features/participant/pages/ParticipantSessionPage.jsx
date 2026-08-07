@@ -30,6 +30,9 @@ import {
   Search,
   X,
   Filter,
+  Coffee,
+  RotateCw,
+  Award,
 } from "lucide-react";
 import {
   MOCK_PARTICIPANT_PROFILE,
@@ -45,30 +48,37 @@ export default function ParticipantSessionPage() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
 
-  // View Mode: 'waiting_room' or 'live_session'
+  // View Mode: 'waiting_room', 'live_round', 'transit', 'round_break', 'completed'
   const [viewMode, setViewMode] = useState("waiting_room");
 
-  // Multi-step exam state (1: Anamnesis, 2: Pemeriksaan Fisik, 3: Penunjang, 4: Diagnosis & Resep, 5: Transit)
+  // Current Active Round for candidate (Round 1 to 6)
+  const [currentRound, setCurrentRound] = useState(1);
+  const totalRoundsInSession = 6;
+
+  // Customisable Durations (in seconds)
+  const [stationDurationSeconds, setStationDurationSeconds] = useState(15 * 60); // Default 15 Menit Stase
+  const [transitDurationSeconds, setTransitDurationSeconds] = useState(2 * 60);  // Default 2 Menit Transisi
+  const [breakDurationSeconds, setBreakDurationSeconds] = useState(10 * 60);   // Default 10 Menit Istirahat Ronde
+
+  // Round Break interval configuration (Default: Istirahat setelah Ronde 3)
+  const [breakAfterRound] = useState(3);
+
+  // Active timers
+  const [waitingCountdown, setWaitingCountdown] = useState(30);
+  const [roundSecondsLeft, setRoundSecondsLeft] = useState(stationDurationSeconds);
+  const [transitSecondsLeft, setTransitSecondsLeft] = useState(transitDurationSeconds);
+  const [breakSecondsLeft, setBreakSecondsLeft] = useState(breakDurationSeconds);
+
+  // Multi-step exam state inside round (1: Anamnesis, 2: Pemeriksaan Fisik, 3: Penunjang, 4: Diagnosis & Resep)
   const [examStep, setExamStep] = useState(1);
 
   // Confirmation Modal state
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [pendingNextStep, setPendingNextStep] = useState(null);
 
-  // Result Modal State for Tahap 3
+  // Result Modal State for Tahap 3 Penunjang
   const [isAuxiliaryResultOpen, setIsAuxiliaryResultOpen] = useState(false);
   const [auxiliaryResults, setAuxiliaryResults] = useState([]);
-
-  // Briefing Countdown in Waiting Room (30 seconds)
-  const [waitingCountdown, setWaitingCountdown] = useState(
-    MOCK_CURRENT_LIVE_STAGE.waiting_room_info.briefing_countdown_seconds
-  );
-
-  // Live Station Timer State (10 mins)
-  const [secondsLeft, setSecondsLeft] = useState(MOCK_CURRENT_LIVE_STAGE.remaining_seconds);
-
-  // Post-Station Transit Waiting Room Timer State (2 mins / 120 secs)
-  const [transitCountdown, setTransitCountdown] = useState(120);
 
   // Candidate Answer Sheet Form State (Offline OSCE Form)
   const [differentialDiagnosis, setDifferentialDiagnosis] = useState(
@@ -84,83 +94,23 @@ export default function ParticipantSessionPage() {
   // Direct Checkbox Auxiliary Exams State (Halaman 3)
   const [checkedAuxiliaryIds, setCheckedAuxiliaryIds] = useState(["lain_ekg_12_lead", "enz_troponin_i"]);
 
-  // Auxiliary Exams Search & Filter State (Halaman 3)
+  // Auxiliary Exams Search & Filter State
   const [auxSearchQuery, setAuxSearchQuery] = useState("");
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState("ALL");
-  const [expandedCategories, setExpandedCategories] = useState({
-    RADIOLOGI: true,
-    HEMATOLOGI: true,
-    ENZIM: true,
-    "LAIN-LAIN": true,
-  });
 
-  // Mock Station Answer Key (Correct diagnostic tests & images for Stase 1 STEMI case)
-  const MOCK_STATION_ANSWER_KEY = {
-    lain_ekg_12_lead: {
-      name: "EKG 12 Lead",
-      category: "LAIN-LAIN",
-      hasData: true,
-      imageUrl: "https://placehold.co/900x550/0f172a/38bdf8.png?text=ST+ELEVATION+(Lead+II,+III,+aVF)+-+STEMI+INFERIOR",
-      reportText: "Irama Sinus 100x/menit. Terlihat ST-Elevation di Lead II, III, aVF. Kesan: STEMI Akut Dinding Inferior.",
-    },
-    rad_thorax_ap: {
-      name: "Thorax AP",
-      category: "RADIOLOGI",
-      hasData: true,
-      imageUrl: "https://placehold.co/900x550/1e293b/f8fafc.png?text=RADIOLOGI+THORAX+AP+-+COR+DAN+PULMO+NORMAL",
-      reportText: "Cor: CTR < 50%, bentuk normal. Pulmo: Tak tampak infiltrat, pembuluh darah paru normal. Sinus kostofrenikus lancip.",
-    },
-    hem_darah_lengkap_cbc: {
-      name: "Darah Lengkap - CBC",
-      category: "HEMATOLOGI",
-      hasData: true,
-      imageUrl: "https://placehold.co/900x550/0f172a/10b981.png?text=LABORATORIUM+DARAH+LENGKAP+(Hb+14.2,+Leukosit+9.800)",
-      reportText: "Hb: 14.2 g/dL | Leukosit: 9.800 /uL | Trombosit: 280.000 /uL | Hematokrit: 42%",
-    },
-    enz_troponin_i: {
-      name: "Troponin I",
-      category: "ENZIM",
-      hasData: true,
-      imageUrl: "https://placehold.co/900x550/0f172a/ef4444.png?text=SERUM+ENZIM+TROPONIN+I+:+4.8+ng/mL+(POSITIF+TINGGI)",
-      reportText: "Troponin I: 4.8 ng/mL (Normal < 0.04 ng/mL). Kesan: Nekrosis miokard akut tinggi.",
-    },
+  // Station mapping for Candidate across 6 rounds (Example: Participant starts at Station 1 in Round 1)
+  const candidateStationSchedule = {
+    1: { station_number: 1, title: "Stase 1: Kardiovaskular", case_title: "Sindrom Koroner Akut (STEMI Anteroseptal)", location: "Gedung Skill Lab Ruang 101" },
+    2: { station_number: 2, title: "Stase 2: Pulmonologi", case_title: "Status Asmatikus & Pneumotoraks", location: "Gedung Skill Lab Ruang 102" },
+    3: { station_number: 3, title: "Stase 3: Bedah Umum", case_title: "Vulnus Laceratum & Suturing", location: "Gedung Skill Lab Ruang 103" },
+    4: { station_number: 4, title: "Stase 4: Neurologi", case_title: "Stroke Iskemik Akut", location: "Gedung Skill Lab Ruang 104" },
+    5: { station_number: 5, title: "Stase 5: Penyakit Dalam", case_title: "Diabetes Melitus & Insulin", location: "Gedung Skill Lab Ruang 105" },
+    6: { station_number: 6, title: "Stase 6: Otolaringologi", case_title: "Ekstraksi Serumen Telinga", location: "Gedung Skill Lab Ruang 106" },
   };
 
-  const allCatalogItems = getAllAuxiliaryExamItems();
+  const currentStationInfo = candidateStationSchedule[currentRound] || candidateStationSchedule[1];
 
-  const filteredCatalog = useMemo(() => {
-    let result = AUXILIARY_EXAM_CATALOG;
-
-    if (selectedCategoryFilter !== "ALL") {
-      result = result.filter((cat) => cat.category === selectedCategoryFilter);
-    }
-
-    if (auxSearchQuery.trim()) {
-      const q = auxSearchQuery.toLowerCase();
-      result = result
-        .map((cat) => {
-          const matchingSub = cat.subcategories
-            .map((sub) => {
-              const matchingItems = sub.items.filter(
-                (item) =>
-                  item.name.toLowerCase().includes(q) ||
-                  item.id.toLowerCase().includes(q) ||
-                  sub.name.toLowerCase().includes(q) ||
-                  cat.category.toLowerCase().includes(q)
-              );
-              return { ...sub, items: matchingItems };
-            })
-            .filter((sub) => sub.items.length > 0);
-
-          return { ...cat, subcategories: matchingSub };
-        })
-        .filter((cat) => cat.subcategories.length > 0);
-    }
-
-    return result;
-  }, [auxSearchQuery, selectedCategoryFilter]);
-
-  // Waiting Room Countdown Timer
+  // Waiting Room Timer Effect
   useEffect(() => {
     if (viewMode !== "waiting_room") return;
 
@@ -176,38 +126,56 @@ export default function ParticipantSessionPage() {
     return () => clearInterval(timer);
   }, [viewMode]);
 
-  // Live Station Countdown Timer (10 mins)
+  // Live Round Exam Countdown Timer
   useEffect(() => {
-    if (viewMode !== "live_session" || examStep === 5) return;
+    if (viewMode !== "live_round") return;
 
     const timer = setInterval(() => {
-      setSecondsLeft((prev) => {
+      setRoundSecondsLeft((prev) => {
         if (prev <= 1) {
-          // Timer finished -> auto advance to post-station transit waiting room
-          setExamStep(5);
+          // Timer Ronde Selesai -> Otomatis Pindah ke Transisi atau Break
+          handleFinishActiveRound();
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [viewMode, examStep]);
+  }, [viewMode]);
 
-  // Post-Station Transit Countdown Timer (2 mins)
+  // Transit Countdown Timer (2 Mins)
   useEffect(() => {
-    if (examStep !== 5) return;
+    if (viewMode !== "transit") return;
 
     const timer = setInterval(() => {
-      setTransitCountdown((prev) => {
+      setTransitSecondsLeft((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
+          handleStartNextRoundFromTransit();
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [examStep]);
+  }, [viewMode]);
+
+  // Round Break Countdown Timer (10 Mins)
+  useEffect(() => {
+    if (viewMode !== "round_break") return;
+
+    const timer = setInterval(() => {
+      setBreakSecondsLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          handleStartNextRoundFromBreak();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [viewMode]);
 
   function formatTime(secs) {
     const m = Math.floor(secs / 60);
@@ -215,9 +183,42 @@ export default function ParticipantSessionPage() {
     return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   }
 
-  function handleEnterLiveSession() {
-    setViewMode("live_session");
+  function handleStartSimulationFromWaiting() {
+    setViewMode("live_round");
+    setCurrentRound(1);
     setExamStep(1);
+    setRoundSecondsLeft(stationDurationSeconds);
+  }
+
+  function handleFinishActiveRound() {
+    if (currentRound >= totalRoundsInSession) {
+      // Seluruh 6 Ronde Selesai -> Halaman Terimakasih Ujian
+      setViewMode("completed");
+    } else if (currentRound === breakAfterRound) {
+      // Setelah Ronde 3 -> Masuk ke Waktu Istirahat Ronde (10 Menit)
+      setViewMode("round_break");
+      setBreakSecondsLeft(breakDurationSeconds);
+    } else {
+      // Ronde biasa -> Masuk ke Transisi Perpindahan Stase (2 Menit)
+      setViewMode("transit");
+      setTransitSecondsLeft(transitDurationSeconds);
+    }
+  }
+
+  function handleStartNextRoundFromTransit() {
+    const nextR = currentRound + 1;
+    setCurrentRound(nextR);
+    setViewMode("live_round");
+    setExamStep(1);
+    setRoundSecondsLeft(stationDurationSeconds);
+  }
+
+  function handleStartNextRoundFromBreak() {
+    const nextR = currentRound + 1;
+    setCurrentRound(nextR);
+    setViewMode("live_round");
+    setExamStep(1);
+    setRoundSecondsLeft(stationDurationSeconds);
   }
 
   function requestNextStep(nextStepNumber) {
@@ -394,75 +395,98 @@ export default function ParticipantSessionPage() {
   }
 
   /* ============================================================
-     RENDER VIEW 3: RUANG TUNGGU PINDAH RUANGAN (TRANSIT WAITING ROOM)
+     RENDER VIEW 1: RUANG TUNGGU PESERTA (PRE-EXAM WAITING ROOM)
   ============================================================ */
-  if (examStep === 5) {
+  if (viewMode === "waiting_room") {
     return (
       <div className="min-h-screen bg-slate-100 font-sans text-slate-800 flex flex-col">
         {/* Top Header */}
         <header className="border-b border-slate-200 bg-white px-6 py-4 shadow-2xs">
           <div className="mx-auto flex max-w-5xl items-center justify-between">
-            <span className="rounded-full bg-emerald-100 border border-emerald-300 px-3 py-1 text-xs font-bold text-emerald-900 flex items-center gap-1.5">
-              <CheckCircle2 size={15} className="text-emerald-700" />
-              Stase 1 Selesai • Ruang Transit Perpindahan Stase
-            </span>
+            <button
+              onClick={() => navigate("/participant")}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition"
+            >
+              <ArrowLeft size={16} />
+              Kembali ke Dashboard
+            </button>
 
-            <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-1.5 text-amber-900">
-              <Clock size={16} className="text-amber-700 animate-pulse" />
-              <span className="text-[11px] font-bold uppercase">Sisa Waktu Transit:</span>
-              <span className="text-base font-black font-mono">{formatTime(transitCountdown)}</span>
-            </div>
+            <span className="rounded-full bg-amber-100 border border-amber-300 px-3 py-1 text-xs font-bold text-amber-900 flex items-center gap-1.5">
+              <Hourglass size={14} className="text-amber-700" />
+              Ruang Tunggu & Briefing Peserta
+            </span>
           </div>
         </header>
 
-        {/* Transit Body */}
-        <main className="flex-1 max-w-3xl w-full mx-auto p-6 my-auto space-y-6">
-          <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-xl space-y-6 text-center">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
-              <CheckCircle2 size={36} />
-            </div>
-
-            <div>
-              <span className="rounded-full bg-slate-100 border border-slate-200 px-3 py-1 text-xs font-bold text-slate-600 uppercase tracking-wider">
-                Rotasi Sirkuit OSCE
-              </span>
-              <h1 className="text-2xl font-black text-slate-900 mt-3">
-                Selamat! Anda Telah Menyelesaikan Stase 1
-              </h1>
-              <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
-                Silakan fisik berpindah ke ruangan stase berikutnya. Penguji dr. Alexander Budiman, Sp.JP sedang merekap nilai Anda.
-              </p>
-            </div>
-
-            {/* Target Next Station Card */}
-            <div className="rounded-2xl border border-blue-200 bg-blue-50/60 p-6 text-left space-y-3">
-              <div className="flex items-center justify-between border-b border-blue-100 pb-3">
-                <span className="rounded-md bg-blue-600 px-2.5 py-1 text-[10px] font-black text-white uppercase">
-                  Target Stase Selanjutnya
+        {/* Waiting Room Body */}
+        <main className="flex-1 max-w-4xl w-full mx-auto p-6 my-auto space-y-6">
+          <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-xl space-y-6 text-center sm:text-left">
+            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-5">
+              <div>
+                <span className="rounded-md bg-blue-600 px-3 py-1 text-xs font-black text-white">
+                  PERSAPATAN RONDE 1
                 </span>
-                <span className="text-xs font-bold text-blue-900 flex items-center gap-1">
-                  <MapPin size={14} className="text-blue-600" />
-                  Gedung Skill Lab Ruang 102
-                </span>
+                <h1 className="text-xl font-bold text-slate-900 mt-2">
+                  {currentStationInfo.title}
+                </h1>
+                <p className="text-xs text-slate-500 mt-0.5 flex items-center justify-center sm:justify-start gap-1">
+                  <MapPin size={14} className="text-slate-400" />
+                  {currentStationInfo.location}
+                </p>
               </div>
 
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">
-                  Stase 2: Pulmonologi & Eksaserbasi Akut Asma Bronkial
-                </h2>
-                <p className="text-xs text-slate-600 mt-1">
-                  Penguji Penanggung Jawab: <strong>dr. Maya Indah, Sp.P</strong>
+              {/* Countdown Briefing Badge */}
+              <div className="mx-auto sm:mx-0 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-center min-w-[160px]">
+                <p className="text-[10px] font-bold text-amber-800 uppercase tracking-wider">
+                  Persiapan Memulai Ronde 1:
+                </p>
+                <p className="text-2xl font-black font-mono text-amber-900 mt-0.5">
+                  {formatTime(waitingCountdown)}
                 </p>
               </div>
             </div>
 
-            <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-4">
+            {/* Rotation Info */}
+            <div className="grid gap-4 sm:grid-cols-3 text-xs">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <span className="text-[10px] font-bold text-slate-400 uppercase">Posisi Ronde Pertama Anda</span>
+                <p className="font-bold text-blue-900 text-sm mt-0.5">
+                  Stase {currentStationInfo.station_number}
+                </p>
+                <p className="text-[11px] text-slate-500 mt-0.5">Ronde 1 dari 6 Rotasi Sirkuit</p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <span className="text-[10px] font-bold text-slate-400 uppercase">Kasus Medis Awalan</span>
+                <p className="font-bold text-slate-900 text-sm mt-0.5 truncate">
+                  {currentStationInfo.case_title}
+                </p>
+                <p className="text-[11px] text-emerald-700 font-semibold mt-0.5">🟢 Penguji Standby</p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <span className="text-[10px] font-bold text-slate-400 uppercase">Estimasi Total Durasi</span>
+                <p className="font-bold text-slate-900 text-sm mt-0.5">
+                  6 Ronde (± 100 Menit)
+                </p>
+                <p className="text-[11px] text-blue-700 font-semibold mt-0.5">Termasuk Transisi & Istirahat</p>
+              </div>
+            </div>
+
+            {/* Action CTA to Enter Live Session */}
+            <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-2 text-xs text-slate-500 font-semibold">
+                <Volume2 size={16} className="text-blue-600 animate-pulse" />
+                <span>Bel bell penanda ronde akan berbunyi otomatis saat waktu briefing habis.</span>
+              </div>
+
               <button
-                onClick={handleFinishTransit}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-8 py-3.5 text-xs font-bold text-white shadow-lg shadow-emerald-600/30 hover:bg-emerald-700 active:scale-95 transition"
+                onClick={handleStartSimulationFromWaiting}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-8 py-3.5 text-xs font-bold text-white shadow-lg shadow-blue-600/30 hover:bg-blue-700 active:scale-95 transition"
               >
-                <ArrowRight size={16} />
-                Lanjut ke Stase 2 (Pulmonologi)
+                <Play size={16} />
+                Masuk ke Ujian Ronde 1 ({currentStationInfo.title})
+                <ChevronRight size={16} />
               </button>
             </div>
           </div>
@@ -472,7 +496,219 @@ export default function ParticipantSessionPage() {
   }
 
   /* ============================================================
-     RENDER VIEW 2: RUANG UJIAN LIVE MULTI-STEP (4 STEPS)
+     RENDER VIEW 2: RUANG TRANSIT PERPINDAHAN STASE (TRANSIT WAITING ROOM - 2 MINS)
+  ============================================================ */
+  if (viewMode === "transit") {
+    const nextRoundNumber = currentRound + 1;
+    const nextStationInfo = candidateStationSchedule[nextRoundNumber] || candidateStationSchedule[1];
+
+    return (
+      <div className="min-h-screen bg-slate-100 font-sans text-slate-800 flex flex-col">
+        <header className="border-b border-slate-200 bg-white px-6 py-4 shadow-2xs">
+          <div className="mx-auto flex max-w-5xl items-center justify-between">
+            <span className="rounded-full bg-amber-100 border border-amber-300 px-3 py-1 text-xs font-bold text-amber-900 flex items-center gap-1.5">
+              <Hourglass size={15} className="text-amber-700 animate-pulse" />
+              Transisi Perpindahan Stase (Jeda 2 Menit)
+            </span>
+
+            <div className="flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-1.5 text-amber-900">
+              <Clock size={16} className="text-amber-700 animate-pulse" />
+              <span className="text-[11px] font-bold uppercase">Sisa Waktu Transisi:</span>
+              <span className="text-base font-black font-mono">{formatTime(transitSecondsLeft)}</span>
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1 max-w-3xl w-full mx-auto p-6 my-auto space-y-6">
+          <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-xl space-y-6 text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+              <RotateCw size={32} className="animate-spin" />
+            </div>
+
+            <div>
+              <span className="rounded-full bg-slate-100 border border-slate-200 px-3 py-1 text-xs font-bold text-slate-600 uppercase tracking-wider">
+                Ronde {currentRound} Selesai
+              </span>
+              <h1 className="text-2xl font-black text-slate-900 mt-3">
+                Waktu Transisi! Silakan Berpindah Ruangan
+              </h1>
+              <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                Anda sedang dalam jeda transisi (2 menit). Berjalanlah menuju ruangan stase berikutnya sesuai rotasi sirkuit Anda.
+              </p>
+            </div>
+
+            {/* Target Next Station Card */}
+            <div className="rounded-2xl border border-blue-200 bg-blue-50/60 p-6 text-left space-y-3">
+              <div className="flex items-center justify-between border-b border-blue-100 pb-3">
+                <span className="rounded-md bg-blue-600 px-2.5 py-1 text-[10px] font-black text-white uppercase">
+                  Target Ronde {nextRoundNumber}: Stase {nextStationInfo.station_number}
+                </span>
+                <span className="text-xs font-bold text-blue-900 flex items-center gap-1">
+                  <MapPin size={14} className="text-blue-600" />
+                  {nextStationInfo.location}
+                </span>
+              </div>
+
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">
+                  {nextStationInfo.title}
+                </h2>
+                <p className="text-xs text-slate-600 mt-1">
+                  Materi Kasus: <strong>{nextStationInfo.case_title}</strong>
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-2 flex justify-center">
+              <button
+                onClick={handleStartNextRoundFromTransit}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-8 py-3.5 text-xs font-bold text-white shadow-lg shadow-blue-600/30 hover:bg-blue-700 active:scale-95 transition"
+              >
+                <ArrowRight size={16} />
+                Lanjut Masuk Ronde {nextRoundNumber} ({nextStationInfo.title})
+              </button>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  /* ============================================================
+     RENDER VIEW 3: RUANG ISTIRAHAT RONDE (ROUND BREAK - 10 MINS)
+  ============================================================ */
+  if (viewMode === "round_break") {
+    const nextRoundNumber = currentRound + 1;
+    const nextStationInfo = candidateStationSchedule[nextRoundNumber] || candidateStationSchedule[1];
+
+    return (
+      <div className="min-h-screen bg-slate-100 font-sans text-slate-800 flex flex-col">
+        <header className="border-b border-slate-200 bg-white px-6 py-4 shadow-2xs">
+          <div className="mx-auto flex max-w-5xl items-center justify-between">
+            <span className="rounded-full bg-amber-400 text-amber-950 px-3 py-1 text-xs font-black uppercase tracking-wide flex items-center gap-1.5">
+              <Coffee size={15} />
+              Sesi Istirahat Ronde (Jeda 10 Menit)
+            </span>
+
+            <div className="flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-1.5 text-amber-900">
+              <Clock size={16} className="text-amber-700 animate-pulse" />
+              <span className="text-[11px] font-bold uppercase">Sisa Waktu Istirahat:</span>
+              <span className="text-base font-black font-mono">{formatTime(breakSecondsLeft)}</span>
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1 max-w-3xl w-full mx-auto p-6 my-auto space-y-6">
+          <div className="rounded-3xl border border-amber-300 bg-amber-50/80 p-8 shadow-xl space-y-6 text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-200 text-amber-900">
+              <Coffee size={34} />
+            </div>
+
+            <div>
+              <span className="rounded-full bg-amber-200 text-amber-950 px-3.5 py-1 text-xs font-black uppercase tracking-wider">
+                Istirahat Sirkuit Berlangsung
+              </span>
+              <h1 className="text-2xl font-black text-amber-950 mt-3">
+                Saatnya Istirahat Sejenak (10 Menit)
+              </h1>
+              <p className="text-xs text-amber-900 mt-1 max-w-md mx-auto">
+                Anda telah menyelesaikan 3 ronde ujian. Manfaatkan waktu ini untuk minum, relaksasi, dan bersiap menuju 3 ronde berikutnya.
+              </p>
+            </div>
+
+            {/* Target Next Station Card */}
+            <div className="rounded-2xl border border-amber-300 bg-white p-6 text-left space-y-3 shadow-2xs">
+              <div className="flex items-center justify-between border-b border-amber-100 pb-3">
+                <span className="rounded-md bg-amber-500 px-2.5 py-1 text-[10px] font-black text-amber-950 uppercase">
+                  Ronde Selanjutnya: Ronde {nextRoundNumber}
+                </span>
+                <span className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                  <MapPin size={14} className="text-amber-600" />
+                  {nextStationInfo.location}
+                </span>
+              </div>
+
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">
+                  {nextStationInfo.title}
+                </h2>
+                <p className="text-xs text-slate-600 mt-1">
+                  Materi Kasus: <strong>{nextStationInfo.case_title}</strong>
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-2 flex justify-center">
+              <button
+                onClick={handleStartNextRoundFromBreak}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-600 px-8 py-3.5 text-xs font-extrabold text-white shadow-lg shadow-amber-600/30 hover:bg-amber-700 active:scale-95 transition"
+              >
+                <ArrowRight size={16} />
+                Mulai Ronde {nextRoundNumber} ({nextStationInfo.title})
+              </button>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  /* ============================================================
+     RENDER VIEW 4: HALAMAN TERIMAKASIH MENGIKUTI UJIAN (COMPLETED)
+  ============================================================ */
+  if (viewMode === "completed") {
+    return (
+      <div className="min-h-screen bg-slate-100 font-sans text-slate-800 flex flex-col">
+        <main className="flex-1 max-w-3xl w-full mx-auto p-6 my-auto space-y-6">
+          <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-xl space-y-6 text-center">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 shadow-inner">
+              <Award size={44} />
+            </div>
+
+            <div>
+              <span className="rounded-full bg-emerald-100 text-emerald-800 px-3.5 py-1 text-xs font-black uppercase tracking-wider">
+                Sesi Ujian OSCE Selesai
+              </span>
+              <h1 className="text-3xl font-black text-slate-900 mt-3">
+                Terima Kasih Telah Mengikuti Ujian OSCE!
+              </h1>
+              <p className="text-xs text-slate-500 mt-2 max-w-md mx-auto leading-relaxed">
+                Seluruh 6 ronde rotasi sirkuit keterampilan medis telah berhasil Anda selesaikan. Rekapitulasi nilai dan umpan balik penguji sedang diproses oleh sistem.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 grid sm:grid-cols-3 gap-4 text-xs text-left">
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase">Total Ronde Selesai</span>
+                <p className="font-extrabold text-slate-900 text-sm mt-0.5">6 / 6 Ronde</p>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase">Status Kelengkapan</span>
+                <p className="font-extrabold text-emerald-700 text-sm mt-0.5">100% Terisi</p>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase">Pengumuman Nilai</span>
+                <p className="font-extrabold text-blue-900 text-sm mt-0.5">Akan Dipublikasikan</p>
+              </div>
+            </div>
+
+            <div className="pt-4">
+              <button
+                onClick={() => navigate("/participant")}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-8 py-3.5 text-xs font-bold text-white shadow-lg shadow-blue-600/30 hover:bg-blue-700 active:scale-95 transition"
+              >
+                <ArrowLeft size={16} />
+                Kembali ke Dashboard Peserta
+              </button>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  /* ============================================================
+     RENDER VIEW 5: RUANG UJIAN LIVE MULTI-STEP (LIVE ROUND EXAM)
   ============================================================ */
   return (
     <div className="min-h-screen bg-slate-100 font-sans text-slate-800 flex flex-col">
@@ -481,10 +717,10 @@ export default function ParticipantSessionPage() {
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <span className="rounded-md bg-blue-600 px-3 py-1 text-xs font-extrabold text-white">
-              STASE {MOCK_CURRENT_LIVE_STAGE.station_number}
+              RONDE {currentRound} / 6
             </span>
             <span className="text-xs font-bold text-slate-900 hidden sm:inline">
-              Ujian OSCE Periodik Dokter Spesialis - Batch III 2026
+              {currentStationInfo.title}
             </span>
           </div>
 
@@ -507,11 +743,11 @@ export default function ParticipantSessionPage() {
             </span>
           </div>
 
-          {/* Continuous Action Timer Banner (10 Mins) */}
+          {/* Continuous Action Timer Banner */}
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-slate-800">
-              <span className="text-[11px] font-bold text-slate-500 uppercase hidden sm:inline">Sisa Waktu Stase:</span>
-              <span className="text-sm font-black font-mono text-slate-900">{formatTime(secondsLeft)}</span>
+              <span className="text-[11px] font-bold text-slate-500 uppercase hidden sm:inline">Sisa Waktu Ronde:</span>
+              <span className="text-sm font-black font-mono text-slate-900">{formatTime(roundSecondsLeft)}</span>
             </div>
           </div>
         </div>

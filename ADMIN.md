@@ -32,7 +32,7 @@ Sistem Administrator MedSkill OSCE terdiri dari **12 Modul Utama** yang saling t
 | No | Modul & Route Path | File Komponen | Fungsionalitas Utama |
 |:---:|:---|:---|:---|
 | 1 | **Dashboard Utama**<br>`/admin` | `AdminPage.jsx` | Ringkasan statistik realtime (Jumlah Peserta, Penguji, Mentor, & Sesi Aktif), kartu monitoring sesi live, serta log aktivitas sistem. |
-| 2 | **Master Live Control Room**<br>`/admin/live` | `LiveMonitorPage.jsx` | Ruang kendali utama saat ujian berlangsung. Sinkronisasi *master timer* (Stase 1 - 8), kontrol pause/resume/next rotasi, visualisasi status live 8 stase, serta pengiriman pesan *broadcast*. |
+| 2 | **Master Live Control Room**<br>`/admin/live` | `LiveMonitorPage.jsx` | Ruang kendali utama saat ujian berlangsung. Sinkronisasi *master timer* (Stase 1 - 6), kontrol pause/resume/next rotasi, visualisasi status live 6 stase, serta pengiriman pesan *broadcast*. |
 | 3 | **Daftar Sesi OSCE**<br>`/admin/sessions` | `SessionsPage.jsx` | Kelola seluruh sesi ujian (Draft, Scheduled, Ongoing, Finished), pencarian sesi berbasis institusi/periode, serta filter status. |
 | 4 | **Wizard Pembuat Sesi**<br>`/admin/sessions/create` | `CreateSessionPage.jsx` | Form multi-langkah pembuatan sesi ujian: Pengaturan Umum & Jadwal, Konfigurasi Stase 1-8, Alokasi Peserta, serta Plotting Dokter Penguji. |
 | 5 | **Detail Sesi Ujian**<br>`/admin/sessions/:id` | `SessionDetailPage.jsx` | Tampilan rincian sesi tertentu: Roster peserta, penugasan stase penguji, jadwal rotasi gelombang, serta status kesiapan stase. |

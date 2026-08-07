@@ -28,6 +28,7 @@ import {
   INITIAL_MOCK_SESSIONS,
   MOCK_STAGES_BY_SESSION,
 } from "@/features/admin/data/mockAdminData";
+import { fetchSessionById } from "@/services/sessionService";
 
 export default function SessionDetailPage() {
   const navigate = useNavigate();
@@ -38,15 +39,24 @@ export default function SessionDetailPage() {
   const [expandedStageIndex, setExpandedStageIndex] = useState(0);
 
   useEffect(() => {
-    // Find mock session by ID or fallback to first mock session
-    const mockSession =
-      INITIAL_MOCK_SESSIONS.find((s) => s.id === id) || INITIAL_MOCK_SESSIONS[0];
+    async function loadDetail() {
+      try {
+        const data = await fetchSessionById(id);
+        if (data) {
+          setSession(data);
+          setStages(data.stations || []);
+        } else {
+          setSession(null);
+          setStages([]);
+        }
+      } catch (err) {
+        console.warn("Could not fetch session detail from Supabase:", err);
+        setSession(null);
+        setStages([]);
+      }
+    }
 
-    const mockStages =
-      MOCK_STAGES_BY_SESSION[id] || MOCK_STAGES_BY_SESSION["session-osce-001"] || [];
-
-    setSession(mockSession);
-    setStages(mockStages);
+    loadDetail();
   }, [id]);
 
   if (!session) {
@@ -129,8 +139,8 @@ export default function SessionDetailPage() {
         <SummaryCard
           icon={<GraduationCap size={18} className="text-indigo-600" />}
           title="Jumlah Stase Ujian"
-          value={`${session.total_stations || stages.length} Stase`}
-          subtext={`${session.station_duration_minutes || 15}m stase • ${session.break_duration_minutes || 3}m break`}
+          value={`${session.total_stations || stages.length} Stase Ujian`}
+          subtext={`${session.station_duration_minutes || 15}m stase • ${session.break_duration_minutes || 3}m jeda rotasi`}
         />
         <SummaryCard
           icon={<ClipboardList size={18} className="text-amber-600" />}

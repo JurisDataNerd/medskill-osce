@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowRight,
@@ -19,17 +19,20 @@ import {
   Users,
   MapPin,
   UserCheck,
+  Loader2,
 } from "lucide-react";
 
 import AdminLayout from "@/layouts/AdminLayout";
 import SessionModal from "@/features/admin/components/SessionModal";
 import { INITIAL_MOCK_SESSIONS } from "@/features/admin/data/mockAdminData";
+import { fetchSessions, deleteSession } from "@/services/sessionService";
 
 export default function SessionsPage() {
   const navigate = useNavigate();
 
   // State
-  const [sessions, setSessions] = useState(INITIAL_MOCK_SESSIONS);
+  const [sessions, setSessions] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
@@ -40,12 +43,32 @@ export default function SessionsPage() {
   const [openModal, setOpenModal] = useState(false);
   const [selectedSession, setSelectedSession] = useState(null);
 
+  // Load Sessions directly from Supabase osce schema
+  async function loadSessions() {
+    try {
+      setLoading(true);
+      const data = await fetchSessions();
+      setSessions(data || []);
+    } catch (err) {
+      console.warn("Could not fetch sessions from Supabase:", err);
+      setSessions([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadSessions();
+  }, []);
+
   // Filtered Sessions
   const filteredSessions = sessions.filter((session) => {
     const matchesSearch =
-      session.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      session.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (session.location && session.location.toLowerCase().includes(searchQuery.toLowerCase()));
+      (session.title || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (session.description || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (session.location_building || session.location || "")
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase());
 
     const matchesStatus =
       statusFilter === "all" || session.status === statusFilter;
@@ -68,7 +91,6 @@ export default function SessionsPage() {
   function handleEdit(session) {
     navigate(`/admin/sessions/${session.id}/edit`);
   }
-
 
   function handleSave(payload) {
     if (selectedSession) {
@@ -95,12 +117,17 @@ export default function SessionsPage() {
     setSelectedSession(null);
   }
 
-  function handleDelete(id) {
+  async function handleDelete(id) {
     const ok = confirm(
       "Apakah Anda yakin ingin menghapus riwayat sesi ini?\n\nSemua stase, peserta, dan hasil nilai terkait juga akan dihapus."
     );
     if (!ok) return;
 
+    try {
+      await deleteSession(id);
+    } catch (err) {
+      console.warn("Deleted locally:", err);
+    }
     setSessions((prev) => prev.filter((s) => s.id !== id));
   }
 

@@ -4,21 +4,21 @@ export const INITIAL_MOCK_SESSIONS = [
   {
     id: "session-osce-001",
     title: "Ujian OSCE Periodik Dokter Spesialis - Batch III 2026",
-    description: "Sesi evaluasi sirkuit 8 stase (6 stase aktif: kardiovaskular, pulmonologi, bedah, neurologi, penyakit dalam, THT-KL + 2 stase break).",
+    description: "Sesi evaluasi sirkuit 6 stase (kardiovaskular, pulmonologi, bedah, neurologi, penyakit dalam, THT-KL) dengan jeda rotasi istirahat.",
     session_date: "2026-08-15",
     start_time: "08:00",
     end_time: "10:30",
     status: "running", // running, draft, completed, cancelled
-    total_stations: 8,
+    total_stations: 6,
     station_duration_minutes: 12,
-    break_duration_minutes: 1,
-    max_participants: 8,
-    registered_participants: 8,
+    break_duration_minutes: 3,
+    max_participants: 6,
+    registered_participants: 6,
     total_examiners: 6,
-    location: "Gedung Skill Lab Ruang OSCE Utama (Sirkuit 8 Station)",
+    location: "Gedung Skill Lab Ruang OSCE Utama (Sirkuit 6 Station)",
     created_at: "2026-08-01T09:00:00Z",
     current_round: 2,
-    total_rounds: 8,
+    total_rounds: 6,
   },
   {
     id: "session-osce-002",
@@ -367,7 +367,7 @@ export const MOCK_LIVE_SESSION_DETAIL = {
     },
   ],
 
-  // Matriks Rolling Peserta (Siapa di stase mana pada setiap ronde)
+  // Matriks Rolling Peserta (Perpindahan otomatis 6 stase aktif antar ronde)
   rolling_matrix: [
     {
       round: 1,

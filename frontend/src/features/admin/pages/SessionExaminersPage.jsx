@@ -43,10 +43,10 @@ export default function SessionExaminersPage() {
     try {
       setLoading(true);
       const data = await getSessionExaminers(id);
-      setExaminers(data && data.length > 0 ? data : MOCK_EXAMINERS);
+      setExaminers(data || []);
     } catch (err) {
       console.error(err);
-      setExaminers(MOCK_EXAMINERS);
+      setExaminers([]);
     } finally {
       setLoading(false);
     }
