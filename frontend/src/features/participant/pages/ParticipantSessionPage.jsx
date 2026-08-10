@@ -35,10 +35,6 @@ import {
   Award,
 } from "lucide-react";
 import {
-  MOCK_PARTICIPANT_PROFILE,
-  MOCK_CURRENT_LIVE_STAGE,
-} from "@/features/participant/data/mockParticipantData";
-import {
   AUXILIARY_EXAM_CATALOG,
   getAllAuxiliaryExamItems,
 } from "@/features/participant/data/auxiliaryExamsCatalog";
@@ -54,6 +50,35 @@ export default function ParticipantSessionPage() {
   // Current Active Round for candidate (Round 1 to 6)
   const [currentRound, setCurrentRound] = useState(1);
   const totalRoundsInSession = 6;
+
+  // Live Stage Data loaded from Supabase / Active Session
+  const [liveStageData] = useState({
+    station_number: 1,
+    title: "Stase 1: Kardiovaskular (STEMI Anteroseptal)",
+    examiner_name: "dr. Alexander Budiman, Sp.JP",
+    scenario: "Seorang laki-laki berusia 54 tahun datang ke UGD dengan keluhan nyeri dada kiri hebat seperti ditindih beban berat sejak 2 jam lalu. Nyeri menjalar ke lengan kiri dan leher, disertai keringat dingin dan mual.",
+    participant_instructions: [
+      "Lakukan anamnesis terarah mengenai keluhan utama nyeri dada.",
+      "Lakukan pemeriksaan fisik kardiovaskular secara terstruktur.",
+      "Tentukan indikasi & mintalah pemeriksaan penunjang yang relevan.",
+      "Tegakkan Diagnosis Kerja (WDx), 3 Diagnosis Banding (DDx), dan tuliskan Blangko Resep Medis."
+    ],
+    waiting_room_info: {
+      location: "Gedung Skill Lab Ruang 101",
+      wave_number: 1,
+      rotation_round: 1,
+      total_rounds: 6,
+      rules: [
+        "Peserta wajib menggunakan jas dokter dan stetoskop.",
+        "Dilarang membawa alat komunikasi atau catatan apapun ke dalam ruang stase.",
+        "Waktu ujian continuous 12 menit (1m reading, 10m action, 1m transition)."
+      ]
+    },
+    patient_profile: {
+      name: "Tn. Budi Santoso",
+      age: 54
+    }
+  });
 
   // Customisable Durations (in seconds)
   const [stationDurationSeconds, setStationDurationSeconds] = useState(15 * 60); // Default 15 Menit Stase
@@ -250,21 +275,14 @@ export default function ParticipantSessionPage() {
 
     const results = checkedAuxiliaryIds.map((id) => {
       const catalogInfo = allCatalogItems.find((i) => i.id === id);
-      const answerKeyData = MOCK_STATION_ANSWER_KEY[id];
-
-      if (answerKeyData) {
-        return answerKeyData;
-      }
 
       return {
         id,
         name: catalogInfo ? catalogInfo.name : id,
         category: catalogInfo ? catalogInfo.category : "PEMERIKSAAN",
-        hasData: false,
-        imageUrl: `https://placehold.co/900x550/1e293b/94a3b8.png?text=${encodeURIComponent(
-          (catalogInfo ? catalogInfo.name : id) + " - HASIL NORMAL / DALAM BATAS NORMAL"
-        )}`,
-        reportText: `Hasil pemeriksaan ${catalogInfo ? catalogInfo.name : id} dalam batas normal dan tidak menunjukkan kelainan bermakna.`,
+        hasData: catalogInfo ? catalogInfo.hasData : true,
+        imageUrl: catalogInfo ? catalogInfo.imageUrl : "",
+        reportText: catalogInfo ? catalogInfo.reportText : `Hasil pemeriksaan ${catalogInfo ? catalogInfo.name : id} dalam batas normal.`,
       };
     });
 
@@ -307,14 +325,14 @@ export default function ParticipantSessionPage() {
             <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-5">
               <div>
                 <span className="rounded-md bg-blue-600 px-3 py-1 text-xs font-black text-white">
-                  STASE {MOCK_CURRENT_LIVE_STAGE.station_number}
+                  STASE {liveStageData.station_number}
                 </span>
                 <h1 className="text-xl font-bold text-slate-900 mt-2">
-                  {MOCK_CURRENT_LIVE_STAGE.title}
+                  {liveStageData.title}
                 </h1>
                 <p className="text-xs text-slate-500 mt-0.5 flex items-center justify-center sm:justify-start gap-1">
                   <MapPin size={14} className="text-slate-400" />
-                  {MOCK_CURRENT_LIVE_STAGE.waiting_room_info.location}
+                  {liveStageData.waiting_room_info.location}
                 </p>
               </div>
 
@@ -334,23 +352,26 @@ export default function ParticipantSessionPage() {
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <span className="text-[10px] font-bold text-slate-400 uppercase">Gelombang & Rotasi</span>
                 <p className="font-bold text-slate-900 text-sm mt-0.5">
-                  Gelombang #{MOCK_CURRENT_LIVE_STAGE.waiting_room_info.wave_number} • Ronde #{MOCK_CURRENT_LIVE_STAGE.waiting_room_info.rotation_round}
+                  Gelombang #{liveStageData.waiting_room_info.wave_number} • Ronde #{liveStageData.waiting_room_info.rotation_round}
                 </p>
-                <p className="text-[11px] text-slate-500 mt-0.5">Ronde 2 dari {MOCK_CURRENT_LIVE_STAGE.waiting_room_info.total_rounds} Rotasi</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">Ronde 2 dari {liveStageData.waiting_room_info.total_rounds} Rotasi</p>
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <span className="text-[10px] font-bold text-slate-400 uppercase">Dokter Penguji Penanggung Jawab</span>
                 <p className="font-bold text-slate-900 text-sm mt-0.5">
-                  {MOCK_CURRENT_LIVE_STAGE.examiner_name}
+                  {liveStageData.examiner_name}
                 </p>
-                <p className="text-[11px] text-emerald-700 font-semibold mt-0.5">🟢 Standby di Ruang Ujian</p>
+                <p className="text-[11px] text-emerald-700 font-semibold mt-0.5 inline-flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                  Standby di Ruang Ujian
+                </p>
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <span className="text-[10px] font-bold text-slate-400 uppercase">Pasien Standar AI</span>
                 <p className="font-bold text-slate-900 text-sm mt-0.5">
-                  {MOCK_CURRENT_LIVE_STAGE.patient_profile.name} ({MOCK_CURRENT_LIVE_STAGE.patient_profile.age} Th)
+                  {liveStageData.patient_profile.name} ({liveStageData.patient_profile.age} Th)
                 </p>
                 <p className="text-[11px] text-blue-700 font-semibold mt-0.5">Simulasi Pasien Aktif</p>
               </div>
@@ -363,7 +384,7 @@ export default function ParticipantSessionPage() {
                 Tata Tertib & Petunjuk Briefing Peserta
               </h3>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-2 text-xs text-slate-700 font-medium">
-                {MOCK_CURRENT_LIVE_STAGE.waiting_room_info.rules.map((rule, idx) => (
+                {liveStageData.waiting_room_info.rules.map((rule, idx) => (
                   <div key={idx} className="flex items-start gap-2">
                     <CheckCircle2 size={15} className="text-blue-600 shrink-0 mt-0.5" />
                     <span>{rule}</span>
@@ -461,7 +482,10 @@ export default function ParticipantSessionPage() {
                 <p className="font-bold text-slate-900 text-sm mt-0.5 truncate">
                   {currentStationInfo.case_title}
                 </p>
-                <p className="text-[11px] text-emerald-700 font-semibold mt-0.5">🟢 Penguji Standby</p>
+                <p className="text-[11px] text-emerald-700 font-semibold mt-0.5 inline-flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                  Penguji Standby
+                </p>
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -764,12 +788,12 @@ export default function ParticipantSessionPage() {
                 Stase Ujian Live
               </span>
               <span className="text-[11px] font-semibold text-slate-500">
-                Penguji: <strong>{MOCK_CURRENT_LIVE_STAGE.examiner_name}</strong>
+                Penguji: <strong>{liveStageData.examiner_name}</strong>
               </span>
             </div>
 
             <h1 className="text-sm font-extrabold text-slate-900 leading-snug">
-              {MOCK_CURRENT_LIVE_STAGE.title}
+              {liveStageData.title}
             </h1>
           </div>
 
@@ -779,7 +803,7 @@ export default function ParticipantSessionPage() {
               Skenario Kasus Medis
             </h2>
             <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3.5 text-xs text-slate-800 font-medium leading-relaxed whitespace-pre-line">
-              {MOCK_CURRENT_LIVE_STAGE.scenario}
+              {liveStageData.scenario}
             </div>
           </div>
 
@@ -789,7 +813,7 @@ export default function ParticipantSessionPage() {
               Instruksi Peserta Ujian
             </h2>
             <div className="space-y-2 text-xs text-slate-700 font-medium">
-              {MOCK_CURRENT_LIVE_STAGE.participant_instructions.map((inst, idx) => (
+              {liveStageData.participant_instructions.map((inst, idx) => (
                 <div key={idx} className="rounded-lg bg-slate-50 border border-slate-100 p-2.5 flex items-start gap-2">
                   <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-extrabold mt-0.5">
                     {idx + 1}

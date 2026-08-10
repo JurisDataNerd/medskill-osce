@@ -15,17 +15,6 @@ import AdminLayout from "@/layouts/AdminLayout";
 import { getSessionParticipants } from "@/services/session.service";
 import ParticipantAnswerModal from "@/features/admin/components/ParticipantAnswerModal";
 
-const MOCK_PARTICIPANTS = [
-  { id: "p1", station_number: 1, participant_order: 1, status: "approved", profiles: { full_name: "Ahmad Rizky Pratama", email: "ahmad.rizky@med.ac.id", is_online: true } },
-  { id: "p2", station_number: 2, participant_order: 2, status: "approved", profiles: { full_name: "Budi Santoso", email: "budi.s@med.ac.id", is_online: true } },
-  { id: "p3", station_number: 3, participant_order: 3, status: "approved", profiles: { full_name: "Citra Kirana", email: "citra.k@med.ac.id", is_online: false, last_seen: "2026-08-02T10:15:00Z" } },
-  { id: "p4", station_number: 4, participant_order: 4, status: "approved", profiles: { full_name: "Dewi Sartika", email: "dewi.s@med.ac.id", is_online: true } },
-  { id: "p5", station_number: 5, participant_order: 5, status: "approved", profiles: { full_name: "Eko Wijaya", email: "eko.w@med.ac.id", is_online: false, last_seen: "2026-08-02T09:45:00Z" } },
-  { id: "p6", station_number: 6, participant_order: 6, status: "pending", profiles: { full_name: "Fira Anindya", email: "fira.a@med.ac.id", is_online: true } },
-  { id: "p7", station_number: 0, participant_order: 0, status: "pending", profiles: { full_name: "Gilang Ramadhan", email: "gilang.r@med.ac.id", is_online: false } },
-  { id: "p8", station_number: 0, participant_order: 0, status: "rejected", profiles: { full_name: "Hani Fatimah", email: "hani.f@med.ac.id", is_online: false } },
-];
-
 function formatLastSeen(lastSeen) {
   if (!lastSeen) return "Belum login";
   const diff = Date.now() - new Date(lastSeen).getTime();

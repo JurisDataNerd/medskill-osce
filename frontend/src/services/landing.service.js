@@ -1,15 +1,27 @@
-import { supabase } from "@/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 
 export async function getOpenSessions() {
-  const { data, error } = await supabase
-    .from("osce_sessions")
-    .select("*")
-    .order("session_date", { ascending: true });
+  try {
+    const { data, error } = await supabase
+      .schema("osce")
+      .from("sessions")
+      .select("*")
+      .in("status", ["published", "ongoing", "running"])
+      .order("session_date", { ascending: true });
 
-  console.log(data);
-  console.log(error);
+    if (error) {
+      console.warn("Schema 'osce.sessions' query notice, trying fallback:", error.message);
+      const { data: fallbackData } = await supabase
+        .from("sessions")
+        .select("*")
+        .in("status", ["published", "ongoing", "running"]);
 
-  if (error) throw error;
+      return fallbackData ?? [];
+    }
 
-  return data ?? [];
+    return data ?? [];
+  } catch (err) {
+    console.error("Error fetching open sessions:", err);
+    return [];
+  }
 }

@@ -24,10 +24,6 @@ import {
 } from "lucide-react";
 
 import AdminLayout from "@/layouts/AdminLayout";
-import {
-  INITIAL_MOCK_SESSIONS,
-  MOCK_STAGES_BY_SESSION,
-} from "@/features/admin/data/mockAdminData";
 import { fetchSessionById } from "@/services/sessionService";
 
 export default function SessionDetailPage() {
@@ -224,12 +220,12 @@ export default function SessionDetailPage() {
               Arsitektur Sirkuit 8 Stase & Urutan Rotasi (Kanban Order)
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Urutan 6 Stase Ujian Aktif & 2 Stase Break (Rest) yang disusun secara fleksibel untuk rotasi peserta.
+              Urutan 6 Stase Ujian Aktif yang disusun secara terstruktur untuk rotasi sirkuit peserta.
             </p>
           </div>
 
           <span className="rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-bold text-blue-700">
-            Sirkuit 8 Stase (6 Ujian + 2 Break)
+            Sirkuit 6 Stase Ujian Aktif
           </span>
         </div>
 

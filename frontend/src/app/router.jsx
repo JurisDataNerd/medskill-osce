@@ -35,6 +35,7 @@ import StationMonitorDetailPage from "@/features/admin/pages/StationMonitorDetai
 import ParticipantDashboardPage from "@/features/participant/pages/ParticipantDashboardPage";
 import ParticipantSessionPage from "@/features/participant/pages/ParticipantSessionPage";
 import ParticipantResultDetailPage from "@/features/participant/pages/ParticipantResultDetailPage";
+import ParticipantHistoryPage from "@/features/participant/pages/ParticipantHistoryPage";
 
 
 // ======================
@@ -264,6 +265,15 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute allow={["participant"]}>
         <ParticipantSessionPage />
+      </ProtectedRoute>
+    ),
+  },
+
+  {
+    path: "/participant/history",
+    element: (
+      <ProtectedRoute allow={["participant"]}>
+        <ParticipantHistoryPage />
       </ProtectedRoute>
     ),
   },

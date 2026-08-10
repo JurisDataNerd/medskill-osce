@@ -24,7 +24,6 @@ import {
 
 import AdminLayout from "@/layouts/AdminLayout";
 import SessionModal from "@/features/admin/components/SessionModal";
-import { INITIAL_MOCK_SESSIONS } from "@/features/admin/data/mockAdminData";
 import { fetchSessions, deleteSession } from "@/services/sessionService";
 
 export default function SessionsPage() {

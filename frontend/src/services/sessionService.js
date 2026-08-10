@@ -84,6 +84,32 @@ export async function createSession(sessionPayload, stationsPayload = []) {
 
     if (stationsErr) throw stationsErr;
 
+    // Save examiner assignments to osce.session_examiners
+    const examinersPayload = [];
+    stationsPayload.forEach((st, idx) => {
+      if (!st.is_break && (st.assigned_examiner || st.examiner_name)) {
+        examinersPayload.push({
+          session_id: newSession.id,
+          user_id: st.examiner_user_id || `00000000-0000-4000-8000-00000000000${(idx % 9) + 1}`,
+          full_name: st.assigned_examiner || st.examiner_name,
+          specialty: st.examiner_specialty || st.system_organ || "Spesialis Medis",
+          assigned_station_number: idx + 1,
+          status: "active",
+        });
+      }
+    });
+
+    if (examinersPayload.length > 0) {
+      const { error: examinersErr } = await supabase
+        .schema("osce")
+        .from("session_examiners")
+        .upsert(examinersPayload, { onConflict: "session_id,user_id" });
+
+      if (examinersErr) {
+        console.warn("Error inserting session examiners:", examinersErr);
+      }
+    }
+
     return {
       ...newSession,
       stations: createdStations,

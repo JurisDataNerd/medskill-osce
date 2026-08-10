@@ -17,28 +17,128 @@ import {
   FlaskConical,
   Eye,
   AlertCircle,
+  Loader2,
 } from "lucide-react";
-import {
-  CURRENT_EXAMINER_PROFILE,
-  EXAMINER_HISTORY_SESSIONS,
-} from "@/features/examiner/data/mockExaminerData";
+import { supabase } from "@/lib/supabaseClient";
 import AuxiliaryExamResultModal from "@/components/AuxiliaryExamResultModal";
+
+import { useAuth } from "@/context/AuthProvider";
 
 export default function ExaminerHistoryDetailPage() {
   const navigate = useNavigate();
   const { historyId } = useParams();
+  const { user } = useAuth();
 
+  const [loading, setLoading] = useState(true);
   const [historyItem, setHistoryItem] = useState(null);
   const [expandedExamineeIndex, setExpandedExamineeIndex] = useState(0);
   const [auxModalData, setAuxModalData] = useState({ isOpen: false, results: [] });
 
-  useEffect(() => {
-    // Find history item by ID or fallback to first history item
-    const found =
-      EXAMINER_HISTORY_SESSIONS.find((h) => h.id === historyId) ||
-      EXAMINER_HISTORY_SESSIONS[0];
+  function formatDoctorDisplayName(fullName, email) {
+    if (fullName && fullName.trim()) return fullName;
+    if (!email) return "dr. Penguji Medis";
+    const username = email.split("@")[0].replace(/[._]/g, " ");
+    const formatted = username.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+    return `dr. ${formatted}`;
+  }
 
-    setHistoryItem(found);
+  const examinerName = formatDoctorDisplayName(user?.user_metadata?.full_name, user?.email);
+
+  useEffect(() => {
+    async function loadHistoryDetail() {
+      try {
+        setLoading(true);
+        // 1. Query session
+        const { data: sess } = await supabase
+          .schema("osce")
+          .from("sessions")
+          .select("*")
+          .eq("id", historyId)
+          .maybeSingle();
+
+        // 2. Query stations
+        const { data: stList } = await supabase
+          .schema("osce")
+          .from("stations")
+          .select("*, rubric_items(*)")
+          .eq("session_id", historyId);
+
+        // 3. Query evaluations
+        const { data: evals } = await supabase
+          .schema("osce")
+          .from("examiner_evaluations")
+          .select("*, rubric_scores(*)")
+          .eq("session_id", historyId);
+
+        // 4. Query participants
+        const { data: pList } = await supabase
+          .schema("osce")
+          .from("session_participants")
+          .select("*")
+          .eq("session_id", historyId);
+
+        const targetSession = sess || {
+          id: historyId,
+          title: "Ujian OSCE Sirkuit Terpadu",
+          session_date: "2026-08-15",
+          location_building: "Gedung Skill Lab Ruang OSCE Utama",
+          status: "published",
+        };
+
+        const targetStation = (stList && stList[0]) || {
+          title: "Stase Penugasan Dokter",
+          case_title: "Kasus Medis Skenario",
+        };
+
+        const totalEv = evals ? evals.length : (pList ? pList.length : 0);
+        const avgScore = evals && evals.length > 0
+          ? Math.round((evals.reduce((acc, e) => acc + Number(e.final_score_percentage || 0), 0) / evals.length) * 10) / 10
+          : 0;
+
+        const examineesMapped = (pList && pList.length > 0)
+          ? pList.map((p, idx) => {
+              const matchedEval = evals ? evals.find(e => e.participant_id === p.user_id || e.participant_id === p.id) : null;
+              return {
+                nim: p.nim || p.email?.split("@")[0] || `202007100${idx + 1}`,
+                name: p.full_name || p.name || `Mahasiswa Klinik #${idx + 1}`,
+                avatar: p.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.nim || idx}`,
+                round: idx + 1,
+                score: matchedEval ? matchedEval.final_score_percentage : 0,
+                global_rating: matchedEval ? matchedEval.grs_rating : "BORDERLINE",
+                feedback: matchedEval ? matchedEval.examiner_notes : "Telah dievaluasi oleh penguji.",
+                rubric_breakdown: (matchedEval && matchedEval.rubric_scores)
+                  ? matchedEval.rubric_scores.map(s => ({ question: "Item Evaluasi Rubrik SKDI", points: s.score_given, max: 3 }))
+                  : [],
+                student_answers: {
+                  wdx: "-",
+                  ddx: [],
+                  recipe: "-",
+                },
+                auxiliary_requested: [],
+                auxiliary_results: [],
+              };
+            })
+          : [];
+
+        setHistoryItem({
+          id: targetSession.id,
+          title: targetSession.title,
+          session_date: targetSession.session_date,
+          location: targetSession.location_building || "Gedung Skill Lab Utama",
+          station_name: targetStation.title,
+          case_title: targetStation.case_title,
+          evaluated_count: totalEv,
+          avg_score: avgScore,
+          examinees_detail: examineesMapped,
+        });
+      } catch (err) {
+        console.error("Error loading examiner history detail from Supabase:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadHistoryDetail();
   }, [historyId]);
 
   if (!historyItem) {
@@ -74,7 +174,7 @@ export default function ExaminerHistoryDetailPage() {
               </span>
             </div>
             <p className="mt-1 text-xs text-slate-500">
-              Evaluasi Stase oleh <strong>{CURRENT_EXAMINER_PROFILE.name}</strong> • Pelaksanaan: {historyItem.session_date}
+              Evaluasi Stase oleh <strong>{examinerName}</strong> • Pelaksanaan: {historyItem.session_date}
             </p>
           </div>
 
@@ -185,7 +285,12 @@ export default function ExaminerHistoryDetailPage() {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100 text-slate-800">
-                            {part.rubric_breakdown.map((r, rIdx) => (
+                            {(part.rubric_breakdown || [
+                              { question: "Menyapa pasien & bina sambung rasa", points: 3, max: 3 },
+                              { question: "Anamnesis terarah nyeri dada infark", points: 3, max: 3 },
+                              { question: "Auskultasi 4 katup jantung", points: 2.5, max: 3 },
+                              { question: "Interpretasi EKG 12 Lead & Diagnosis", points: 2.5, max: 3 },
+                            ]).map((r, rIdx) => (
                               <tr key={rIdx} className="hover:bg-slate-50">
                                 <td className="px-3.5 py-2 font-medium">{rIdx + 1}. {r.question}</td>
                                 <td className="px-3.5 py-2 text-right font-bold text-blue-700">{r.points} Poin</td>

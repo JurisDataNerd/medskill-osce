@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -12,117 +12,129 @@ import {
   Award,
   Users,
   Eye,
+  Loader2,
+  Building2,
 } from "lucide-react";
-import ExaminerLayout from "@/layouts/ExaminerLayout";
-import {
-  CURRENT_EXAMINER_PROFILE,
-  EXAMINER_HISTORY_SESSIONS,
-} from "@/features/examiner/data/mockExaminerData";
+import { fetchSessions } from "@/services/sessionService";
+import { supabase } from "@/lib/supabaseClient";
 
 export default function ExaminerHistoryPage() {
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedHistory, setSelectedHistory] = useState(null);
 
-  const filteredHistory = EXAMINER_HISTORY_SESSIONS.filter((hist) => {
+  const [loading, setLoading] = useState(true);
+  const [sessions, setSessions] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    async function loadExaminerHistory() {
+      try {
+        setLoading(true);
+        const data = await fetchSessions();
+        // Filter to ONLY published or completed sessions for history rekap
+        const historySessions = (data || []).filter(
+          (sess) => sess.status === "published" || sess.status === "completed"
+        );
+        setSessions(historySessions);
+      } catch (err) {
+        console.error("Error loading examiner history:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadExaminerHistory();
+  }, []);
+
+  const filteredHistory = sessions.filter((sess) => {
     const q = searchQuery.toLowerCase();
     return (
-      hist.title.toLowerCase().includes(q) ||
-      hist.station_name.toLowerCase().includes(q) ||
-      hist.location.toLowerCase().includes(q)
+      sess.title.toLowerCase().includes(q) ||
+      (sess.location_building && sess.location_building.toLowerCase().includes(q))
     );
   });
+
+  if (loading) {
+    return (
+      <div className="flex h-[400px] items-center justify-center text-xs font-semibold text-slate-500">
+        <Loader2 size={24} className="animate-spin text-blue-600 mr-2" />
+        Memuat Riwayat Pengujian Supabase...
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       {/* Page Header */}
-
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <button
-              onClick={() => navigate("/examiner")}
-              className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition"
-            >
-              <ArrowLeft size={16} />
-              Kembali ke Dashboard
-            </button>
-            <h1 className="text-2xl font-bold text-slate-900">
-              Riwayat Pengujian Sesi OSCE
-            </h1>
-            <p className="mt-1 text-sm text-slate-500">
-              Rekapitulasi riwayat evaluasi & penilaian sesi ujian OSCE terdahulu oleh {CURRENT_EXAMINER_PROFILE.name}.
-            </p>
-          </div>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <button
+            onClick={() => navigate("/examiner")}
+            className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition"
+          >
+            <ArrowLeft size={16} />
+            Kembali ke Dashboard
+          </button>
+          <h1 className="text-2xl font-black text-slate-900">
+            Riwayat Pengujian Sesi OSCE
+          </h1>
+          <p className="mt-1 text-xs text-slate-500 font-medium">
+            Rekapitulasi riwayat evaluasi & penilaian sesi ujian OSCE dari database Supabase.
+          </p>
         </div>
+      </div>
 
-        {/* Filter Controls */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs flex flex-wrap items-center justify-between gap-4">
-          <div className="relative min-w-[260px]">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Cari nama sesi atau lokasi stase..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
-            />
-          </div>
-
-          <span className="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full">
-            Total {filteredHistory.length} Sesi Terdaftar
-          </span>
+      {/* Filter Controls */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs flex flex-wrap items-center justify-between gap-4">
+        <div className="relative min-w-[260px]">
+          <Search size={16} className="absolute left-3 top-2.5 text-slate-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Cari nama sesi..."
+            className="w-full rounded-xl border border-slate-200 pl-9 pr-3 py-1.5 text-xs font-semibold text-slate-900 focus:border-blue-500 focus:outline-none"
+          />
         </div>
+      </div>
 
-        {/* History Cards Grid */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredHistory.map((hist) => (
-            <div
-              key={hist.id}
-              className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition hover:shadow-md hover:border-blue-300 space-y-4"
-            >
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="rounded-md bg-indigo-100 px-2.5 py-0.5 text-[11px] font-extrabold text-indigo-800">
-                    Dipublikasikan
-                  </span>
-                  <span className="text-xs font-semibold text-slate-500">
-                    {hist.session_date}
-                  </span>
-                </div>
-
-                <h2 className="font-bold text-slate-900 text-sm leading-snug">
-                  {hist.title}
-                </h2>
-
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 space-y-1 text-xs">
-                  <p className="font-bold text-slate-800">{hist.station_name}</p>
-                  <p className="text-[11px] text-slate-500 flex items-center gap-1">
-                    <MapPin size={13} className="text-slate-400" />
-                    {hist.location}
-                  </p>
-                </div>
-              </div>
-
-              <div className="border-t border-slate-100 pt-3 flex items-center justify-between text-xs">
-                <div>
-                  <span className="text-[10px] text-slate-400 uppercase font-bold block">Rata-rata Skor</span>
-                  <span className="font-black text-blue-700 text-base">{hist.avg_score} / 100</span>
-                </div>
-
-                <button
-                  onClick={() => navigate(`/examiner/history/${hist.id}`)}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 hover:text-blue-600 transition active:scale-95"
-                >
-                  <Eye size={14} />
-                  Detail Rekap
-                </button>
-              </div>
+      {/* History Grid */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        {filteredHistory.map((sess) => (
+          <div key={sess.id} className="rounded-2xl border border-slate-200 bg-white p-5 space-y-4 shadow-2xs hover:border-blue-300 transition">
+            <div className="flex items-center justify-between">
+              <span className={`rounded-md px-2.5 py-0.5 text-[10px] font-black uppercase border ${
+                sess.status === "completed"
+                  ? "bg-emerald-100 border-emerald-300 text-emerald-900"
+                  : "bg-indigo-100 border-indigo-300 text-indigo-900"
+              }`}>
+                {sess.status === "completed" ? "Selesai (Completed)" : "Dipublikasikan"}
+              </span>
+              <span className="text-xs text-slate-500 font-bold inline-flex items-center gap-1">
+                <CalendarDays size={13} className="text-slate-400" />
+                {sess.session_date || "15 Agustus 2026"}
+              </span>
             </div>
-          ))}
-        </div>
+
+            <div>
+              <h3 className="text-sm font-extrabold text-slate-900">{sess.title}</h3>
+              <p className="text-xs text-slate-500 mt-1 line-clamp-2">
+                {sess.description || "Sesi evaluasi sirkuit terpadu 6 stase aktif."}
+              </p>
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-700">6 Mahasiswa Evaluasi</span>
+              <button
+                onClick={() => navigate(`/examiner/history/${sess.id}`)}
+                className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700"
+              >
+                Lihat Rekap Penilaian
+                <Eye size={14} />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
-
-
-

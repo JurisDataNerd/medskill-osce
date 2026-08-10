@@ -66,6 +66,15 @@ export default function HeroSection() {
     }
   }
 
+  function scrollToSection(id) {
+    const el = document.getElementById(id);
+    if (el) {
+      const yOffset = -90;
+      const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
+      window.scrollTo({ top: y, behavior: "smooth" });
+    }
+  }
+
 
   // Smooth lightweight scroll parallax
   const { scrollYProgress } = useScroll({
@@ -170,14 +179,14 @@ export default function HeroSection() {
               transition={{ duration: 0.5, delay: 0.3 }}
               className="mt-10 flex flex-wrap gap-4 items-center w-full sm:w-auto"
             >
-              <a
-                href="#sessions"
-                className="group relative inline-flex items-center justify-center gap-3 overflow-hidden rounded-xl bg-[#1E3A8A] px-8 py-4 text-base font-bold text-white shadow-xl shadow-blue-900/25 transition-all duration-300 hover:bg-blue-900 hover:shadow-blue-900/40 hover:scale-[1.03] active:scale-[0.98] w-full sm:w-auto"
+              <button
+                onClick={() => scrollToSection("sessions")}
+                className="group relative inline-flex items-center justify-center gap-3 overflow-hidden rounded-xl bg-[#1E3A8A] px-8 py-4 text-base font-bold text-white shadow-xl shadow-blue-900/25 transition-all duration-300 hover:bg-blue-900 hover:shadow-blue-900/40 hover:scale-[1.03] active:scale-[0.98] w-full sm:w-auto cursor-pointer"
               >
                 <Play className="h-5 w-5 fill-white transition-transform group-hover:scale-110" />
                 <span>Lihat Jadwal Simulasi</span>
                 <ArrowRight className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-1" />
-              </a>
+              </button>
 
               {user ? (
                 <Link

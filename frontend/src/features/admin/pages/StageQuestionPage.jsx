@@ -12,31 +12,28 @@ import {
   HelpCircle,
   CheckCircle2,
   Image as ImageIcon,
+  UserCheck,
+  AlertCircle,
 } from "lucide-react";
 import AdminLayout from "@/layouts/AdminLayout";
 import { getStageById, updateStageQuestion } from "@/services/stage.service";
+import { fetchDoctorExaminers } from "@/services/examinerService";
+import { DOCTOR_EXAMINER_LIST } from "@/features/admin/pages/CreateSessionPage";
 
-const MOCK_INITIAL_STAGE = {
+const DEFAULT_EMPTY_STAGE = {
   id: "stg-101",
   session_id: "session-osce-001",
   station_number: 1,
-  title: "Stase 1: Kardiovaskular (STEMI Anteroseptal)",
-  case_title: "Nyeri Dada Khas Infark Miokard Akut (STEMI Anteroseptal)",
+  title: "Stase Baru Ujian OSCE",
+  case_title: "",
   system_organ: "Kardiovaskular",
   competency_level: "4A (Tuntas Mandiri)",
-  scenario: "Seorang laki-laki berusia 55 tahun datang ke UGD dengan keluhan nyeri dada kiri hebat seperti ditindih beban berat sejak 2 jam sebelum masuk rumah sakit. Nyeri menjalar ke lengan kiri dan leher, disertai keringat dingin dan mual.",
-  participant_instruction: "1. Lakukan anamnesis terarah mengenai nyeri dada.\n2. Lakukan pemeriksaan fisik kardiovaskular.\n3. Usulkan & interpretasikan pemeriksaan penunjang.\n4. Tegakkan diagnosis kerja (WDx), diagnosis banding (DDx), dan tuliskan resep medis awal.",
-  examiner_instruction: "1. Amati kesantunan & sambung rasa (Komunikasi).\n2. Amati kelengkapan anamnesis (PQRST nyeri dada).\n3. Amati teknik pemeriksaan fisik & auskultasi 4 katup.\n4. Amati interpretasi EKG & pengusulan Troponin T.\n5. Evaluasi ketepatan resep antiplatelet ganda & ISDN sublingual.",
-  duration_minutes: 15,
-  
-  // Kunci Penunjang (Tahap 3)
-  auxiliary_answer_key: "Indikasi Utama: Foto Thorax PA (Cardiomegaly / Normal), EKG 12 Lead (Elevasi ST V1-V4), Troponin T (Positif Tinggi). Non-Indikasi: Darah Lengkap (Normal).",
-  auxiliary_files: [
-    { id: "ax-1", name: "Foto Thorax PA", category: "Radiologi", matched_key: true, file_url: "https://images.unsplash.com/photo-1530497610245-94d3c16cda28?w=800" },
-    { id: "ax-2", name: "EKG 12 Lead", category: "EKG", matched_key: true, file_url: "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800" },
-    { id: "ax-3", name: "Troponin T & Cardiac Markers", category: "Laboratorium", matched_key: true, file_url: "https://images.unsplash.com/photo-1579154204601-01588f351e67?w=800" },
-    { id: "ax-4", name: "Darah Lengkap & Elektrolit", category: "Laboratorium", matched_key: false, file_url: "" },
-  ],
+  scenario: "",
+  participant_instruction: "",
+  examiner_instruction: "",
+  duration_minutes: 12,
+  auxiliary_answer_key: "",
+  auxiliary_files: [],
 
   // Kunci Diagnosis & Resep (Tahap 4)
   gold_standard_keys: {
@@ -47,7 +44,7 @@ const MOCK_INITIAL_STAGE = {
       "Diseksi Aorta Thorakalis Akut",
       "Perikarditis Akut",
     ],
-    recipe: "R/ Isosorbide Dinitrate 5 mg tab No. III\n   S 1 dd tab I sublingual (pc/prn)\n\nR/ Aspirin 80 mg tab No. IV\n   S 1 dd tab IV (chewable / kunyah)\n\nR/ Clopidogrel 75 mg tab No. IV\n   S 1 dd tab IV (loading dose)",
+    recipe: "R/ Aspirin tab 80 mg No. IV\n    S 1 dd tab IV (chewable / kunyah)\n-\nR/ Clopidogrel tab 75 mg No. IV\n    S 1 dd tab IV (loading dose)\n-\nR/ ISDN tab 5 mg No. III\n    S prn 1 dd tab I sublingual",
   },
 
   // Rubrik Penilaian Penguji (Items 1-4)
@@ -123,6 +120,7 @@ export default function StageQuestionPage() {
   const [caseTitle, setCaseTitle] = useState("");
   const [systemOrgan, setSystemOrgan] = useState("Kardiovaskular");
   const [competencyLevel, setCompetencyLevel] = useState("4A (Tuntas Mandiri)");
+  const [assignedExaminer, setAssignedExaminer] = useState("dr. Alexander Budiman, Sp.JP");
   const [scenario, setScenario] = useState("");
   const [participantInstruction, setParticipantInstruction] = useState("");
   const [examinerInstruction, setExaminerInstruction] = useState("");
@@ -139,8 +137,16 @@ export default function StageQuestionPage() {
 
   // Rubric Items State
   const [rubricItems, setRubricItems] = useState([]);
+  const [doctorList, setDoctorList] = useState(DOCTOR_EXAMINER_LIST);
 
   useEffect(() => {
+    async function initExaminers() {
+      try {
+        const docs = await fetchDoctorExaminers();
+        if (docs && docs.length > 0) setDoctorList(docs);
+      } catch (e) {}
+    }
+    initExaminers();
     loadData();
   }, [stageId]);
 
@@ -154,13 +160,14 @@ export default function StageQuestionPage() {
     }
 
     if (!data || !data.case_title) {
-      data = { ...MOCK_INITIAL_STAGE, id: stageId || "stg-101" };
+      data = { ...DEFAULT_EMPTY_STAGE, id: stageId || "stg-101" };
     }
 
     setStage(data);
     setCaseTitle(data.case_title || "");
     setSystemOrgan(data.system_organ || "Kardiovaskular");
     setCompetencyLevel(data.competency_level || "4A (Tuntas Mandiri)");
+    setAssignedExaminer(data.assigned_examiner || "dr. Alexander Budiman, Sp.JP");
     setScenario(data.scenario || "");
     setParticipantInstruction(data.participant_instruction || "");
     setExaminerInstruction(data.examiner_instruction || "");
@@ -424,6 +431,66 @@ export default function StageQuestionPage() {
             </div>
           </div>
 
+          {/* Penugasan Dokter Penguji Stase (Examiner Assignment) */}
+          <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-4 space-y-3 shadow-2xs">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-blue-950 flex items-center gap-2">
+                <UserCheck size={16} className="text-blue-600" />
+                Penugasan Dokter Penguji Stase (Examiner Assignment)
+              </label>
+              <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-extrabold border inline-flex items-center gap-1 ${
+                assignedExaminer
+                  ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                  : "bg-amber-100 text-amber-900 border-amber-300"
+              }`}>
+                {assignedExaminer ? (
+                  <>
+                    <CheckCircle2 size={13} className="text-emerald-700" />
+                    Dokter Penguji Terpenuhi
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle size={13} className="text-amber-700" />
+                    Belum Ditugaskan
+                  </>
+                )}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  Pilih Dokter Penguji Spesialis
+                </label>
+                <select
+                  value={assignedExaminer || ""}
+                  onChange={(e) => setAssignedExaminer(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-bold text-slate-900 focus:border-blue-500 focus:outline-none"
+                >
+                  <option value="">-- Pilih Dokter Penguji --</option>
+                  {doctorList.map((doc) => (
+                    <option key={doc.id} value={doc.name}>
+                      {doc.name} ({doc.specialty})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  Nama Lengkap Penguji (Bila Ketik Manual)
+                </label>
+                <input
+                  type="text"
+                  value={assignedExaminer || ""}
+                  onChange={(e) => setAssignedExaminer(e.target.value)}
+                  placeholder="Contoh: dr. Alexander Budiman, Sp.JP"
+                  className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-medium text-slate-900 focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+            </div>
+          </div>
+
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
               Skenario Kasus Medis (Ditampilkan di Lembar Peserta & Penguji)
@@ -560,8 +627,8 @@ export default function StageQuestionPage() {
                         onChange={(e) => updateAuxFile(idx, "matched_key", e.target.value === "true")}
                         className="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none font-bold"
                       >
-                        <option value="true">✓ Kunci Indikasi (Matched Key)</option>
-                        <option value="false">• Non-Indikasi (Tambahan)</option>
+                        <option value="true">Kunci Indikasi (Matched Key)</option>
+                        <option value="false">Non-Indikasi (Tambahan)</option>
                       </select>
                     </div>
                   </div>

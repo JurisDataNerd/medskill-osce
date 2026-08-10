@@ -10,6 +10,8 @@ export async function getDashboardStats() {
       { count: examiners },
       { count: mentors },
       { count: sessions },
+      { count: questionBankCount },
+      { data: recentSessions },
       { data: activeSession },
     ] = await Promise.all([
       supabase
@@ -34,9 +36,21 @@ export async function getDashboardStats() {
 
       supabase
         .schema("osce")
+        .from("question_bank")
+        .select("id", { count: "exact", head: true }),
+
+      supabase
+        .schema("osce")
+        .from("sessions")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(4),
+
+      supabase
+        .schema("osce")
         .from("sessions")
         .select("id, title, status, started_at, total_stations, station_duration_minutes, location_building")
-        .eq("status", "ongoing")
+        .in("status", ["ongoing", "running"])
         .limit(1)
         .maybeSingle(),
     ]);
@@ -46,6 +60,8 @@ export async function getDashboardStats() {
       examiners: examiners ?? 0,
       mentors: mentors ?? 0,
       sessions: sessions ?? 0,
+      questionBankCount: questionBankCount ?? 0,
+      recentSessions: recentSessions ?? [],
       activeSession: activeSession ?? null,
     };
   } catch (error) {
@@ -55,6 +71,8 @@ export async function getDashboardStats() {
       examiners: 0,
       mentors: 0,
       sessions: 0,
+      questionBankCount: 0,
+      recentSessions: [],
       activeSession: null,
     };
   }
@@ -69,7 +87,7 @@ export async function getLiveStations() {
       .schema("osce")
       .from("sessions")
       .select("id, total_stations, started_at, status, current_round, current_wave")
-      .eq("status", "ongoing")
+      .in("status", ["ongoing", "running"])
       .limit(1)
       .maybeSingle();
 
@@ -195,6 +213,77 @@ export async function getLiveParticipants() {
 }
 
 /**
+ * Fetch or initialize session timer state
+ */
+export async function getSessionTimerState(sessionId) {
+  try {
+    const { data, error } = await supabase
+      .schema("osce")
+      .from("session_timer_state")
+      .select("*")
+      .eq("session_id", sessionId)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error("Error fetching session timer state:", err);
+    return null;
+  }
+}
+
+/**
+ * Upsert session timer state for synchronization
+ */
+export async function updateSessionTimerState(sessionId, { phase, targetEndTime, currentRound, waveNumber, pausedRemainingMs }) {
+  try {
+    const payload = {
+      session_id: sessionId,
+      phase: phase || "action",
+      round_number: currentRound || 1,
+      wave_number: waveNumber || 1,
+      target_end_time: targetEndTime || new Date(Date.now() + 12 * 60 * 1000).toISOString(),
+      paused_remaining_ms: pausedRemainingMs || null,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabase
+      .schema("osce")
+      .from("session_timer_state")
+      .upsert([payload], { onConflict: "session_id" })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error("Error updating session timer state:", err);
+    return null;
+  }
+}
+
+/**
+ * Start or resume live session
+ */
+export async function startLiveSession(sessionId, durationMinutes = 12) {
+  const targetEndTime = new Date(Date.now() + durationMinutes * 60 * 1000).toISOString();
+
+  await Promise.all([
+    supabase
+      .schema("osce")
+      .from("sessions")
+      .update({ status: "ongoing", started_at: new Date().toISOString() })
+      .eq("id", sessionId),
+
+    updateSessionTimerState(sessionId, {
+      phase: "action",
+      targetEndTime,
+      currentRound: 1,
+    }),
+  ]);
+}
+
+/**
  * Subscribe to live session changes in osce schema
  */
 export function subscribeLive(callback) {
@@ -206,6 +295,15 @@ export function subscribeLive(callback) {
         event: "*",
         schema: "osce",
         table: "sessions",
+      },
+      callback
+    )
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "osce",
+        table: "session_timer_state",
       },
       callback
     )

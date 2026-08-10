@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -10,7 +11,7 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "@/context/AuthProvider";
-import { CURRENT_EXAMINER_PROFILE } from "@/features/examiner/data/mockExaminerData";
+import { supabase } from "@/lib/supabaseClient";
 
 const menus = [
   {
@@ -31,12 +32,65 @@ const menus = [
 ];
 
 export default function ExaminerLayout({ children }) {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const location = useLocation();
+
+  const [activeSession, setActiveSession] = useState(null);
+
+  useEffect(() => {
+    async function checkActiveSession() {
+      try {
+        const { data } = await supabase
+          .schema("osce")
+          .from("sessions")
+          .select("id, title, status")
+          .in("status", ["ongoing", "running"])
+          .limit(1)
+          .maybeSingle();
+
+        setActiveSession(data || null);
+      } catch (err) {
+        console.error("Error checking active session for ExaminerLayout header:", err);
+      }
+    }
+
+    checkActiveSession();
+  }, [location.pathname]);
 
   function handleLogout() {
     logout();
   }
+
+  const [profile, setProfile] = useState(null);
+
+  useEffect(() => {
+    async function loadProfile() {
+      if (!user) return;
+      try {
+        const { data } = await supabase
+          .from("profiles")
+          .select("full_name, specialty, email")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (data) setProfile(data);
+      } catch (err) {
+        console.error("Error loading examiner profile in layout:", err);
+      }
+    }
+    loadProfile();
+  }, [user]);
+
+  function formatDoctorDisplayName(fullName, email) {
+    if (fullName && fullName.trim()) return fullName;
+    if (!email) return "dr. Penguji Medis";
+    const username = email.split("@")[0].replace(/[._]/g, " ");
+    const formatted = username.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+    return `dr. ${formatted}`;
+  }
+
+  const examinerName = formatDoctorDisplayName(profile?.full_name || user?.user_metadata?.full_name, user?.email);
+  const examinerSpecialty = profile?.specialty || user?.user_metadata?.specialty || "Dokter Penguji Spesialis";
 
   return (
     <div className="flex h-screen bg-slate-100 font-sans text-slate-800">
@@ -62,17 +116,15 @@ export default function ExaminerLayout({ children }) {
         {/* Examiner Info Widget */}
         <div className="p-4 mx-3 my-3 rounded-2xl border border-slate-200 bg-slate-50/80">
           <div className="flex items-center gap-3">
-            <img
-              src={CURRENT_EXAMINER_PROFILE.avatar}
-              alt={CURRENT_EXAMINER_PROFILE.name}
-              className="h-10 w-10 rounded-full object-cover border-2 border-blue-500 shadow-2xs"
-            />
+            <div className="h-10 w-10 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center border-2 border-blue-500 shadow-2xs">
+              <Stethoscope size={18} />
+            </div>
             <div className="overflow-hidden">
               <p className="font-bold text-xs text-slate-900 truncate">
-                {CURRENT_EXAMINER_PROFILE.name}
+                {examinerName}
               </p>
               <p className="text-[11px] text-blue-700 font-semibold truncate">
-                {CURRENT_EXAMINER_PROFILE.specialty}
+                {examinerSpecialty}
               </p>
             </div>
           </div>
@@ -125,13 +177,24 @@ export default function ExaminerLayout({ children }) {
         {/* Top Header Bar */}
         <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-8 shadow-2xs">
           <div className="flex items-center gap-3">
-            <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800 flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-emerald-600 animate-pulse" />
-              Sesi Live Aktif
-            </span>
-            <span className="text-xs text-slate-500 font-medium">
-              Stase Penugasan: <strong>{CURRENT_EXAMINER_PROFILE.assigned_station_title}</strong>
-            </span>
+            {activeSession ? (
+              <>
+                <span className="rounded-full bg-emerald-100 border border-emerald-300 px-3 py-1 text-xs font-bold text-emerald-900 flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-emerald-600 animate-pulse" />
+                  Sesi Live Berlangsung
+                </span>
+                <span className="text-xs text-slate-600 font-medium truncate max-w-md">
+                  Sesi Aktif: <strong className="text-slate-900">{activeSession.title}</strong>
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="rounded-full bg-amber-100 border border-amber-300 px-3 py-1 text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-amber-500" />
+                  Sistem Standby • Tidak Ada Sesi Ujian Aktif
+                </span>
+              </>
+            )}
           </div>
 
           <div className="flex items-center gap-3">

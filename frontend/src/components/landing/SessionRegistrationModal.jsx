@@ -85,7 +85,7 @@ export default function SessionRegistrationModal({
               </span>
               <span className="text-xs font-bold text-blue-900 flex items-center gap-1">
                 <Sparkles size={14} className="text-blue-600" />
-                8 Stase Sirkuit (6 Aktif + 2 Break)
+                6 Stase Ujian Aktif (Rotasi Sirkuit)
               </span>
             </div>
 

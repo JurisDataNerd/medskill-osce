@@ -19,8 +19,9 @@ export default function ComingSoon({
         </div>
       </div>
 
-      <span className="mb-2 rounded-full bg-amber-50 px-3.5 py-1 text-xs font-bold text-amber-700 border border-amber-200">
-        🚧 FITUR SEGERA HADIR (COMING SOON)
+      <span className="mb-2 rounded-full bg-amber-50 px-3.5 py-1 text-xs font-bold text-amber-700 border border-amber-200 inline-flex items-center gap-1.5">
+        <Sparkles size={13} className="text-amber-600" />
+        FITUR SEGERA HADIR (COMING SOON)
       </span>
 
       <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl max-w-md">

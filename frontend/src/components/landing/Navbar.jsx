@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Activity, LogOut, LayoutDashboard, Menu, X, ArrowRight, ShieldCheck, } from "lucide-react";
 
-import { supabase } from "@/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/context/AuthProvider";
 
 export default function Navbar() {
@@ -35,7 +35,7 @@ export default function Navbar() {
           .from("profiles")
           .select("role")
           .eq("id", session.user.id)
-          .single();
+          .maybeSingle();
 
         setRole(data?.role ?? "participant");
       }
@@ -57,7 +57,7 @@ export default function Navbar() {
         .from("profiles")
         .select("role")
         .eq("id", session.user.id)
-        .single();
+        .maybeSingle();
 
       setRole(data?.role ?? "participant");
     });
@@ -99,8 +99,14 @@ export default function Navbar() {
     }
   }
 
-  const canAccessDashboard =
-    role === "admin" || role === "examiner" || role === "mentor" || role === "participant";
+  function scrollToSection(id) {
+    const el = document.getElementById(id);
+    if (el) {
+      const yOffset = -90;
+      const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
+      window.scrollTo({ top: y, behavior: "smooth" });
+    }
+  }
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 px-4 sm:px-8 pt-4 transition-all duration-300">
@@ -131,24 +137,24 @@ export default function Navbar() {
 
           {/* Desktop Nav Links */}
           <div className="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-700">
-            <a
-              href="#sessions"
-              className="transition hover:text-[#1E3A8A] flex items-center gap-1.5"
+            <button
+              onClick={() => scrollToSection("sessions")}
+              className="transition hover:text-[#1E3A8A] flex items-center gap-1.5 cursor-pointer"
             >
               <span>Sesi Simulasi OSCE</span>
-            </a>
-            <a
-              href="#features"
-              className="transition hover:text-[#1E3A8A] flex items-center gap-1.5"
+            </button>
+            <button
+              onClick={() => scrollToSection("features")}
+              className="transition hover:text-[#1E3A8A] flex items-center gap-1.5 cursor-pointer"
             >
               <span>Fitur Utama</span>
-            </a>
-            <a
-              href="#why-praxis"
-              className="transition hover:text-[#1E3A8A] flex items-center gap-1.5"
+            </button>
+            <button
+              onClick={() => scrollToSection("advantages")}
+              className="transition hover:text-[#1E3A8A] flex items-center gap-1.5 cursor-pointer"
             >
               <span>Keunggulan</span>
-            </a>
+            </button>
           </div>
 
           {/* Right Action / Auth Button */}
@@ -165,15 +171,6 @@ export default function Navbar() {
               </div>
             ) : (
               <div className="flex items-center gap-3">
-                {/* Prominent Buka Dashboard Header CTA */}
-                <Link
-                  to={getDashboardLink()}
-                  className="inline-flex items-center gap-2 rounded-xl bg-[#1E3A8A] px-4 py-2 text-xs font-bold text-white shadow-md shadow-blue-900/20 transition hover:bg-blue-900 active:scale-95"
-                >
-                  <LayoutDashboard size={15} />
-                  <span>Buka Dashboard</span>
-                </Link>
-
                 <div className="relative">
                   <button
                     onClick={() => setDropdownOpen((v) => !v)}
@@ -208,32 +205,34 @@ export default function Navbar() {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 8, scale: 0.95 }}
                         transition={{ duration: 0.15 }}
-                        className="absolute right-0 mt-3 w-64 overflow-hidden rounded-2xl border border-blue-100 bg-white p-2 shadow-2xl backdrop-blur-xl"
+                        className="absolute right-0 mt-3 w-64 overflow-hidden rounded-2xl border border-blue-100 bg-white p-2.5 shadow-2xl backdrop-blur-xl z-50 space-y-1.5"
                       >
-                        <div className="px-3 py-2 border-b border-slate-100">
+                        <div className="px-3 py-2 border border-slate-100 bg-slate-50/80 rounded-xl">
                           <p className="text-[10px] uppercase font-bold text-slate-400">Masuk Sebagai:</p>
-                          <p className="text-xs font-bold text-slate-900 truncate">
+                          <p className="text-xs font-extrabold text-slate-900 truncate">
                             {user.email}
                           </p>
-                          <p className="text-[11px] font-semibold text-blue-700 mt-0.5">
+                          <p className="text-[11px] font-bold text-blue-600 mt-0.5 flex items-center gap-1">
+                            <ShieldCheck className="h-3.5 w-3.5" />
                             Role: {getRoleLabel()}
                           </p>
                         </div>
 
-                        {canAccessDashboard && (
-                          <Link
-                            to={getDashboardLink()}
-                            onClick={() => setDropdownOpen(false)}
-                            className="flex items-center gap-2.5 rounded-xl bg-blue-50 px-3 py-2.5 text-xs font-bold text-[#1E3A8A] border border-blue-200/80 hover:bg-blue-100 transition my-1"
-                          >
-                            <LayoutDashboard className="h-4 w-4 text-[#1E3A8A]" />
-                            <span>Buka Dashboard ({getRoleLabel()})</span>
-                          </Link>
-                        )}
+                        {/* Always Displayed Prominent Dashboard Link Button */}
+                        <Link
+                          to={getDashboardLink()}
+                          onClick={() => setDropdownOpen(false)}
+                          className="flex w-full items-center gap-2.5 rounded-xl bg-blue-600 px-3.5 py-2.5 text-xs font-bold text-white shadow-md shadow-blue-600/20 hover:bg-blue-700 transition"
+                        >
+                          <LayoutDashboard className="h-4 w-4" />
+                          <span>Buka Dashboard</span>
+                        </Link>
+
+                        <div className="border-t border-slate-100 my-1" />
 
                         <button
                           onClick={handleLogout}
-                          className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 transition"
+                          className="flex w-full items-center gap-2.5 rounded-xl px-3.5 py-2 text-xs font-bold text-red-600 hover:bg-red-50 transition"
                         >
                           <LogOut className="h-4 w-4" />
                           <span>Keluar Sistem</span>

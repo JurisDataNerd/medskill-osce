@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import {
   User,
   Clock3,
+  Info,
 } from "lucide-react";
 
 import {
@@ -100,8 +101,22 @@ export default function LiveMonitorPage() {
       </div>
 
       {rows.length === 0 ? (
-        <div className="rounded-2xl bg-white p-12 text-center shadow">
-          Belum ada peserta aktif.
+        <div className="rounded-3xl border border-slate-200 bg-white p-10 text-center shadow-md space-y-4 animate-in fade-in duration-300">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-100 text-amber-600 border border-amber-200">
+            <Info size={28} />
+          </div>
+          <div className="space-y-1.5">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200 px-3 py-0.5 text-xs font-bold text-amber-800">
+              <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+              Sistem Standby • Tidak Ada Sesi Ujian Aktif
+            </span>
+            <h2 className="text-xl font-extrabold text-slate-900">
+              Belum Ada Peserta atau Sesi Ujian Live Aktif Saat Ini
+            </h2>
+            <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+              Monitoring realtime peserta akan aktif secara otomatis saat Admin Control Room memulai sesi ujian sirkuit live.
+            </p>
+          </div>
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">

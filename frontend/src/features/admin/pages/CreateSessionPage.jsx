@@ -22,12 +22,22 @@ import {
   RotateCw,
   Coffee,
   Sparkles,
+  UserCheck,
+  Stethoscope,
+  AlertCircle,
 } from "lucide-react";
 import AdminLayout from "@/layouts/AdminLayout";
-import { INITIAL_MOCK_SESSIONS } from "@/features/admin/data/mockAdminData";
 import AdminAuxiliaryExamBuilder from "@/features/admin/components/AdminAuxiliaryExamBuilder";
 import QuestionBankSelectModal from "@/features/admin/components/QuestionBankSelectModal";
-import { createSession } from "@/services/sessionService";
+import { createSession, fetchSessionById } from "@/services/sessionService";
+import { fetchDoctorExaminers } from "@/services/examinerService";
+
+export const DOCTOR_EXAMINER_LIST = [
+  { id: "doc-1", name: "dr. Alexander Budiman, Sp.JP", specialty: "Sp.JP (Kardiovaskular)", nip: "197805122005011002" },
+  { id: "doc-2", name: "dr. Faisal Hasibuan, Sp.P", specialty: "Sp.P (Respirasi/Pulmonologi)", nip: "198203142008021004" },
+  { id: "doc-3", name: "dr. Doni Prasetyo, Sp.N", specialty: "Sp.N (Neurologi)", nip: "198011202006041001" },
+  { id: "doc-4", name: "dr. Citra Dewi, Sp.B", specialty: "Sp.B (Bedah Umum/Digestif)", nip: "198509182010122003" },
+];
 
 export default function CreateSessionPage() {
   const { id } = useParams();
@@ -42,6 +52,23 @@ export default function CreateSessionPage() {
 
   // Question Bank Modal State
   const [isQuestionBankOpen, setIsQuestionBankOpen] = useState(false);
+
+  // Registered Doctor Examiners List from Supabase
+  const [doctorList, setDoctorList] = useState(DOCTOR_EXAMINER_LIST);
+
+  useEffect(() => {
+    async function loadExaminers() {
+      try {
+        const docs = await fetchDoctorExaminers();
+        if (docs && docs.length > 0) {
+          setDoctorList(docs);
+        }
+      } catch (err) {
+        console.error("Error loading doctor examiners in CreateSessionPage:", err);
+      }
+    }
+    loadExaminers();
+  }, []);
 
   // Form State 1: Detail Utama
   const [title, setTitle] = useState("");
@@ -96,6 +123,8 @@ export default function CreateSessionPage() {
       {
         is_break: false,
         case_title: "Sindrom Koroner Akut (STEMI Anteroseptal)",
+        assigned_examiner: "dr. Alexander Budiman, Sp.JP",
+        examiner_specialty: "Sp.JP (Kardiovaskular)",
         scenario:
           "Pasien laki-laki 52 tahun datang ke UGD dengan keluhan nyeri dada kiri menjalar ke lengan kiri sejak 2 jam lalu.",
         participant_instructions:
@@ -145,7 +174,9 @@ export default function CreateSessionPage() {
       },
       {
         is_break: false,
-        case_title: "Status Asmatikus & Pneumotoraks Ventil",
+        case_title: "Eksaserbasi Akut Asma Bronkial Derajat Sedang-Berat",
+        assigned_examiner: "dr. Faisal Hasibuan, Sp.P",
+        examiner_specialty: "Sp.P (Respirasi/Pulmonologi)",
         scenario:
           "Pasien perempuan 28 tahun datang dengan sesak napas berat berbunyi ngik-ngik dan bentuk dada cembung di sisi kanan.",
         participant_instructions:
@@ -318,24 +349,31 @@ export default function CreateSessionPage() {
 
   // Prepopulate if EDIT mode
   useEffect(() => {
-    if (isEdit) {
-      const foundSession =
-        INITIAL_MOCK_SESSIONS.find((s) => s.id === id) ||
-        INITIAL_MOCK_SESSIONS[0];
-      setTitle(foundSession.title);
-      setDescription(
-        foundSession.description ||
-          "Evaluasi komprehensif sirkuit stase keterampilan klinis."
-      );
-      setSessionDate(foundSession.session_date || "2026-08-20");
-      setStartTime(foundSession.start_time || "08:00");
-      setEndTime(foundSession.end_time || "10:30");
-      setLocation(foundSession.location || "Gedung Skill Lab Ruang OSCE Utama");
-      setMaxParticipants(foundSession.max_participants || 8);
-      setTotalStations(foundSession.total_stations || 8);
-      setStationDurationMinutes(foundSession.station_duration_minutes || 12);
-      setTransitionDurationMinutes(foundSession.break_duration_minutes || 2);
+    async function loadSessionForEdit() {
+      if (isEdit && id) {
+        try {
+          const foundSession = await fetchSessionById(id);
+          if (foundSession) {
+            setTitle(foundSession.title || "");
+            setDescription(
+              foundSession.description ||
+                "Evaluasi komprehensif sirkuit stase keterampilan klinis."
+            );
+            setSessionDate(foundSession.session_date || "2026-08-20");
+            setStartTime(foundSession.start_time || "08:00");
+            setEndTime(foundSession.end_time || "10:30");
+            setLocation(foundSession.location_building || "Gedung Skill Lab Ruang OSCE Utama");
+            setMaxParticipants(foundSession.max_participants || 8);
+            setTotalStations(foundSession.total_stations || 6);
+            setStationDurationMinutes(foundSession.station_duration_minutes || 12);
+            setTransitionDurationMinutes(foundSession.break_duration_minutes || 2);
+          }
+        } catch (err) {
+          console.error("Error loading session for edit:", err);
+        }
+      }
     }
+    loadSessionForEdit();
   }, [isEdit, id]);
 
   // Drag & Drop State for Stations Config
@@ -1070,7 +1108,14 @@ export default function CreateSessionPage() {
                                   : "border-slate-200 bg-slate-50 text-slate-900"
                               }`}
                             >
-                              {isBreak ? `☕ ${stg.title}` : stg.title}
+                              {isBreak ? (
+                                <span className="flex items-center justify-center gap-1">
+                                  <Coffee size={13} className="text-amber-700" />
+                                  {stg.title}
+                                </span>
+                              ) : (
+                                stg.title
+                              )}
                             </span>
                           </div>
 
@@ -1302,6 +1347,89 @@ export default function CreateSessionPage() {
                         }}
                         className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-bold text-slate-900"
                       />
+                    </div>
+
+                    {/* Penugasan Dokter Penguji Stase (Examiner Assignment) */}
+                    <div className="sm:col-span-2 rounded-2xl border border-blue-200 bg-blue-50/70 p-4 space-y-3 shadow-2xs">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-blue-950 flex items-center gap-2">
+                          <UserCheck size={16} className="text-blue-600" />
+                          Penugasan Dokter Penguji Stase (Examiner Assignment)
+                        </label>
+                        <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-extrabold border inline-flex items-center gap-1 ${
+                          activeStation.assigned_examiner
+                            ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                            : "bg-amber-100 text-amber-900 border-amber-300"
+                        }`}>
+                          {activeStation.assigned_examiner ? (
+                            <>
+                              <CheckCircle2 size={13} className="text-emerald-700" />
+                              Dokter Penguji Terpenuhi
+                            </>
+                          ) : (
+                            <>
+                              <AlertCircle size={13} className="text-amber-700" />
+                              Belum Ditugaskan
+                            </>
+                          )}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                            Pilih Dokter Penguji Spesialis
+                          </label>
+                          <select
+                            value={activeStation.assigned_examiner || ""}
+                            onChange={(e) => {
+                              const selectedName = e.target.value;
+                              const foundDoc = doctorList.find((d) => d.name === selectedName);
+                              setStationsConfig((prev) =>
+                                prev.map((item, i) =>
+                                  i === selectedStationIndex
+                                    ? {
+                                        ...item,
+                                        assigned_examiner: selectedName,
+                                        examiner_specialty: foundDoc ? foundDoc.specialty : item.examiner_specialty || "Spesialis Medis",
+                                      }
+                                    : item
+                                )
+                              );
+                            }}
+                            className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-bold text-slate-900 focus:border-blue-500 focus:outline-none"
+                          >
+                            <option value="">-- Pilih Dokter Penguji --</option>
+                            {doctorList.map((doc) => (
+                              <option key={doc.id} value={doc.name}>
+                                {doc.name} ({doc.specialty})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                            Nama Lengkap Penguji (Bila Ketik Manual)
+                          </label>
+                          <input
+                            type="text"
+                            value={activeStation.assigned_examiner || ""}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setStationsConfig((prev) =>
+                                prev.map((item, i) =>
+                                  i === selectedStationIndex
+                                    ? { ...item, assigned_examiner: val }
+                                    : item
+                                )
+                              );
+                            }}
+                            placeholder="Contoh: dr. Alexander Budiman, Sp.JP"
+                            className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-medium text-slate-900 focus:border-blue-500 focus:outline-none"
+                          />
+                        </div>
+                      </div>
                     </div>
 
                     <div className="sm:col-span-2">

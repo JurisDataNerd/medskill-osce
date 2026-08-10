@@ -133,12 +133,14 @@ export default function ExaminersPage() {
 
                 <div className="absolute right-3 top-3">
                   {examiner.is_online ? (
-                    <span className="rounded-full bg-green-600 px-3 py-1 text-xs font-semibold text-white shadow">
-                      🟢 Online
+                    <span className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white shadow inline-flex items-center">
+                      <span className="h-2 w-2 rounded-full bg-emerald-300 animate-pulse mr-1.5" />
+                      Online
                     </span>
                   ) : (
-                    <span className="rounded-full bg-slate-700 px-3 py-1 text-xs font-semibold text-white shadow">
-                      ⚪ Offline
+                    <span className="rounded-full bg-slate-700 px-3 py-1 text-xs font-semibold text-white shadow inline-flex items-center">
+                      <span className="h-2 w-2 rounded-full bg-slate-400 mr-1.5" />
+                      Offline
                     </span>
                   )}
                 </div>

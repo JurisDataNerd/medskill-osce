@@ -18,7 +18,7 @@ import {
   Layers,
 } from "lucide-react";
 
-import { supabase } from "@/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 import { getOpenSessions } from "@/services/landing.service";
 import SessionRegistrationModal from "./SessionRegistrationModal";
 
@@ -37,7 +37,10 @@ export default function SessionSection() {
     try {
       setLoading(true);
       const sessionData = await getOpenSessions();
-      setSessions(sessionData ?? []);
+      const openSessions = (sessionData ?? []).filter(
+        (s) => s.status === "published" || s.status === "ongoing" || s.status === "running"
+      );
+      setSessions(openSessions);
 
       const {
         data: { session },
@@ -46,10 +49,10 @@ export default function SessionSection() {
       if (!session) return;
 
       const { data } = await supabase
-        .from("osce_session_members")
+        .schema("osce")
+        .from("session_participants")
         .select("session_id,status")
-        .eq("profile_id", session.user.id)
-        .eq("role", "participant");
+        .eq("user_id", session.user.id);
 
       const map = {};
       (data ?? []).forEach((item) => {
@@ -88,12 +91,12 @@ export default function SessionSection() {
 
     if (session) {
       const { error } = await supabase
-        .from("osce_session_members")
+        .schema("osce")
+        .from("session_participants")
         .insert({
           session_id: sessionId,
-          profile_id: session.user.id,
-          role: "participant",
-          status: "pending",
+          user_id: session.user.id,
+          status: "enrolled",
         });
 
       if (error) {

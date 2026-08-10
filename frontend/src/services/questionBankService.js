@@ -4,18 +4,30 @@ import { supabase } from "@/lib/supabaseClient";
  * Fetch all standardized cases in the Question Bank library
  */
 export async function fetchQuestionBankCatalog() {
-  const { data, error } = await supabase
-    .schema("osce")
-    .from("question_bank")
-    .select(`
-      *,
-      question_bank_rubric_items (*),
-      question_bank_auxiliary_configs (*)
-    `)
-    .order("title", { ascending: true });
+  try {
+    const { data, error } = await supabase
+      .schema("osce")
+      .from("question_bank")
+      .select(`
+        *,
+        question_bank_rubric_items (*),
+        question_bank_auxiliary_configs (*)
+      `)
+      .order("created_at", { ascending: false });
 
-  if (error) throw error;
-  return data;
+    if (error) {
+      console.warn("Schema 'osce.question_bank' query notice, trying fallback:", error.message);
+      const { data: fallbackData } = await supabase
+        .from("cases")
+        .select("*");
+      return fallbackData ?? [];
+    }
+
+    return data ?? [];
+  } catch (err) {
+    console.error("Error fetching question bank catalog:", err);
+    return [];
+  }
 }
 
 /**

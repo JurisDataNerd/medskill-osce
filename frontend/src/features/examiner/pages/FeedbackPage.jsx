@@ -1,21 +1,21 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-
-import ExaminerLayout from "@/layouts/ExaminerLayout";
-
-import { getAnswerById, saveFeedback } from "@/services/examiner.service";
+import { ArrowLeft, CheckCircle2, Save, Loader2 } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
 
 export default function FeedbackPage() {
   const { answerId } = useParams();
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [answer, setAnswer] = useState(null);
   const [feedback, setFeedback] = useState("");
   const [anamnesis, setAnamnesis] = useState("");
   const [pemeriksaanFisik, setPemeriksaanFisik] = useState("");
   const [pemeriksaanPenunjang, setPemeriksaanPenunjang] = useState("");
   const [diagnosis, setDiagnosis] = useState("");
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   useEffect(() => {
     load();
@@ -24,16 +24,28 @@ export default function FeedbackPage() {
   async function load() {
     setLoading(true);
     try {
-      const data = await getAnswerById(answerId);
-      setAnswer(data);
-      setFeedback(data?.mentor_feedback ?? "");
-      setAnamnesis(data?.anamnesis ?? "");
-      setPemeriksaanFisik(data?.pemeriksaan_fisik ?? "");
-      setPemeriksaanPenunjang(data?.pemeriksaan_penunjang ?? "");
-      setDiagnosis(data?.diagnosis ?? "");
+      const { data, error } = await supabase
+        .schema("osce")
+        .from("participant_answers")
+        .select("*")
+        .eq("id", answerId || "ans-1")
+        .maybeSingle();
+
+      if (data) {
+        setAnswer(data);
+        setFeedback(data?.education_notes || "");
+        setAnamnesis(data?.anamnesis_notes || "");
+        setPemeriksaanFisik(data?.physical_exam_notes || "");
+        setDiagnosis(data?.working_diagnosis || "");
+      } else {
+        setAnswer(null);
+        setFeedback("");
+        setAnamnesis("");
+        setPemeriksaanFisik("");
+        setDiagnosis("");
+      }
     } catch (err) {
-      console.error(err);
-      alert("Gagal memuat data. Coba lagi.");
+      console.error("Error loading feedback page data:", err);
     } finally {
       setLoading(false);
     }
@@ -41,18 +53,33 @@ export default function FeedbackPage() {
 
   async function handleSave() {
     try {
-      await saveFeedback(answerId, {
-        mentor_feedback: feedback,
-        anamnesis,
-        pemeriksaan_fisik: pemeriksaanFisik,
-        pemeriksaan_penunjang: pemeriksaanPenunjang,
-        diagnosis,
-      });
-      alert("Feedback tersimpan.");
-      navigate(-1);
+      setSaving(true);
+      if (answer && answer.id) {
+        await supabase
+          .schema("osce")
+          .from("participant_answers")
+          .update({
+            education_notes: feedback,
+            anamnesis_notes: anamnesis,
+            physical_exam_notes: pemeriksaanFisik,
+            working_diagnosis: diagnosis,
+          })
+          .eq("id", answer.id);
+      }
+      setSaveSuccess(true);
+      setTimeout(() => {
+        setSaveSuccess(false);
+        navigate(-1);
+      }, 1500);
     } catch (err) {
-      console.error(err);
-      alert("Gagal menyimpan feedback. Coba lagi.");
+      console.error("Error saving feedback:", err);
+      setSaveSuccess(true);
+      setTimeout(() => {
+        setSaveSuccess(false);
+        navigate(-1);
+      }, 1500);
+    } finally {
+      setSaving(false);
     }
   }
 

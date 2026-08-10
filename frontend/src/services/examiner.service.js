@@ -1,4 +1,4 @@
-import { supabase } from "@/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 
 /* ============================================================
    ACTIVE SESSION
@@ -6,14 +6,15 @@ import { supabase } from "@/supabase/client";
 
 export async function getActiveSession() {
   const { data, error } = await supabase
-    .from("osce_sessions")
+    .schema("osce")
+    .from("sessions")
     .select("*")
-    .eq("status", "running")
+    .in("status", ["running", "ongoing"])
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  if (error) throw error;
+  if (error) return null;
 
   return data;
 }
@@ -30,19 +31,20 @@ export async function getMyStage() {
   if (!user) return null;
 
   const { data: member, error } = await supabase
-    .from("osce_session_members")
+    .schema("osce")
+    .from("session_examiners")
     .select("*")
-    .eq("profile_id", user.id)
-    .eq("role", "examiner")
+    .eq("user_id", user.id)
     .maybeSingle();
 
   if (error || !member) return null;
 
   const { data: stage } = await supabase
-    .from("osce_stages")
+    .schema("osce")
+    .from("stations")
     .select("*")
     .eq("session_id", member.session_id)
-    .eq("station_number", member.station_number)
+    .eq("station_number", member.assigned_station_number || 1)
     .maybeSingle();
 
   return stage;
@@ -95,43 +97,43 @@ export async function claimStage(stageId) {
   if (!user) throw new Error("Unauthorized");
 
   const { data: stage, error: stageError } = await supabase
-    .from("osce_stages")
+    .schema("osce")
+    .from("stations")
     .select("*")
     .eq("id", stageId)
-    .single();
+    .maybeSingle();
 
-  if (stageError) throw stageError;
+  if (stageError || !stage) return null;
 
   const { data: existing } = await supabase
-    .from("osce_session_members")
+    .schema("osce")
+    .from("session_examiners")
     .select("id")
     .eq("session_id", stage.session_id)
-    .eq("role", "examiner")
-    .eq("profile_id", user.id)
+    .eq("user_id", user.id)
     .maybeSingle();
 
   if (existing) {
     const { error } = await supabase
-      .from("osce_session_members")
+      .schema("osce")
+      .from("session_examiners")
       .update({
-        station_number: stage.station_number,
-        status: "assigned",
+        assigned_station_number: stage.station_number,
       })
       .eq("id", existing.id);
 
-    if (error) throw error;
+    if (error) console.warn(error.message);
   } else {
     const { error } = await supabase
-      .from("osce_session_members")
+      .schema("osce")
+      .from("session_examiners")
       .insert({
         session_id: stage.session_id,
-        profile_id: user.id,
-        role: "examiner",
-        station_number: stage.station_number,
-        status: "assigned",
+        user_id: user.id,
+        assigned_station_number: stage.station_number,
       });
 
-    if (error) throw error;
+    if (error) console.warn(error.message);
   }
 
   return stage;
@@ -149,22 +151,23 @@ export async function releaseStage(stageId) {
   if (!user) return;
 
   const { data: stage, error: stageError } = await supabase
-    .from("osce_stages")
+    .schema("osce")
+    .from("stations")
     .select("session_id,station_number")
     .eq("id", stageId)
-    .single();
+    .maybeSingle();
 
-  if (stageError) throw stageError;
+  if (stageError || !stage) return;
 
   const { error } = await supabase
-    .from("osce_session_members")
+    .schema("osce")
+    .from("session_examiners")
     .delete()
     .eq("session_id", stage.session_id)
-    .eq("station_number", stage.station_number)
-    .eq("profile_id", user.id)
-    .eq("role", "examiner");
+    .eq("assigned_station_number", stage.station_number)
+    .eq("user_id", user.id);
 
-  if (error) throw error;
+  if (error) console.warn(error.message);
 }
 
 /* ============================================================

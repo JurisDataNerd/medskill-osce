@@ -21,11 +21,13 @@ export async function getMyRegistration(sessionId) {
 
   if (!user) return null;
 
+import { supabase } from "@/lib/supabaseClient";
+
   let query = supabase
-    .from("osce_session_members")
+    .schema("osce")
+    .from("session_participants")
     .select("*")
-    .eq("profile_id", user.id)
-    .eq("role", "participant");
+    .eq("user_id", user.id);
 
   if (sessionId) {
     query = query.eq("session_id", sessionId);
@@ -33,7 +35,7 @@ export async function getMyRegistration(sessionId) {
 
   const { data, error } = await query.maybeSingle();
 
-  if (error) throw error;
+  if (error) return null;
 
   return data;
 }
@@ -44,12 +46,13 @@ export async function getMyRegistration(sessionId) {
 
 export async function getMySession(sessionId) {
   const { data, error } = await supabase
-    .from("osce_sessions")
+    .schema("osce")
+    .from("sessions")
     .select("*")
     .eq("id", sessionId)
-    .single();
+    .maybeSingle();
 
-  if (error) throw error;
+  if (error) return null;
 
   return data;
 }
@@ -204,8 +207,8 @@ export function subscribeParticipant(callback) {
       "postgres_changes",
       {
         event: "*",
-        schema: "public",
-        table: "osce_session_members",
+        schema: "osce",
+        table: "session_participants",
       },
       callback
     )

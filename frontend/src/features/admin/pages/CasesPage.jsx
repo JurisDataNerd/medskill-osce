@@ -13,45 +13,6 @@ import {
   deleteCase,
 } from "@/services/case.service";
 
-const MOCK_DEFAULT_CASES = [
-  {
-    id: "case-01",
-    title: "Nyeri Dada Khas Infark Miokard Akut (STEMI Anteroseptal)",
-    system_organ: "Kardiovaskular",
-    skdi_level: "4A (Tuntas Mandiri)",
-    chief_complaint: "Laki-laki 55 tahun keluhan nyeri dada kiri hebat seperti ditindih beban berat sejak 2 jam lalu, menjalar ke lengan kiri.",
-    anamnesis_instruction: "Gali onset, PQRST nyeri dada, gejala vegetatif, dan faktor risiko PJK.",
-    physical_instruction: "Lakukan auskultasi jantung 4 katup, cek TVS, JVP, dan tanda perfusi perifer.",
-  },
-  {
-    id: "case-02",
-    title: "Eksaserbasi Akut Asma Bronkial Derajat Sedang-Berat",
-    system_organ: "Respirasi",
-    skdi_level: "4A (Tuntas Mandiri)",
-    chief_complaint: "Wanita 24 tahun datang dengan sesak napas berat berbunyi mengi (wheezing) setelah terpapar debu.",
-    anamnesis_instruction: "Gali frekuensi riwayat serangan asma, pencetus, obat yang biasa digunakan.",
-    physical_instruction: "Inspeksi retraksi interkostal, auskultasi wheezing ekspiratorik bilateral.",
-  },
-  {
-    id: "case-03",
-    title: "Pemeriksaan Saraf Kranial & Defisit Neurologis (Stroke Iskemik)",
-    system_organ: "Neurologi",
-    skdi_level: "3B (Gawat Darurat)",
-    chief_complaint: "Laki-laki 62 tahun kelemahan anggota gerak kanan mendadak saat bangun tidur, bicara pelo.",
-    anamnesis_instruction: "Gali waktu onset (golden period trombolisis), kelumpuhan N. VII & XII sentral.",
-    physical_instruction: "Pemeriksaan GCS, Nervus Kranial (N. VII, N. XII), dan kekuatan motorik 4 ekstremitas.",
-  },
-  {
-    id: "case-04",
-    title: "Appendicitis Akut & Nyeri Perut Kanan Bawah",
-    system_organ: "Digestif",
-    skdi_level: "4A (Tuntas Mandiri)",
-    chief_complaint: "Pemuda 19 tahun nyeri perut di sekitar pusat yang berpindah ke kanan bawah (McBurney) disertai demam dan mual.",
-    anamnesis_instruction: "Gali migrasi nyeri (viseral ke somatik), mual muntah, anoresia.",
-    physical_instruction: "Pemeriksaan nyeri tekan McBurney, Rovsing sign, Psoas sign, dan Obturator sign.",
-  },
-];
-
 export default function CasesPage() {
   const navigate = useNavigate();
 
