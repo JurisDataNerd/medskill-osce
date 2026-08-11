@@ -22,7 +22,7 @@ const menus = [
   {
     title: "Pengujian Live",
     icon: Activity,
-    path: "/examiner/stage/stage-101",
+    path: "/examiner/stage",
   },
   {
     title: "Riwayat Pengujian",
@@ -44,11 +44,15 @@ export default function ExaminerLayout({ children }) {
           .schema("osce")
           .from("sessions")
           .select("id, title, status")
-          .in("status", ["ongoing", "running"])
-          .limit(1)
-          .maybeSingle();
+          .in("status", ["ongoing", "running", "published", "scheduled"])
+          .order("created_at", { ascending: false });
 
-        setActiveSession(data || null);
+        if (data && data.length > 0) {
+          const ongoing = data.find((s) => s.status === "ongoing" || s.status === "running");
+          setActiveSession(ongoing || data[0]);
+        } else {
+          setActiveSession(null);
+        }
       } catch (err) {
         console.error("Error checking active session for ExaminerLayout header:", err);
       }
@@ -179,19 +183,26 @@ export default function ExaminerLayout({ children }) {
           <div className="flex items-center gap-3">
             {activeSession ? (
               <>
-                <span className="rounded-full bg-emerald-100 border border-emerald-300 px-3 py-1 text-xs font-bold text-emerald-900 flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-emerald-600 animate-pulse" />
-                  Sesi Live Berlangsung
-                </span>
+                {activeSession.status === "ongoing" || activeSession.status === "running" ? (
+                  <span className="rounded-full bg-emerald-100 border border-emerald-300 px-3 py-1 text-xs font-bold text-emerald-900 flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-emerald-600 animate-pulse" />
+                    Sesi Live Berlangsung
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-blue-100 border border-blue-300 px-3 py-1 text-xs font-bold text-blue-900 flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-blue-600" />
+                    Sesi Ujian Terjadwal (Standby Stase)
+                  </span>
+                )}
                 <span className="text-xs text-slate-600 font-medium truncate max-w-md">
-                  Sesi Aktif: <strong className="text-slate-900">{activeSession.title}</strong>
+                  Sesi: <strong className="text-slate-900">{activeSession.title}</strong>
                 </span>
               </>
             ) : (
               <>
                 <span className="rounded-full bg-amber-100 border border-amber-300 px-3 py-1 text-xs font-bold text-amber-900 flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-full bg-amber-500" />
-                  Sistem Standby • Tidak Ada Sesi Ujian Aktif
+                  Sistem Standby • Belum Ada Sesi Ujian
                 </span>
               </>
             )}

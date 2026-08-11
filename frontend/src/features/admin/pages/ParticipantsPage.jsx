@@ -81,18 +81,18 @@ export default function ParticipantsPage() {
     }
   }
 
-  async function handleApprove(id) {
+  async function handleApprove(id, sessionId) {
     try {
-      await approveParticipant(id);
+      await approveParticipant(id, 1, sessionId);
       load();
     } catch (err) {
       console.error("Error approving participant:", err);
     }
   }
 
-  async function handleReject(id) {
+  async function handleReject(id, sessionId) {
     try {
-      await rejectParticipant(id);
+      await rejectParticipant(id, sessionId);
       load();
     } catch (err) {
       console.error("Error rejecting participant:", err);
@@ -165,7 +165,7 @@ export default function ParticipantsPage() {
                           className={`rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase ${
                             p.status === "active" || p.status === "approved"
                               ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
-                              : p.status === "absent"
+                              : p.status === "absent" || p.status === "rejected"
                               ? "bg-rose-100 text-rose-900 border border-rose-300"
                               : "bg-amber-100 text-amber-900 border border-amber-300"
                           }`}
@@ -176,13 +176,13 @@ export default function ParticipantsPage() {
                       <td className="py-3 px-3 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
-                            onClick={() => handleApprove(p.id)}
+                            onClick={() => handleApprove(p.id, p.session_id)}
                             className="rounded-lg bg-emerald-600 px-3 py-1 text-[11px] font-bold text-white shadow-2xs hover:bg-emerald-700 transition"
                           >
                             Setujui
                           </button>
                           <button
-                            onClick={() => handleReject(p.id)}
+                            onClick={() => handleReject(p.id, p.session_id)}
                             className="rounded-lg border border-slate-200 bg-white px-3 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition"
                           >
                             Tolak

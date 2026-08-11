@@ -61,15 +61,18 @@ export default function ParticipantSessionPage() {
     async function checkApprovalGuard() {
       if (!sessionId) return;
       try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
         const list = await getSessionParticipants(sessionId);
         const p = list.find(
           (item) =>
-            item.nim === "2026-MED-0982" ||
-            item.nim === "20200710042" ||
-            item.full_name?.toLowerCase().includes("kairav")
+            (user?.id && item.user_id === user.id) ||
+            (user?.email && item.email === user.email)
         );
         if (p) {
-          setCandidateApprovalStatus(p.status || "pending");
+          setCandidateApprovalStatus((p.status || "pending").toLowerCase());
         }
       } catch (e) {}
     }

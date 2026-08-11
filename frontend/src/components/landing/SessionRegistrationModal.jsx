@@ -21,9 +21,9 @@ export default function SessionRegistrationModal({
   onConfirm,
   session,
   userProfile = {
-    name: "dr. Kairav Mahardika",
-    nim: "2026-MED-0982",
-    institution: "Fakultas Kedokteran - Universitas Indonesia",
+    name: "Peserta Ujian",
+    nim: "20200710042",
+    institution: "Fakultas Kedokteran - MedSkill Indonesia",
   },
 }) {
   const [agreed, setAgreed] = useState(false);

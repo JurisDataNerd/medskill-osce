@@ -24,14 +24,16 @@ import {
   Activity,
   Layers,
   Zap,
+  X,
 } from "lucide-react";
 
 import { useAuth } from "@/context/AuthProvider";
 import { fetchSessions } from "@/services/sessionService";
-import { getSessionParticipants } from "@/services/session.service";
+import { getSessionParticipants, registerParticipantToSession } from "@/services/session.service";
 import { supabase } from "@/lib/supabaseClient";
 
 import ParticipantNavbar from "@/features/participant/components/ParticipantNavbar";
+import SessionRegistrationModal from "@/components/landing/SessionRegistrationModal";
 
 export default function ParticipantDashboardPage() {
   const navigate = useNavigate();
@@ -43,6 +45,10 @@ export default function ParticipantDashboardPage() {
   const [activeTab, setActiveTab] = useState("enrolled"); // "enrolled" | "history"
   const [searchQuery, setSearchQuery] = useState("");
 
+  const [selectedSessionForModal, setSelectedSessionForModal] = useState(null);
+  const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
+  const [pendingModalSession, setPendingModalSession] = useState(null);
+
   useEffect(() => {
     async function loadParticipantDashboard(isInitial = false) {
       try {
@@ -52,22 +58,24 @@ export default function ParticipantDashboardPage() {
 
         const statusMap = {};
         if (data && data.length > 0) {
+          const { data: authData } = await supabase.auth.getUser();
+          const currentUser = authData?.user || user;
+
           for (const s of data) {
             try {
               const list = await getSessionParticipants(s.id);
               const p = list.find(
                 (item) =>
-                  item.nim === "2026-MED-0982" ||
-                  item.nim === "20200710042" ||
-                  item.full_name?.toLowerCase().includes("kairav")
+                  (currentUser?.id && item.user_id === currentUser.id) ||
+                  (currentUser?.email && item.email === currentUser.email)
               );
               if (p) {
                 statusMap[s.id] = p.status || "pending";
               } else {
-                statusMap[s.id] = "pending";
+                statusMap[s.id] = "not_registered";
               }
             } catch (e) {
-              statusMap[s.id] = "pending";
+              statusMap[s.id] = "not_registered";
             }
           }
         }
@@ -83,10 +91,27 @@ export default function ParticipantDashboardPage() {
 
     const interval = setInterval(() => {
       loadParticipantDashboard(false);
-    }, 2000);
+    }, 3000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [user]);
+
+  function handleOpenRegisterModal(sess) {
+    setSelectedSessionForModal(sess);
+    setIsRegistrationModalOpen(true);
+  }
+
+  async function handleRegister(sessionId) {
+    try {
+      await registerParticipantToSession(sessionId, user);
+      setRegistrationStatuses((prev) => ({ ...prev, [sessionId]: "pending" }));
+    } catch (err) {
+      console.error("Gagal mendaftar ke database Supabase:", err);
+      alert(err.message || "Gagal mendaftar sesi ke database Supabase.");
+    } finally {
+      setIsRegistrationModalOpen(false);
+    }
+  }
 
   const ongoingSession = sessions.find((s) => s.status === "ongoing" || s.status === "running");
   const availableSessions = sessions.filter((s) => s.status === "published" || s.status === "scheduled" || s.status === "ongoing" || s.status === "running");
@@ -177,7 +202,7 @@ export default function ParticipantDashboardPage() {
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
             <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
               <CalendarDays size={18} className="text-blue-600" />
-              Daftar Sesi Ujian Sirkuit Terdaftar ({filteredSessions.length} Sesi)
+              Daftar Sesi Ujian Sirkuit ({filteredSessions.length} Sesi)
             </h3>
 
             <div className="relative">
@@ -195,7 +220,7 @@ export default function ParticipantDashboardPage() {
           {filteredSessions.length > 0 ? (
             <div className="grid gap-4 sm:grid-cols-2">
               {filteredSessions.map((sess) => {
-                const userRegStatus = registrationStatuses[sess.id] || "pending";
+                const userRegStatus = registrationStatuses[sess.id] || "not_registered";
 
                 return (
                   <div
@@ -232,10 +257,14 @@ export default function ParticipantDashboardPage() {
                             <XCircle size={11} className="text-red-700" />
                             Pendaftaran Ditolak
                           </span>
-                        ) : (
+                        ) : userRegStatus === "pending" ? (
                           <span className="rounded-md bg-amber-100 border border-amber-300 px-2 py-0.5 text-[10px] font-black text-amber-900 inline-flex items-center gap-1 uppercase">
                             <Hourglass size={11} className="text-amber-700 animate-pulse" />
                             Menunggu Approval
+                          </span>
+                        ) : (
+                          <span className="rounded-md bg-slate-200 border border-slate-300 px-2 py-0.5 text-[10px] font-black text-slate-700 inline-flex items-center gap-1 uppercase">
+                            Belum Terdaftar
                           </span>
                         )}
                       </div>
@@ -289,17 +318,21 @@ export default function ParticipantDashboardPage() {
                           <XCircle size={15} />
                           Pendaftaran Ditolak Admin
                         </button>
-                      ) : (
+                      ) : userRegStatus === "pending" ? (
                         <button
-                          onClick={() =>
-                            alert(
-                              "Pendaftaran Anda pada sesi ini masih MENUNGGU APPROVAL ADMIN. Kiosk Ujian hanya dapat diakses setelah Admin menyetujui pendaftaran Anda di Dashboard Administrator."
-                            )
-                          }
+                          onClick={() => setPendingModalSession(sess)}
                           className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md transition active:scale-95"
                         >
                           <Hourglass size={15} className="animate-spin" />
                           Menunggu Approval Admin
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleOpenRegisterModal(sess)}
+                          className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 py-2.5 text-xs font-bold text-white shadow-md transition active:scale-95"
+                        >
+                          <ArrowRight size={15} />
+                          Daftar Sesi Ujian Ini
                         </button>
                       )}
                     </div>
@@ -333,6 +366,105 @@ export default function ParticipantDashboardPage() {
           )}
         </div>
       </main>
+
+      {/* Modal Konfirmasi Pendaftaran Sesi */}
+      <SessionRegistrationModal
+        isOpen={isRegistrationModalOpen}
+        onClose={() => setIsRegistrationModalOpen(false)}
+        onConfirm={handleRegister}
+        session={selectedSessionForModal}
+        userProfile={{
+          name: user?.user_metadata?.full_name || user?.email || "dr. Kairav Mahardika",
+          nim: user?.user_metadata?.nim || "20200710042",
+          institution: "Fakultas Kedokteran - MedSkill Indonesia",
+        }}
+      />
+
+      {/* Modal Informasi Status Menunggu Approval (Pending) */}
+      {pendingModalSession && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="flex flex-col w-full max-w-lg rounded-3xl bg-white shadow-2xl overflow-hidden border border-slate-200">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-amber-200 bg-amber-500 text-slate-950 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-600 text-white shadow-md">
+                  <Hourglass size={20} className="animate-spin" />
+                </div>
+                <div>
+                  <h2 className="text-base font-black leading-tight">
+                    Pendaftaran Menunggu Approval
+                  </h2>
+                  <p className="text-xs text-slate-950 font-semibold opacity-90">
+                    Verifikasi Admin Control Room
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setPendingModalSession(null)}
+                className="rounded-xl border border-amber-600/40 bg-amber-400 p-2 text-slate-950 hover:bg-amber-300 transition"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-5 bg-slate-50/50">
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 space-y-2">
+                <div className="flex items-center gap-2 text-amber-900 font-extrabold text-sm">
+                  <Info size={16} className="text-amber-700" />
+                  <span>Status Pendaftaran: MENUNGGU VERIFIKASI</span>
+                </div>
+                <p className="text-xs text-amber-950 font-medium leading-relaxed">
+                  Pendaftaran Anda pada sesi <strong className="font-bold">{pendingModalSession.title}</strong> saat ini masih dalam status <strong className="font-bold">Menunggu Approval Admin</strong>.
+                </p>
+              </div>
+
+              {/* Details Card */}
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3 shadow-2xs">
+                <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                  Informasi Sesi Terdaftar:
+                </h4>
+                <div className="space-y-2 text-xs font-semibold text-slate-700">
+                  <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                    <span className="text-slate-500">Nama Sesi</span>
+                    <span className="font-extrabold text-slate-900 text-right max-w-[240px] truncate">{pendingModalSession.title}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                    <span className="text-slate-500">Lokasi Gedung</span>
+                    <span className="font-bold text-slate-800">{pendingModalSession.location_building || "Gedung Skill Lab RS"}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                    <span className="text-slate-500">Sirkuit Rotasi</span>
+                    <span className="font-bold text-slate-800">{pendingModalSession.total_stations || 6} Pos Stase Aktif</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500">Akses Kiosk Live</span>
+                    <span className="inline-flex items-center gap-1 text-amber-800 font-black uppercase bg-amber-100 border border-amber-300 rounded-md px-2 py-0.5 text-[10px]">
+                      <Hourglass size={11} className="animate-spin" />
+                      Pending Approval Admin
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl bg-blue-50 border border-blue-200 p-3 text-xs text-blue-900 font-medium leading-relaxed">
+                ℹ️ <strong>Informasi Tambahan:</strong> Kiosk Ujian dan instruksi pengerjaan stase akan secara otomatis terbuka setelah Admin Control Room menyetujui pendaftaran Anda di Dashboard Administrator.
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-slate-200 bg-white flex items-center justify-end">
+              <button
+                onClick={() => setPendingModalSession(null)}
+                className="rounded-xl bg-slate-900 hover:bg-slate-800 px-6 py-2.5 text-xs font-extrabold text-white shadow-md transition active:scale-95"
+              >
+                Saya Mengerti (Tutup)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -20,7 +20,7 @@ import {
 
 import { supabase } from "@/lib/supabaseClient";
 import { getOpenSessions } from "@/services/landing.service";
-import { getSessionParticipants } from "@/services/session.service";
+import { getSessionParticipants, registerParticipantToSession } from "@/services/session.service";
 import SessionRegistrationModal from "./SessionRegistrationModal";
 
 export default function SessionSection() {
@@ -45,54 +45,24 @@ export default function SessionSection() {
 
       const map = {};
 
-      // 1. Check database via getSessionParticipants for each session
-      if (openSessions && openSessions.length > 0) {
-        for (const s of openSessions) {
-          try {
-            const list = await getSessionParticipants(s.id);
-            const p = list.find(
-              (item) =>
-                item.nim === "2026-MED-0982" ||
-                item.nim === "20200710042" ||
-                item.full_name?.toLowerCase().includes("kairav")
-            );
-            if (p) {
-              map[s.id] = p.status || "pending";
-            }
-          } catch (e) {}
-
-          // Check local storage overrides
-          const localKey = `osce_session_participants_${s.id}`;
-          const localData = JSON.parse(localStorage.getItem(localKey) || "[]");
-          if (localData && localData.length > 0) {
-            const lp = localData[0];
-            map[s.id] = lp.status || map[s.id] || "pending";
-          }
-
-          if (localStorage.getItem(`osce_rejected_candidate_${s.id}`) === "true") {
-            map[s.id] = "rejected";
-          }
-          if (localStorage.getItem(`osce_approved_candidate_${s.id}`) === "true") {
-            map[s.id] = "approved";
-          }
-        }
-      }
-
-      // 2. Also check Supabase Auth session_participants table directly if logged in
+      // Query real DB for current logged in user
       try {
         const {
-          data: { session },
-        } = await supabase.auth.getSession();
+          data: { user },
+        } = await supabase.auth.getUser();
 
-        if (session && session.user) {
+        if (user) {
           const { data } = await supabase
             .schema("osce")
             .from("session_participants")
             .select("session_id,status")
-            .eq("user_id", session.user.id);
+            .eq("user_id", user.id);
 
           (data ?? []).forEach((item) => {
-            map[item.session_id] = item.status;
+            let normStatus = (item.status || "pending").toLowerCase();
+            if (normStatus === "active") normStatus = "approved";
+            if (normStatus === "absent") normStatus = "rejected";
+            map[item.session_id] = normStatus;
           });
         }
       } catch (e) {}
@@ -110,10 +80,10 @@ export default function SessionSection() {
 
   async function handleOpenRegisterModal(sessionTarget) {
     const {
-      data: { session },
-    } = await supabase.auth.getSession();
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (!user) {
       navigate("/login");
       return;
     }
@@ -123,61 +93,14 @@ export default function SessionSection() {
   }
 
   async function handleConfirmRegistration(sessionId) {
-    let fullName = "dr. Kairav Mahardika";
-    let nim = "2026-MED-0982";
-    let email = "2026-MED-0982@student.medskill.ac.id";
-    let userId = "usr-kairav-local";
-
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (session && session.user) {
-        userId = session.user.id;
-        const userMeta = session.user.user_metadata || {};
-        fullName =
-          userMeta.full_name ||
-          userMeta.name ||
-          "dr. Kairav Mahardika";
-        nim = userMeta.nim || "2026-MED-0982";
-        email = session.user.email || `${nim}@student.medskill.ac.id`;
-      }
-    } catch (e) {}
-
-    const newParticipant = {
-      id: `sp-${Date.now()}`,
-      session_id: sessionId,
-      user_id: userId,
-      full_name: fullName,
-      nim: nim,
-      email: email,
-      status: "pending",
-      starting_station_number: 1,
-      created_at: new Date().toISOString(),
-    };
-
-    // 1. Try Supabase upsert
-    try {
-      await supabase
-        .schema("osce")
-        .from("session_participants")
-        .upsert([newParticipant], { onConflict: "session_id,user_id" });
+      await registerParticipantToSession(sessionId);
+      setIsRegistrationModalOpen(false);
+      navigate("/participant");
     } catch (err) {
-      console.warn("DB registration note:", err?.message);
+      console.error("Error confirming registration:", err);
+      alert(err.message || "Gagal mendaftar sesi ke database.");
     }
-
-    // 2. Dual Storage: Save to localStorage for instant local sync
-    try {
-      const localKey = `osce_session_participants_${sessionId}`;
-      const existing = JSON.parse(localStorage.getItem(localKey) || "[]");
-      const filtered = existing.filter((p) => p.user_id !== userId && p.nim !== nim);
-      filtered.unshift(newParticipant);
-      localStorage.setItem(localKey, JSON.stringify(filtered));
-    } catch (err) {}
-
-    setIsRegistrationModalOpen(false);
-    navigate("/participant");
   }
 
   function renderButton(session) {
