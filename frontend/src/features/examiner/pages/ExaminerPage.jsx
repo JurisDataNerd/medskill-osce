@@ -48,7 +48,7 @@ export default function ExaminerPage() {
 
         const rawData = await fetchSessions();
         const activeSessions = (rawData || []).filter(
-          (s) => s.status === "published" || s.status === "ongoing" || s.status === "running"
+          (s) => s.status === "published" || s.status === "scheduled" || s.status === "ongoing" || s.status === "running"
         );
         setSessions(activeSessions);
 

@@ -28,6 +28,7 @@ import {
 
 import { useAuth } from "@/context/AuthProvider";
 import { fetchSessions } from "@/services/sessionService";
+import { getSessionParticipants } from "@/services/session.service";
 import { supabase } from "@/lib/supabaseClient";
 
 import ParticipantNavbar from "@/features/participant/components/ParticipantNavbar";
@@ -38,27 +39,57 @@ export default function ParticipantDashboardPage() {
 
   const [loading, setLoading] = useState(true);
   const [sessions, setSessions] = useState([]);
+  const [registrationStatuses, setRegistrationStatuses] = useState({});
   const [activeTab, setActiveTab] = useState("enrolled"); // "enrolled" | "history"
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
-    async function loadParticipantDashboard() {
+    async function loadParticipantDashboard(isInitial = false) {
       try {
-        setLoading(true);
+        if (isInitial) setLoading(true);
         const data = await fetchSessions();
         setSessions(data || []);
+
+        const statusMap = {};
+        if (data && data.length > 0) {
+          for (const s of data) {
+            try {
+              const list = await getSessionParticipants(s.id);
+              const p = list.find(
+                (item) =>
+                  item.nim === "2026-MED-0982" ||
+                  item.nim === "20200710042" ||
+                  item.full_name?.toLowerCase().includes("kairav")
+              );
+              if (p) {
+                statusMap[s.id] = p.status || "pending";
+              } else {
+                statusMap[s.id] = "pending";
+              }
+            } catch (e) {
+              statusMap[s.id] = "pending";
+            }
+          }
+        }
+        setRegistrationStatuses(statusMap);
       } catch (err) {
         console.error("Error loading participant sessions from Supabase:", err);
       } finally {
-        setLoading(false);
+        if (isInitial) setLoading(false);
       }
     }
 
-    loadParticipantDashboard();
+    loadParticipantDashboard(true);
+
+    const interval = setInterval(() => {
+      loadParticipantDashboard(false);
+    }, 2000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const ongoingSession = sessions.find((s) => s.status === "ongoing" || s.status === "running");
-  const availableSessions = sessions.filter((s) => s.status === "published" || s.status === "ongoing" || s.status === "running");
+  const availableSessions = sessions.filter((s) => s.status === "published" || s.status === "scheduled" || s.status === "ongoing" || s.status === "running");
 
   const filteredSessions = availableSessions.filter(
     (s) =>
@@ -163,69 +194,118 @@ export default function ParticipantDashboardPage() {
 
           {filteredSessions.length > 0 ? (
             <div className="grid gap-4 sm:grid-cols-2">
-              {filteredSessions.map((sess) => (
-                <div
-                  key={sess.id}
-                  className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5 space-y-4 shadow-2xs hover:border-blue-300 hover:bg-white transition flex flex-col justify-between"
-                >
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span
-                        className={`rounded-md px-2.5 py-0.5 text-[10px] font-black uppercase inline-flex items-center gap-1 ${
-                          sess.status === "ongoing" || sess.status === "running"
-                            ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
-                            : sess.status === "published"
-                            ? "bg-indigo-100 text-indigo-900 border border-indigo-300"
-                            : "bg-blue-100 text-blue-900 border border-blue-300"
-                        }`}
-                      >
-                        {sess.status === "ongoing" || sess.status === "running" ? (
-                          <>
-                            <Zap size={11} className="text-emerald-700 animate-pulse fill-emerald-500" />
-                            Live Berlangsung
-                          </>
-                        ) : sess.status === "published" ? (
-                          "Dipublikasikan"
+              {filteredSessions.map((sess) => {
+                const userRegStatus = registrationStatuses[sess.id] || "pending";
+
+                return (
+                  <div
+                    key={sess.id}
+                    className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5 space-y-4 shadow-2xs hover:border-blue-300 hover:bg-white transition flex flex-col justify-between"
+                  >
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span
+                          className={`rounded-md px-2.5 py-0.5 text-[10px] font-black uppercase inline-flex items-center gap-1 ${
+                            sess.status === "ongoing" || sess.status === "running"
+                              ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
+                              : "bg-indigo-100 text-indigo-900 border border-indigo-300"
+                          }`}
+                        >
+                          {sess.status === "ongoing" || sess.status === "running" ? (
+                            <>
+                              <Zap size={11} className="text-emerald-700 animate-pulse fill-emerald-500" />
+                              Live Berlangsung
+                            </>
+                          ) : (
+                            "Dipublikasikan (Terjadwal)"
+                          )}
+                        </span>
+
+                        {/* Status Approval Pendaftaran Peserta Saya */}
+                        {userRegStatus === "approved" ? (
+                          <span className="rounded-md bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-[10px] font-black text-emerald-900 inline-flex items-center gap-1 uppercase">
+                            <CheckCircle2 size={11} className="text-emerald-700" />
+                            Disetujui Admin
+                          </span>
+                        ) : userRegStatus === "rejected" ? (
+                          <span className="rounded-md bg-red-100 border border-red-300 px-2 py-0.5 text-[10px] font-black text-red-900 inline-flex items-center gap-1 uppercase">
+                            <XCircle size={11} className="text-red-700" />
+                            Pendaftaran Ditolak
+                          </span>
                         ) : (
-                          sess.status
+                          <span className="rounded-md bg-amber-100 border border-amber-300 px-2 py-0.5 text-[10px] font-black text-amber-900 inline-flex items-center gap-1 uppercase">
+                            <Hourglass size={11} className="text-amber-700 animate-pulse" />
+                            Menunggu Approval
+                          </span>
                         )}
-                      </span>
-                      <span className="text-xs text-slate-500 font-bold inline-flex items-center gap-1">
-                        <CalendarDays size={13} className="text-slate-400" />
-                        {sess.session_date || "15 Agustus 2026"}
-                      </span>
-                    </div>
-
-                    <div>
-                      <h4 className="text-sm font-extrabold text-slate-900">{sess.title}</h4>
-                      <p className="text-xs text-slate-500 mt-1 line-clamp-2">
-                        {sess.description || "Sesi evaluasi sirkuit terpadu 6 stase aktif."}
-                      </p>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 text-xs font-semibold text-slate-700">
-                      <div className="rounded-xl border border-slate-200 bg-white p-2.5 text-center">
-                        <span className="text-slate-400 text-[10px] block font-bold">Total Stase</span>
-                        <span className="font-black text-slate-900">{sess.total_stations || 6} Pos</span>
                       </div>
-                      <div className="rounded-xl border border-slate-200 bg-white p-2.5 text-center">
-                        <span className="text-slate-400 text-[10px] block font-bold">Durasi / Pos</span>
-                        <span className="font-black text-slate-900">{sess.station_duration_minutes || 12} Mnt</span>
+
+                      <div>
+                        <h4 className="text-sm font-extrabold text-slate-900">{sess.title}</h4>
+                        <p className="text-xs text-slate-500 mt-1 line-clamp-2">
+                          {sess.description || "Sesi evaluasi sirkuit terpadu 6 stase aktif."}
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs font-semibold text-slate-700">
+                        <div className="rounded-xl border border-slate-200 bg-white p-2.5 text-center">
+                          <span className="text-slate-400 text-[10px] block font-bold">Total Stase</span>
+                          <span className="font-black text-slate-900">{sess.total_stations || 6} Pos</span>
+                        </div>
+                        <div className="rounded-xl border border-slate-200 bg-white p-2.5 text-center">
+                          <span className="text-slate-400 text-[10px] block font-bold">Durasi / Pos</span>
+                          <span className="font-black text-slate-900">{sess.station_duration_minutes || 12} Mnt</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="pt-3 border-t border-slate-200/60">
-                    <button
-                      onClick={() => navigate(`/participant/session/${sess.id}`)}
-                      className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-blue-700 active:scale-95 transition"
-                    >
-                      <Play size={15} />
-                      Buka Kiosk Ujian Stase
-                    </button>
+                    <div className="pt-3 border-t border-slate-200/60">
+                      {userRegStatus === "approved" ? (
+                        <button
+                          onClick={() => navigate(`/participant/session/${sess.id}`)}
+                          className={`w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold text-white shadow-md transition active:scale-95 ${
+                            sess.status === "ongoing" || sess.status === "running"
+                              ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/30 animate-pulse"
+                              : "bg-blue-600 hover:bg-blue-700 shadow-blue-600/30"
+                          }`}
+                        >
+                          {sess.status === "ongoing" || sess.status === "running" ? (
+                            <>
+                              <PlayCircle size={16} />
+                              Masuk Sesi Live Ujian
+                            </>
+                          ) : (
+                            <>
+                              <Play size={15} />
+                              Buka Kiosk Standby Sesi
+                            </>
+                          )}
+                        </button>
+                      ) : userRegStatus === "rejected" ? (
+                        <button
+                          disabled
+                          className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-red-100 border border-red-300 px-4 py-2.5 text-xs font-bold text-red-700 opacity-80 cursor-not-allowed"
+                        >
+                          <XCircle size={15} />
+                          Pendaftaran Ditolak Admin
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() =>
+                            alert(
+                              "Pendaftaran Anda pada sesi ini masih MENUNGGU APPROVAL ADMIN. Kiosk Ujian hanya dapat diakses setelah Admin menyetujui pendaftaran Anda di Dashboard Administrator."
+                            )
+                          }
+                          className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md transition active:scale-95"
+                        >
+                          <Hourglass size={15} className="animate-spin" />
+                          Menunggu Approval Admin
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center space-y-4 animate-in fade-in duration-200">

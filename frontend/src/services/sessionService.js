@@ -258,9 +258,17 @@ export async function updateSession(sessionId, sessionPayload, stationsPayload =
  * Update session status (e.g. 'draft', 'scheduled', 'ongoing', 'paused', 'completed', 'archived')
  */
 export async function updateSessionStatus(sessionId, status) {
-  const updatePayload = { status, updated_at: new Date().toISOString() };
-  if (status === "ongoing") updatePayload.started_at = new Date().toISOString();
-  if (status === "completed") updatePayload.finished_at = new Date().toISOString();
+  // Map UI values ('published', 'running') to valid Postgres ENUM values ('scheduled', 'ongoing')
+  const validDbStatus =
+    status === "published"
+      ? "scheduled"
+      : status === "running"
+      ? "ongoing"
+      : status;
+
+  const updatePayload = { status: validDbStatus, updated_at: new Date().toISOString() };
+  if (validDbStatus === "ongoing") updatePayload.started_at = new Date().toISOString();
+  if (validDbStatus === "completed") updatePayload.finished_at = new Date().toISOString();
 
   const { data, error } = await supabase
     .schema("osce")

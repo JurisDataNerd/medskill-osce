@@ -12,7 +12,11 @@ import {
   CheckCheck,
 } from "lucide-react";
 import AdminLayout from "@/layouts/AdminLayout";
-import { getSessionParticipants } from "@/services/session.service";
+import {
+  getSessionParticipants,
+  approveParticipant,
+  rejectParticipant,
+} from "@/services/session.service";
 import ParticipantAnswerModal from "@/features/admin/components/ParticipantAnswerModal";
 
 function formatLastSeen(lastSeen) {
@@ -69,12 +73,19 @@ export default function SessionParticipantsPage() {
     }
   }
 
-  function handleApprove(participantId) {
+  async function handleApprove(participantId) {
+    const nextOrder = participants.filter((item) => item.status === "approved").length + 1;
+    const nextStation = ((nextOrder - 1) % 6) + 1;
+
+    try {
+      await approveParticipant(participantId, nextStation, id);
+    } catch (err) {
+      console.warn("Approve error:", err);
+    }
+
     setParticipants((prev) =>
       prev.map((p) => {
         if (p.id === participantId) {
-          const nextOrder = prev.filter((item) => item.status === "approved").length + 1;
-          const nextStation = ((nextOrder - 1) % 6) + 1;
           return {
             ...p,
             status: "approved",
@@ -87,28 +98,23 @@ export default function SessionParticipantsPage() {
     );
   }
 
-  function handleReject(participantId) {
+  async function handleReject(participantId) {
+    try {
+      await rejectParticipant(participantId, id);
+    } catch (err) {
+      console.warn("Reject error:", err);
+    }
+
     setParticipants((prev) =>
       prev.map((p) => (p.id === participantId ? { ...p, status: "rejected" } : p))
     );
   }
 
-  function handleApproveAllPending() {
-    setParticipants((prev) =>
-      prev.map((p) => {
-        if (p.status === "pending") {
-          const nextOrder = prev.filter((item) => item.status === "approved").length + 1;
-          const nextStation = ((nextOrder - 1) % 6) + 1;
-          return {
-            ...p,
-            status: "approved",
-            participant_order: nextOrder,
-            station_number: nextStation,
-          };
-        }
-        return p;
-      })
-    );
+  async function handleApproveAllPending() {
+    const pendingItems = participants.filter((p) => p.status === "pending");
+    for (const item of pendingItems) {
+      await handleApprove(item.id);
+    }
   }
 
   // Filter participants
@@ -324,14 +330,14 @@ export default function SessionParticipantsPage() {
                           <>
                             <button
                               onClick={() => handleApprove(item.id)}
-                              className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 font-semibold text-white transition hover:bg-emerald-700 active:scale-95 shadow-xs"
+                              className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-emerald-700 active:scale-95 shadow-xs"
                             >
                               <CheckCircle2 size={13} />
                               Setujui
                             </button>
                             <button
                               onClick={() => handleReject(item.id)}
-                              className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 font-semibold text-red-600 transition hover:bg-red-50"
+                              className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-red-600 transition hover:bg-red-50"
                             >
                               <XCircle size={13} />
                               Tolak
@@ -340,13 +346,33 @@ export default function SessionParticipantsPage() {
                         )}
 
                         {item.status === "approved" && (
+                          <>
+                            <button
+                              onClick={() => handleReject(item.id)}
+                              className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600 transition hover:bg-red-100"
+                              title="Batalkan persetujuan & tolak peserta"
+                            >
+                              <XCircle size={13} />
+                              Tolak Peserta
+                            </button>
+                            <button
+                              onClick={() => navigate(`/admin/live/participant/${item.id || "p1"}`)}
+                              className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-blue-600 transition hover:bg-blue-50"
+                              title="Lihat Rekap Nilai Peserta"
+                            >
+                              <Award size={13} />
+                              Rekap Nilai
+                            </button>
+                          </>
+                        )}
+
+                        {item.status === "rejected" && (
                           <button
-                            onClick={() => navigate(`/admin/live/participant/${item.id || "p1"}`)}
-                            className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 font-semibold text-blue-600 transition hover:bg-blue-50"
-                            title="Lihat Rekap Nilai Peserta"
+                            onClick={() => handleApprove(item.id)}
+                            className="inline-flex items-center gap-1 rounded-md border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
                           >
-                            <Award size={13} />
-                            Lihat Rekap Nilai
+                            <CheckCircle2 size={13} />
+                            Setujui Kembali
                           </button>
                         )}
                       </div>

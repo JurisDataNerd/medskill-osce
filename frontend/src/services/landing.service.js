@@ -6,20 +6,27 @@ export async function getOpenSessions() {
       .schema("osce")
       .from("sessions")
       .select("*")
-      .in("status", ["published", "ongoing", "running"])
-      .order("session_date", { ascending: true });
+      .order("created_at", { ascending: false });
 
     if (error) {
       console.warn("Schema 'osce.sessions' query notice, trying fallback:", error.message);
       const { data: fallbackData } = await supabase
         .from("sessions")
         .select("*")
-        .in("status", ["published", "ongoing", "running"]);
+        .order("created_at", { ascending: false });
 
-      return fallbackData ?? [];
+      return (fallbackData ?? []).filter((s) => {
+        if (!s || !s.status) return false;
+        const st = String(s.status).toLowerCase();
+        return st === "published" || st === "scheduled" || st === "ongoing" || st === "running";
+      });
     }
 
-    return data ?? [];
+    return (data ?? []).filter((s) => {
+      if (!s || !s.status) return false;
+      const st = String(s.status).toLowerCase();
+      return st === "published" || st === "scheduled" || st === "ongoing" || st === "running";
+    });
   } catch (err) {
     console.error("Error fetching open sessions:", err);
     return [];

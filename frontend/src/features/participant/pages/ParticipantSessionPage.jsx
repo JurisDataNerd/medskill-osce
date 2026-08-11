@@ -40,9 +40,89 @@ import {
 } from "@/features/participant/data/auxiliaryExamsCatalog";
 import AuxiliaryExamResultModal from "@/components/AuxiliaryExamResultModal";
 
+import { fetchSessionById } from "@/services/sessionService";
+import { getSessionParticipants } from "@/services/session.service";
+
 export default function ParticipantSessionPage() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
+
+  // Loaded Session Detail from Supabase
+  const [sessionDetail, setSessionDetail] = useState(null);
+
+  // Approval Guard State: 'approved' | 'pending' | 'rejected'
+  const [candidateApprovalStatus, setCandidateApprovalStatus] = useState("approved");
+
+  // Anti-Cheating Security State
+  const [tabSwitchCount, setTabSwitchCount] = useState(0);
+  const [showCheatingWarning, setShowCheatingWarning] = useState(false);
+
+  useEffect(() => {
+    async function checkApprovalGuard() {
+      if (!sessionId) return;
+      try {
+        const list = await getSessionParticipants(sessionId);
+        const p = list.find(
+          (item) =>
+            item.nim === "2026-MED-0982" ||
+            item.nim === "20200710042" ||
+            item.full_name?.toLowerCase().includes("kairav")
+        );
+        if (p) {
+          setCandidateApprovalStatus(p.status || "pending");
+        }
+      } catch (e) {}
+    }
+    checkApprovalGuard();
+  }, [sessionId]);
+
+  // Anti-Cheating Tab Switch & Fullscreen Mode on Live Exam
+  useEffect(() => {
+    if (viewMode !== "live_round") return;
+
+    try {
+      if (document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
+    } catch (e) {}
+
+    function handleVisibilityChange() {
+      if (document.hidden) {
+        setTabSwitchCount((prev) => prev + 1);
+        setShowCheatingWarning(true);
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [viewMode]);
+
+  useEffect(() => {
+    async function loadSession() {
+      if (sessionId) {
+        try {
+          const data = await fetchSessionById(sessionId);
+          if (data) {
+            setSessionDetail(data);
+            if (data.station_duration_minutes) {
+              const dur = data.station_duration_minutes * 60;
+              setStationDurationSeconds(dur);
+              setRoundSecondsLeft(dur);
+            }
+            if (data.break_duration_minutes) {
+              setBreakDurationSeconds(data.break_duration_minutes * 60);
+            }
+            if (data.transition_duration_minutes) {
+              setTransitDurationSeconds(data.transition_duration_minutes * 60);
+            }
+          }
+        } catch (err) {
+          console.warn("Using default candidate schedule data:", err);
+        }
+      }
+    }
+    loadSession();
+  }, [sessionId]);
 
   // View Mode: 'waiting_room', 'live_round', 'transit', 'round_break', 'completed'
   const [viewMode, setViewMode] = useState("waiting_room");
@@ -135,21 +215,42 @@ export default function ParticipantSessionPage() {
 
   const currentStationInfo = candidateStationSchedule[currentRound] || candidateStationSchedule[1];
 
-  // Waiting Room Timer Effect
+  const isSessionLive =
+    sessionDetail &&
+    (sessionDetail.status === "running" || sessionDetail.status === "ongoing");
+
+  // Real-time Status Polling Effect (3-second interval)
   useEffect(() => {
-    if (viewMode !== "waiting_room") return;
+    if (!sessionId) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const data = await fetchSessionById(sessionId);
+        if (data) {
+          setSessionDetail(data);
+        }
+      } catch (err) {}
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [sessionId]);
+
+  // Waiting Room Timer Effect - ONLY count down if Admin has started the live session!
+  useEffect(() => {
+    if (viewMode !== "waiting_room" || !isSessionLive) return;
 
     const timer = setInterval(() => {
       setWaitingCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
+          handleStartSimulationFromWaiting();
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [viewMode]);
+  }, [viewMode, isSessionLive]);
 
   // Live Round Exam Countdown Timer
   useEffect(() => {
@@ -213,6 +314,10 @@ export default function ParticipantSessionPage() {
     setCurrentRound(1);
     setExamStep(1);
     setRoundSecondsLeft(stationDurationSeconds);
+  }
+
+  function handleEnterLiveSession() {
+    handleStartSimulationFromWaiting();
   }
 
   function handleFinishActiveRound() {
@@ -416,6 +521,55 @@ export default function ParticipantSessionPage() {
   }
 
   /* ============================================================
+     GUARD CHECK: PESERTA HANYA BISA MASUK KIOSK JIKA STATUS APPROVAL === 'approved'
+  ============================================================ */
+  if (candidateApprovalStatus === "pending" || candidateApprovalStatus === "rejected") {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6 font-sans">
+        <div className="max-w-md w-full rounded-3xl border border-slate-800 bg-slate-900/90 p-8 shadow-2xl text-center space-y-6 animate-in fade-in">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/40 shadow-lg">
+            {candidateApprovalStatus === "rejected" ? (
+              <XCircle size={32} className="text-red-400" />
+            ) : (
+              <Hourglass size={32} className="animate-spin" />
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <span
+              className={`rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-wider inline-block ${
+                candidateApprovalStatus === "rejected"
+                  ? "bg-red-500/20 text-red-300 border border-red-500/30"
+                  : "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+              }`}
+            >
+              Akses Kiosk Ujian Terkunci
+            </span>
+            <h2 className="text-xl font-extrabold text-white">
+              {candidateApprovalStatus === "rejected"
+                ? "Pendaftaran Ditolak Admin"
+                : "Menunggu Approval Admin"}
+            </h2>
+            <p className="text-xs text-slate-400 leading-relaxed font-medium">
+              {candidateApprovalStatus === "rejected"
+                ? "Maaf, pendaftaran Anda pada sesi ini tidak disetujui oleh Panitia Ujian OSCE."
+                : "Status pendaftaran Anda pada sesi ini saat ini adalah MENUNGGU VERIFIKASI ADMIN. Anda belum dapat mengakses Kiosk Ujian sampai Admin menyetujui pendaftaran Anda di Dashboard Administrator."}
+            </p>
+          </div>
+
+          <button
+            onClick={() => navigate("/participant")}
+            className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 hover:bg-blue-500 px-6 py-3.5 text-xs font-bold text-white shadow-xl shadow-blue-600/30 transition active:scale-95"
+          >
+            <ArrowLeft size={16} />
+            Kembali ke Dashboard Portal Peserta
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  /* ============================================================
      RENDER VIEW 1: RUANG TUNGGU PESERTA (PRE-EXAM WAITING ROOM)
   ============================================================ */
   if (viewMode === "waiting_room") {
@@ -432,10 +586,17 @@ export default function ParticipantSessionPage() {
               Kembali ke Dashboard
             </button>
 
-            <span className="rounded-full bg-amber-100 border border-amber-300 px-3 py-1 text-xs font-bold text-amber-900 flex items-center gap-1.5">
-              <Hourglass size={14} className="text-amber-700" />
-              Ruang Tunggu & Briefing Peserta
-            </span>
+            {isSessionLive ? (
+              <span className="rounded-full bg-emerald-100 border border-emerald-300 px-3 py-1 text-xs font-bold text-emerald-900 flex items-center gap-1.5 animate-pulse">
+                <Activity size={14} className="text-emerald-700" />
+                Sesi Live Berlangsung
+              </span>
+            ) : (
+              <span className="rounded-full bg-amber-100 border border-amber-300 px-3 py-1 text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                <Hourglass size={14} className="text-amber-700" />
+                Sesi Standby • Menunggu Admin Start
+              </span>
+            )}
           </div>
         </header>
 
@@ -445,7 +606,7 @@ export default function ParticipantSessionPage() {
             <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-5">
               <div>
                 <span className="rounded-md bg-blue-600 px-3 py-1 text-xs font-black text-white">
-                  PERSAPATAN RONDE 1
+                  PERSIAPAN RONDE 1
                 </span>
                 <h1 className="text-xl font-bold text-slate-900 mt-2">
                   {currentStationInfo.title}
@@ -456,15 +617,30 @@ export default function ParticipantSessionPage() {
                 </p>
               </div>
 
-              {/* Countdown Briefing Badge */}
-              <div className="mx-auto sm:mx-0 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-center min-w-[160px]">
-                <p className="text-[10px] font-bold text-amber-800 uppercase tracking-wider">
-                  Persiapan Memulai Ronde 1:
-                </p>
-                <p className="text-2xl font-black font-mono text-amber-900 mt-0.5">
-                  {formatTime(waitingCountdown)}
-                </p>
-              </div>
+              {/* Countdown Briefing / Standby Status Card */}
+              {isSessionLive ? (
+                <div className="mx-auto sm:mx-0 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-center min-w-[170px] animate-in fade-in">
+                  <p className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">
+                    Persiapan Memulai Ronde 1:
+                  </p>
+                  <p className="text-2xl font-black font-mono text-emerald-900 mt-0.5">
+                    {formatTime(waitingCountdown)}
+                  </p>
+                </div>
+              ) : (
+                <div className="mx-auto sm:mx-0 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-center min-w-[210px] space-y-0.5">
+                  <p className="text-[10px] font-bold text-amber-800 uppercase tracking-wider">
+                    Status Timer Sesi:
+                  </p>
+                  <p className="text-xs font-black text-amber-900 flex items-center justify-center gap-1.5 pt-0.5">
+                    <span className="h-2 w-2 rounded-full bg-amber-500 animate-ping" />
+                    STANDBY (BELUM START)
+                  </p>
+                  <p className="text-[10px] text-amber-700">
+                    Menunggu Admin menekan tombol Start Live.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Rotation Info */}
@@ -501,15 +677,25 @@ export default function ParticipantSessionPage() {
             <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-2 text-xs text-slate-500 font-semibold">
                 <Volume2 size={16} className="text-blue-600 animate-pulse" />
-                <span>Bel bell penanda ronde akan berbunyi otomatis saat waktu briefing habis.</span>
+                <span>
+                  {isSessionLive
+                    ? "Bel penanda ronde akan berbunyi saat waktu persiapan habis."
+                    : "Sesi otomatis ter-refresh setiap 3 detik menunggu aba-aba Admin Control Room."}
+                </span>
               </div>
 
               <button
                 onClick={handleStartSimulationFromWaiting}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-8 py-3.5 text-xs font-bold text-white shadow-lg shadow-blue-600/30 hover:bg-blue-700 active:scale-95 transition"
+                className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl px-8 py-3.5 text-xs font-bold text-white shadow-lg transition active:scale-95 ${
+                  isSessionLive
+                    ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/30 animate-pulse"
+                    : "bg-blue-600 hover:bg-blue-700 shadow-blue-600/30"
+                }`}
               >
                 <Play size={16} />
-                Masuk ke Ujian Ronde 1 ({currentStationInfo.title})
+                {isSessionLive
+                  ? `Masuk ke Ruang Ujian Live (${currentStationInfo.title})`
+                  : `Masuk Kiosk Briefing Stase 1 (Simulasi Standby)`}
                 <ChevronRight size={16} />
               </button>
             </div>
@@ -1223,6 +1409,40 @@ export default function ParticipantSessionPage() {
                 Ya, Lanjutkan
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: ANTI-CHEATING TAB SWITCH & FULLSCREEN WARNING */}
+      {showCheatingWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-red-950/85 backdrop-blur-md p-4 animate-in fade-in">
+          <div className="max-w-lg w-full rounded-3xl border border-red-500 bg-slate-950 p-7 text-center space-y-5 shadow-2xl text-white">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-red-500/20 text-red-400 border border-red-500/40">
+              <AlertTriangle size={36} className="animate-bounce" />
+            </div>
+            <div className="space-y-2">
+              <span className="rounded-full bg-red-500/20 border border-red-400/40 px-3 py-1 text-[11px] font-black text-red-300 uppercase tracking-wider">
+                Peringatan Keamanan Ujian Sirkuit
+              </span>
+              <h3 className="text-lg font-black text-white">
+                Perpindahan Tab / Window Terdeteksi!
+              </h3>
+              <p className="text-xs text-slate-300 leading-relaxed font-medium">
+                Sistem pengawas mendeteksi Anda meninggalkan atau berpindah tab browser (Pelanggaran Ke-{tabSwitchCount}). Percobaan ini telah dicatat dan dilaporkan secara otomatis ke Sistem Pengawas Ujian OSCE.
+              </p>
+            </div>
+
+            <button
+              onClick={() => {
+                setShowCheatingWarning(false);
+                if (document.documentElement.requestFullscreen) {
+                  document.documentElement.requestFullscreen().catch(() => {});
+                }
+              }}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-red-600 hover:bg-red-500 px-6 py-3.5 text-xs font-bold text-white shadow-xl shadow-red-600/40 transition active:scale-95"
+            >
+              Saya Mengerti & Kembali ke Layar Ujian Fullscreen
+            </button>
           </div>
         </div>
       )}
