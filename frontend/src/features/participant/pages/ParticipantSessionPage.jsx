@@ -47,6 +47,9 @@ export default function ParticipantSessionPage() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
 
+  // View Mode: 'waiting_room', 'live_round', 'transit', 'round_break', 'completed'
+  const [viewMode, setViewMode] = useState("waiting_room");
+
   // Loaded Session Detail from Supabase
   const [sessionDetail, setSessionDetail] = useState(null);
 
@@ -126,9 +129,6 @@ export default function ParticipantSessionPage() {
     }
     loadSession();
   }, [sessionId]);
-
-  // View Mode: 'waiting_room', 'live_round', 'transit', 'round_break', 'completed'
-  const [viewMode, setViewMode] = useState("waiting_room");
 
   // Current Active Round for candidate (Round 1 to 6)
   const [currentRound, setCurrentRound] = useState(1);
