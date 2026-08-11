@@ -148,14 +148,15 @@ export default function SessionExaminersPage() {
     setOpenAssignModal(true);
   }
 
-  // Compute station slots 1 to total_stations
-  const totalStationCount = Math.max(
-    session?.total_stations || 0,
-    session?.stations?.length || 0,
-    8
-  );
+  // Compute station slots based on saved stations
+  const savedStations = session?.stations || [];
+  const totalStationCount = savedStations.length > 0
+    ? savedStations.length
+    : (session?.total_stations || 0);
 
-  const stationSlots = Array.from({ length: totalStationCount }, (_, i) => i + 1);
+  const stationSlots = savedStations.length > 0
+    ? savedStations.map((s, idx) => Number(s.station_number || idx + 1))
+    : Array.from({ length: totalStationCount }, (_, i) => i + 1);
 
   if (loading) {
     return (
@@ -218,8 +219,19 @@ export default function SessionExaminersPage() {
               (e) => Number(e.station_number || e.assigned_station_number) === stNum
             );
 
-            const docName = assignedDoc?.profiles?.full_name || assignedDoc?.full_name;
-            const docEmail = assignedDoc?.profiles?.email || assignedDoc?.specialty || "Spesialis Medis";
+            const docName =
+              assignedDoc?.profiles?.full_name ||
+              assignedDoc?.full_name ||
+              stationData?.examiner_name ||
+              stationData?.assigned_examiner;
+
+            const docEmail =
+              assignedDoc?.profiles?.email ||
+              assignedDoc?.specialty ||
+              stationData?.examiner_specialty ||
+              "Spesialis Medis";
+
+            const hasExaminer = Boolean(docName);
 
             return (
               <div
@@ -248,7 +260,7 @@ export default function SessionExaminersPage() {
                         <Coffee size={11} />
                         Break
                       </span>
-                    ) : assignedDoc ? (
+                    ) : hasExaminer ? (
                       <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-full">
                         <Check size={11} />
                         Terisi
@@ -276,7 +288,7 @@ export default function SessionExaminersPage() {
                       <p className="text-center text-[11px] font-medium text-slate-400 py-1">
                         Rotasi istirahat (tanpa penguji)
                       </p>
-                    ) : assignedDoc ? (
+                    ) : hasExaminer ? (
                       <div className="flex items-center gap-2.5">
                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white font-bold text-xs shadow-2xs">
                           <Stethoscope size={15} />
@@ -300,7 +312,7 @@ export default function SessionExaminersPage() {
                     <div className="w-full text-center text-[11px] font-medium text-slate-400 py-1">
                       Slot Istirahat
                     </div>
-                  ) : assignedDoc ? (
+                  ) : hasExaminer ? (
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => openModalForStation(stNum)}

@@ -113,7 +113,7 @@ export default function CreateSessionPage() {
     });
   }
 
-  // Initial 8-slot circuit config (6 Exam stations + 2 Break stations)
+  // Initial 4-slot circuit config (4 Exam stations)
   const [stationsConfig, setStationsConfig] = useState(() =>
     reindexAndAutoNameStations([
       {
@@ -215,15 +215,6 @@ export default function CreateSessionPage() {
         ],
       },
       {
-        is_break: true,
-        scenario: "Rotasi istirahat untuk peserta dan penguji.",
-        participant_instructions:
-          "Peserta dapat beristirahat, minum, atau mempersiapkan diri sebelum stase berikutnya.",
-        examiner_instructions:
-          "Dokter penguji dapat melakukan rekapan nilai dan beristirahat sejenak.",
-        checklist_items: [],
-      },
-      {
         is_break: false,
         case_title: "Debridement & Penutupan Luka Vulnus Laceratum",
         scenario:
@@ -288,51 +279,6 @@ export default function CreateSessionPage() {
           },
         ],
       },
-      {
-        is_break: false,
-        case_title: "Edukasi Diabetes Melitus & Terapi Insulin",
-        scenario:
-          "Pasien perempuan 55 tahun mengeluh gula darah puasa tidak terkontrol (240 mg/dL) meski sudah meminum Obat Hipoglikemik Oral.",
-        participant_instructions:
-          "1. Berikan edukasi penyakit DM Tipe 2.\n2. Edukasi penggunaan pen insulin.\n3. Buat resep kombinasi insulin.",
-        examiner_instructions:
-          "Nilai kejelasan komunikasi edukasi pen insulin.",
-        checklist_items: [
-          {
-            id: "c5-1",
-            question: "Edukasi Terapi Insulin",
-            answer_key:
-              "Menjelaskan cara injeksi subkutan, lokasi rotasi penyuntikan, dan penyimpanan insulin",
-            max_points: 4,
-          },
-        ],
-      },
-      {
-        is_break: true,
-        scenario: "Rotasi istirahat untuk peserta dan penguji.",
-        participant_instructions:
-          "Peserta dapat beristirahat, minum, atau mempersiapkan diri sebelum stase berikutnya.",
-        examiner_instructions:
-          "Dokter penguji dapat melakukan rekapan nilai dan beristirahat sejenak.",
-        checklist_items: [],
-      },
-      {
-        is_break: false,
-        case_title: "Pemeriksaan Otoskop & Ekstraksi Serumen",
-        scenario:
-          "Pasien anak laki-laki 8 tahun diantar ibunya dengan keluhan telinga kanan terasa tersumbat dan pendengaran berkurang.",
-        participant_instructions: "1. Lakukan pemeriksaan otoskop.\n2. Jelaskan temuan serumen prop.\n3. Simulasikan irigasi telinga.",
-        examiner_instructions: "Amati teknik pemegangan otoskop yang benar.",
-        checklist_items: [
-          {
-            id: "c6-1",
-            question: "Pemeriksaan Otoskop",
-            answer_key:
-              "Penarikan aurikula ke atas-belakang dan visualisasi liang telinga",
-            max_points: 3,
-          },
-        ],
-      },
     ])
   );
 
@@ -343,10 +289,20 @@ export default function CreateSessionPage() {
   const [autoLockAnswerRule, setAutoLockAnswerRule] = useState(true);
   const [autoPublishResults, setAutoPublishResults] = useState(false);
 
+  // Status of session (for edit mode)
+  const [sessionStatus, setSessionStatus] = useState("draft");
+
   // Success Modal state
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successModalTitle, setSuccessModalTitle] = useState("Berhasil Disimpan");
   const [successModalMessage, setSuccessModalMessage] = useState("");
+
+  const isPublishedSession = isEdit && (
+    sessionStatus === "published" ||
+    sessionStatus === "scheduled" ||
+    sessionStatus === "running" ||
+    sessionStatus === "completed"
+  );
 
   // Prepopulate if EDIT mode
   useEffect(() => {
@@ -355,6 +311,7 @@ export default function CreateSessionPage() {
         try {
           const foundSession = await fetchSessionById(id);
           if (foundSession) {
+            setSessionStatus(foundSession.status || "draft");
             setTitle(foundSession.title || "");
             setDescription(
               foundSession.description ||
@@ -364,30 +321,37 @@ export default function CreateSessionPage() {
             setStartTime(foundSession.start_time || "08:00");
             setEndTime(foundSession.end_time || "10:30");
             setLocation(foundSession.location_building || "Gedung Skill Lab Ruang OSCE Utama");
-            setMaxParticipants(foundSession.max_participants || 8);
-            setTotalStations(foundSession.total_stations || 6);
+            setMaxParticipants(foundSession.max_participants_per_wave || foundSession.max_participants || 4);
             setStationDurationMinutes(foundSession.station_duration_minutes || 12);
-            setTransitionDurationMinutes(foundSession.break_duration_minutes || 2);
+            setBreakSlotDurationMinutes(foundSession.break_duration_minutes || 12);
+            setTransitionDurationMinutes(foundSession.transition_duration_minutes || 2);
 
             if (foundSession.stations && foundSession.stations.length > 0) {
-              const loadedStations = foundSession.stations.map((st, idx) => ({
-                id: st.id,
-                station_number: st.station_number || idx + 1,
-                is_break: st.is_break,
-                title: st.title || (st.is_break ? `Stase Istirahat ${idx + 1}` : `Stase ${idx + 1}`),
-                case_title: st.case_title || (st.is_break ? `Rotasi Istirahat ${idx + 1}` : `Stase ${idx + 1}`),
-                system_organ: st.system_organ || null,
-                skdi_level: st.skdi_level || null,
-                scenario: st.scenario || "",
-                participant_instructions: st.participant_instructions || "",
-                examiner_instructions: st.examiner_instructions || "",
-                answer_key_diagnosis: st.answer_key_diagnosis || "",
-                answer_key_prescription: st.answer_key_prescription || "",
-                assigned_examiner: st.assigned_examiner || null,
-                checklist_items: st.rubric_items || [],
-                auxiliary_exam_configs: st.station_auxiliary_configs || [],
-              }));
+              const loadedStations = reindexAndAutoNameStations(
+                foundSession.stations.map((st, idx) => ({
+                  id: st.id,
+                  station_number: st.station_number || idx + 1,
+                  is_break: st.is_break,
+                  title: st.title || (st.is_break ? `Stase Istirahat ${idx + 1}` : `Stase Ujian ${idx + 1}`),
+                  case_title: st.case_title || (st.is_break ? `Rotasi Istirahat ${idx + 1}` : `Stase Ujian ${idx + 1}`),
+                  system_organ: st.system_organ || null,
+                  skdi_level: st.skdi_level || null,
+                  scenario: st.scenario || "",
+                  participant_instructions: st.participant_instructions || "",
+                  examiner_instructions: st.examiner_instructions || "",
+                  answer_key_diagnosis: st.answer_key_diagnosis || "",
+                  answer_key_prescription: st.answer_key_prescription || "",
+                  assigned_examiner: st.assigned_examiner || st.examiner_name || null,
+                  examiner_name: st.assigned_examiner || st.examiner_name || null,
+                  examiner_specialty: st.examiner_specialty || null,
+                  examiner_user_id: st.examiner_user_id || null,
+                  checklist_items: st.rubric_items || [],
+                  auxiliary_exam_configs: st.station_auxiliary_configs || [],
+                }))
+              );
               setStationsConfig(loadedStations);
+              setTotalStations(loadedStations.length);
+              setTotalRounds(loadedStations.length);
             }
           }
         } catch (err) {
@@ -508,6 +472,36 @@ export default function CreateSessionPage() {
     setSelectedStationIndex(Math.max(0, index - 1));
   }
 
+  function handleSetPresetStations(targetCount) {
+    let newStations = [...stationsConfig];
+    if (newStations.length < targetCount) {
+      while (newStations.length < targetCount) {
+        newStations.push({
+          is_break: false,
+          scenario: "Skenario kasus klinis lengkap.",
+          participant_instructions:
+            "1. Anamnesis terarah.\n2. Prosedur pemeriksaan fisik.\n3. Diagnosis & terapi.",
+          examiner_instructions: "Amati kesterilan dan SOP medis penguji.",
+          checklist_items: [
+            {
+              id: `c-${Date.now()}-${newStations.length}`,
+              question: "Menyapa pasien & sambung rasa",
+              answer_key: "Peserta mengucapkan salam & konfirmasi identitas",
+              max_points: 1,
+            },
+          ],
+        });
+      }
+    } else if (newStations.length > targetCount) {
+      newStations = newStations.slice(0, targetCount);
+    }
+    const updated = reindexAndAutoNameStations(newStations);
+    setStationsConfig(updated);
+    setTotalStations(updated.length);
+    setTotalRounds(updated.length);
+    setSelectedStationIndex(Math.min(selectedStationIndex, updated.length - 1));
+  }
+
   function handleApplyQuestionBankCase(bankCase) {
     setStationsConfig((prev) =>
       prev.map((item, i) => {
@@ -595,6 +589,12 @@ export default function CreateSessionPage() {
       return false;
     }
 
+    const targetStatus = isPublishedSession
+      ? sessionStatus
+      : isDraftOnly
+      ? "draft"
+      : "published";
+
     const sessionPayload = {
       title: title || "Sesi OSCE Tanpa Judul",
       description,
@@ -602,7 +602,7 @@ export default function CreateSessionPage() {
       session_date: sessionDate || new Date().toISOString().split("T")[0],
       start_time: startTime || "08:00:00",
       end_time: endTime || null,
-      status: isDraftOnly ? "draft" : "scheduled",
+      status: targetStatus,
       total_stations: Number(stationsConfig.length),
       total_rounds: Number(stationsConfig.length),
       max_participants_per_wave: Number(maxParticipants),
@@ -618,26 +618,29 @@ export default function CreateSessionPage() {
     try {
       if (isEdit && id) {
         await updateSession(id, sessionPayload, stationsConfig);
-        alert(`Sesi OSCE "${title}" berhasil diperbarui di database Supabase!`);
+        setSuccessModalTitle("Sesi OSCE Diperbarui");
+        setSuccessModalMessage(`Sesi OSCE "${title}" telah berhasil diperbarui.`);
       } else {
         await createSession(sessionPayload, stationsConfig);
-        alert(
+        setSuccessModalTitle(isDraftOnly ? "Draft Sesi Disimpan" : "Sesi OSCE Diterbitkan");
+        setSuccessModalMessage(
           isDraftOnly
-            ? `Draft Sesi berhasil disimpan ke database Supabase!`
-            : `Sesi OSCE "${title}" berhasil diterbitkan di database Supabase!`
+            ? `Draft Sesi "${title}" telah berhasil disimpan.`
+            : `Sesi OSCE "${title}" telah berhasil diterbitkan.`
         );
       }
-      navigate("/admin/sessions");
+      setShowSuccessModal(true);
     } catch (err) {
       console.warn("Could not save to Supabase database, saved locally:", err);
-      alert(
+      setSuccessModalTitle(isEdit ? "Sesi OSCE Diperbarui" : isDraftOnly ? "Draft Sesi Disimpan" : "Sesi OSCE Diterbitkan");
+      setSuccessModalMessage(
         isEdit
-          ? `Perubahan Sesi OSCE "${title}" disimpan!`
+          ? `Perubahan Sesi OSCE "${title}" telah disimpan.`
           : isDraftOnly
-          ? `Draft Sesi disimpan!`
-          : `Sesi OSCE "${title}" berhasil diterbitkan!`
+          ? `Draft Sesi "${title}" telah disimpan.`
+          : `Sesi OSCE "${title}" telah berhasil diterbitkan.`
       );
-      navigate("/admin/sessions");
+      setShowSuccessModal(true);
     }
 
     return true;
@@ -690,13 +693,15 @@ export default function CreateSessionPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => handleSaveCurrentSection(true)}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-50 active:scale-95"
-            >
-              <Save size={15} />
-              Simpan Draft
-            </button>
+            {!isPublishedSession && (
+              <button
+                onClick={() => handleSaveCurrentSection(true)}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-50 active:scale-95"
+              >
+                <Save size={15} />
+                Simpan Draft
+              </button>
+            )}
 
             {isEdit && (
               <button
@@ -917,14 +922,25 @@ export default function CreateSessionPage() {
 
               {/* Action Buttons for Tab 1 */}
               <div className="flex justify-between border-t border-slate-100 pt-4">
-                <button
-                  type="button"
-                  onClick={() => handleSaveCurrentSection(true)}
-                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition"
-                >
-                  <Save size={15} />
-                  Simpan Draft Bagian Ini
-                </button>
+                {!isPublishedSession ? (
+                  <button
+                    type="button"
+                    onClick={() => handleSaveCurrentSection(true)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition"
+                  >
+                    <Save size={15} />
+                    Simpan Draft Bagian Ini
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleSaveCurrentSection(false)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-5 py-2.5 text-xs font-bold text-blue-700 shadow-2xs hover:bg-blue-100 transition"
+                  >
+                    <Save size={15} />
+                    Simpan Perubahan Bagian Ini
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={handleNextTab}
@@ -1054,6 +1070,43 @@ export default function CreateSessionPage() {
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+                      <span className="text-[11px] text-slate-500 font-bold px-1.5">Preset:</span>
+                      <button
+                        type="button"
+                        onClick={() => handleSetPresetStations(4)}
+                        className={`rounded-lg px-2.5 py-1 text-xs font-bold transition ${
+                          stationsConfig.length === 4
+                            ? "bg-blue-600 text-white shadow-2xs"
+                            : "bg-white text-slate-700 hover:bg-slate-50 border border-slate-200"
+                        }`}
+                      >
+                        4 Stase
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSetPresetStations(6)}
+                        className={`rounded-lg px-2.5 py-1 text-xs font-bold transition ${
+                          stationsConfig.length === 6
+                            ? "bg-blue-600 text-white shadow-2xs"
+                            : "bg-white text-slate-700 hover:bg-slate-50 border border-slate-200"
+                        }`}
+                      >
+                        6 Stase
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSetPresetStations(8)}
+                        className={`rounded-lg px-2.5 py-1 text-xs font-bold transition ${
+                          stationsConfig.length === 8
+                            ? "bg-blue-600 text-white shadow-2xs"
+                            : "bg-white text-slate-700 hover:bg-slate-50 border border-slate-200"
+                        }`}
+                      >
+                        8 Stase
+                      </button>
+                    </div>
+
                     <button
                       type="button"
                       onClick={handleAddStationInline}
@@ -1379,11 +1432,11 @@ export default function CreateSessionPage() {
                           Penugasan Dokter Penguji Stase (Examiner Assignment)
                         </label>
                         <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-extrabold border inline-flex items-center gap-1 ${
-                          activeStation.assigned_examiner
+                          activeStation.assigned_examiner || activeStation.examiner_name
                             ? "bg-emerald-100 text-emerald-900 border-emerald-300"
                             : "bg-amber-100 text-amber-900 border-amber-300"
                         }`}>
-                          {activeStation.assigned_examiner ? (
+                          {activeStation.assigned_examiner || activeStation.examiner_name ? (
                             <>
                               <CheckCircle2 size={13} className="text-emerald-700" />
                               Dokter Penguji Terpenuhi
@@ -1397,61 +1450,94 @@ export default function CreateSessionPage() {
                         </span>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                            Pilih Dokter Penguji Spesialis
-                          </label>
-                          <select
-                            value={activeStation.assigned_examiner || ""}
-                            onChange={(e) => {
-                              const selectedName = e.target.value;
-                              const foundDoc = doctorList.find((d) => d.name === selectedName);
-                              setStationsConfig((prev) =>
-                                prev.map((item, i) =>
-                                  i === selectedStationIndex
-                                    ? {
-                                        ...item,
-                                        assigned_examiner: selectedName,
-                                        examiner_specialty: foundDoc ? foundDoc.specialty : item.examiner_specialty || "Spesialis Medis",
-                                      }
-                                    : item
-                                )
-                              );
-                            }}
-                            className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-bold text-slate-900 focus:border-blue-500 focus:outline-none"
-                          >
-                            <option value="">-- Pilih Dokter Penguji --</option>
-                            {doctorList.map((doc) => (
-                              <option key={doc.id} value={doc.name}>
-                                {doc.name} ({doc.specialty})
-                              </option>
-                            ))}
-                          </select>
-                        </div>
+                      {(() => {
+                        const currentExaminer = activeStation.assigned_examiner || activeStation.examiner_name || "";
+                        const matchedDoctor = doctorList.find((doc) => {
+                          if (!currentExaminer) return false;
+                          const target = currentExaminer.trim().toLowerCase();
+                          const docName = (doc.name || "").trim().toLowerCase();
+                          return docName === target || target.includes(docName) || docName.includes(target);
+                        });
+                        const selectValue = matchedDoctor ? matchedDoctor.name : currentExaminer;
 
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                            Nama Lengkap Penguji (Bila Ketik Manual)
-                          </label>
-                          <input
-                            type="text"
-                            value={activeStation.assigned_examiner || ""}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setStationsConfig((prev) =>
-                                prev.map((item, i) =>
-                                  i === selectedStationIndex
-                                    ? { ...item, assigned_examiner: val }
-                                    : item
-                                )
-                              );
-                            }}
-                            placeholder="Contoh: dr. Alexander Budiman, Sp.JP"
-                            className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-medium text-slate-900 focus:border-blue-500 focus:outline-none"
-                          />
-                        </div>
-                      </div>
+                        return (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                Pilih Dokter Penguji Spesialis
+                              </label>
+                              <select
+                                value={selectValue}
+                                onChange={(e) => {
+                                  const selectedName = e.target.value;
+                                  const foundDoc = doctorList.find((d) => d.name === selectedName);
+                                  setStationsConfig((prev) =>
+                                    prev.map((item, i) =>
+                                      i === selectedStationIndex
+                                        ? {
+                                            ...item,
+                                            assigned_examiner: selectedName,
+                                            examiner_name: selectedName,
+                                            examiner_user_id: foundDoc ? foundDoc.id : item.examiner_user_id || null,
+                                            examiner_specialty: foundDoc ? foundDoc.specialty : item.examiner_specialty || "Spesialis Medis",
+                                          }
+                                        : item
+                                    )
+                                  );
+                                }}
+                                className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-bold text-slate-900 focus:border-blue-500 focus:outline-none"
+                              >
+                                <option value="">-- Pilih Dokter Penguji --</option>
+                                {doctorList.map((doc) => (
+                                  <option key={doc.id} value={doc.name}>
+                                    {doc.name} ({doc.specialty})
+                                  </option>
+                                ))}
+                                {currentExaminer && !matchedDoctor && (
+                                  <option value={currentExaminer}>
+                                    {currentExaminer} (Input Manual)
+                                  </option>
+                                )}
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                Nama Lengkap Penguji (Bila Ketik Manual)
+                              </label>
+                              <input
+                                type="text"
+                                value={currentExaminer}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  const foundDoc = doctorList.find((d) => {
+                                    if (!val) return false;
+                                    const target = val.trim().toLowerCase();
+                                    const docName = (d.name || "").trim().toLowerCase();
+                                    return docName === target || target.includes(docName) || docName.includes(target);
+                                  });
+
+                                  setStationsConfig((prev) =>
+                                    prev.map((item, i) =>
+                                      i === selectedStationIndex
+                                        ? {
+                                            ...item,
+                                            assigned_examiner: val,
+                                            examiner_name: val,
+                                            examiner_user_id: foundDoc ? foundDoc.id : item.examiner_user_id || null,
+                                            examiner_specialty: foundDoc ? foundDoc.specialty : item.examiner_specialty || "Spesialis Medis",
+                                          }
+                                        : item
+                                    )
+                                  );
+                                }}
+                                placeholder="Contoh: dr. Alexander Budiman, Sp.JP"
+                                className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-medium text-slate-900 focus:border-blue-500 focus:outline-none"
+                              />
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     <div className="sm:col-span-2">
@@ -1730,14 +1816,18 @@ export default function CreateSessionPage() {
 
               {/* Action Buttons for Tab 4 */}
               <div className="flex justify-between border-t border-slate-100 pt-4">
-                <button
-                  type="button"
-                  onClick={() => handleSaveCurrentSection(true)}
-                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition"
-                >
-                  <Save size={15} />
-                  Simpan Draft Sesi
-                </button>
+                {!isPublishedSession ? (
+                  <button
+                    type="button"
+                    onClick={() => handleSaveCurrentSection(true)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition"
+                  >
+                    <Save size={15} />
+                    Simpan Draft Sesi
+                  </button>
+                ) : (
+                  <div></div>
+                )}
 
                 <button
                   type="button"

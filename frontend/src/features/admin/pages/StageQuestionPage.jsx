@@ -16,6 +16,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import AdminLayout from "@/layouts/AdminLayout";
+import SuccessModal from "@/components/ui/SuccessModal";
 import { getStageById, updateStageQuestion } from "@/services/stage.service";
 import { fetchDoctorExaminers } from "@/services/examinerService";
 import { DOCTOR_EXAMINER_LIST } from "@/features/admin/pages/CreateSessionPage";
@@ -138,6 +139,7 @@ export default function StageQuestionPage() {
   // Rubric Items State
   const [rubricItems, setRubricItems] = useState([]);
   const [doctorList, setDoctorList] = useState([]);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   useEffect(() => {
     async function initExaminers() {
@@ -274,6 +276,7 @@ export default function StageQuestionPage() {
       case_title: caseTitle,
       system_organ: systemOrgan,
       competency_level: competencyLevel,
+      assigned_examiner: assignedExaminer,
       scenario,
       participant_instruction: participantInstruction,
       examiner_instruction: examinerInstruction,
@@ -294,7 +297,7 @@ export default function StageQuestionPage() {
       console.error(err);
     }
 
-    alert("Seluruh konfigurasi soal, kunci jawaban baku, berkas penunjang, dan rubrik 0-3 berhasil disimpan!");
+    setShowSuccessModal(true);
   }
 
   if (loading) {
@@ -457,38 +460,56 @@ export default function StageQuestionPage() {
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                  Pilih Dokter Penguji Spesialis
-                </label>
-                <select
-                  value={assignedExaminer || ""}
-                  onChange={(e) => setAssignedExaminer(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-bold text-slate-900 focus:border-blue-500 focus:outline-none"
-                >
-                  <option value="">-- Pilih Dokter Penguji --</option>
-                  {doctorList.map((doc) => (
-                    <option key={doc.id} value={doc.name}>
-                      {doc.name} ({doc.specialty})
-                    </option>
-                  ))}
-                </select>
-              </div>
+            {(() => {
+              const currentExaminer = assignedExaminer || "";
+              const matchedDoctor = doctorList.find((doc) => {
+                if (!currentExaminer) return false;
+                const target = currentExaminer.trim().toLowerCase();
+                const docName = (doc.name || "").trim().toLowerCase();
+                return docName === target || target.includes(docName) || docName.includes(target);
+              });
+              const selectValue = matchedDoctor ? matchedDoctor.name : currentExaminer;
 
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                  Nama Lengkap Penguji (Bila Ketik Manual)
-                </label>
-                <input
-                  type="text"
-                  value={assignedExaminer || ""}
-                  onChange={(e) => setAssignedExaminer(e.target.value)}
-                  placeholder="Contoh: dr. Alexander Budiman, Sp.JP"
-                  className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-medium text-slate-900 focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-            </div>
+              return (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      Pilih Dokter Penguji Spesialis
+                    </label>
+                    <select
+                      value={selectValue}
+                      onChange={(e) => setAssignedExaminer(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-bold text-slate-900 focus:border-blue-500 focus:outline-none"
+                    >
+                      <option value="">-- Pilih Dokter Penguji --</option>
+                      {doctorList.map((doc) => (
+                        <option key={doc.id} value={doc.name}>
+                          {doc.name} ({doc.specialty})
+                        </option>
+                      ))}
+                      {currentExaminer && !matchedDoctor && (
+                        <option value={currentExaminer}>
+                          {currentExaminer} (Input Manual)
+                        </option>
+                      )}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      Nama Lengkap Penguji (Bila Ketik Manual)
+                    </label>
+                    <input
+                      type="text"
+                      value={currentExaminer}
+                      onChange={(e) => setAssignedExaminer(e.target.value)}
+                      placeholder="Contoh: dr. Alexander Budiman, Sp.JP"
+                      className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-medium text-slate-900 focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
           <div>
@@ -894,6 +915,16 @@ export default function StageQuestionPage() {
           Simpan Seluruh Soal & Rubrik
         </button>
       </div>
+
+      {/* Success Modal */}
+      <SuccessModal
+        isOpen={showSuccessModal}
+        onClose={() => setShowSuccessModal(false)}
+        title="Konfigurasi Soal Disimpan"
+        message="Seluruh konfigurasi soal, kunci jawaban baku, berkas penunjang, dan rubrik 0-3 berhasil disimpan."
+        actionText="Selesai"
+        onAction={() => setShowSuccessModal(false)}
+      />
     </AdminLayout>
   );
 }

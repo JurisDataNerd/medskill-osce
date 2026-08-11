@@ -65,6 +65,19 @@ export default function SessionDetailPage() {
     );
   }
 
+  const activeExamCount = stages.filter(
+    (st) =>
+      !st.is_break &&
+      !st.title?.toLowerCase().includes("istirahat") &&
+      !st.title?.toLowerCase().includes("break")
+  ).length;
+
+  const totalStationCount = stages.length > 0 ? stages.length : (session.total_stations || 0);
+
+  const assignedExaminersCount = stages.filter(
+    (st) => !st.is_break && (st.examiner_name || st.assigned_examiner)
+  ).length;
+
   return (
     <AdminLayout>
       {/* Back Link & Header */}
@@ -97,7 +110,7 @@ export default function SessionDetailPage() {
               Edit Sesi Ini
             </button>
 
-            {session.status === "running" ? (
+            {getNormalizedStatus(session.status) === "running" ? (
               <button
                 onClick={() => navigate("/admin/live")}
                 className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-md transition hover:bg-emerald-700 active:scale-95"
@@ -105,13 +118,21 @@ export default function SessionDetailPage() {
                 <Activity size={15} />
                 Buka Monitor Live
               </button>
-            ) : (
+            ) : getNormalizedStatus(session.status) === "published" ? (
               <button
                 onClick={() => navigate(`/admin/sessions/${session.id}/edit`)}
                 className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-md transition hover:bg-blue-700 active:scale-95"
               >
                 <CheckCircle2 size={15} />
-                Ubah Pengaturan
+                Sesi Dipublikasikan
+              </button>
+            ) : (
+              <button
+                onClick={() => navigate(`/admin/sessions/${session.id}/edit`)}
+                className="inline-flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2 text-xs font-bold text-white shadow-md transition hover:bg-amber-700 active:scale-95"
+              >
+                <Pencil size={15} />
+                Selesaikan Draft
               </button>
             )}
           </div>
@@ -124,24 +145,24 @@ export default function SessionDetailPage() {
           icon={<CalendarDays size={18} className="text-blue-600" />}
           title="Tanggal & Jam Pelaksanaan"
           value={session.session_date}
-          subtext={`${session.start_time} - ${session.end_time || "Selesai"}`}
+          subtext={`${session.start_time || "08:00"} - ${session.end_time || "Selesai"}`}
         />
         <SummaryCard
           icon={<Users size={18} className="text-emerald-600" />}
           title="Kapasitas Peserta"
-          value={`${session.registered_participants || session.max_participants} Peserta`}
+          value={`${session.registered_participants || session.max_participants_per_wave || session.max_participants || totalStationCount} Peserta`}
           subtext="1 peserta per stase per rotasi"
         />
         <SummaryCard
           icon={<GraduationCap size={18} className="text-indigo-600" />}
           title="Jumlah Stase Ujian"
-          value={`${session.total_stations || stages.length} Stase Ujian`}
-          subtext={`${session.station_duration_minutes || 15}m stase • ${session.break_duration_minutes || 3}m jeda rotasi`}
+          value={`${activeExamCount} Stase Ujian`}
+          subtext={`${session.station_duration_minutes || 15}m stase • ${session.break_duration_minutes || 2}m jeda rotasi`}
         />
         <SummaryCard
           icon={<ClipboardList size={18} className="text-amber-600" />}
           title="Dokter Penguji"
-          value={`${session.total_examiners || stages.length} Penguji`}
+          value={`${assignedExaminersCount} / ${activeExamCount} Penguji`}
           subtext="1 penguji per stase"
         />
       </div>
@@ -217,15 +238,15 @@ export default function SessionDetailPage() {
           <div>
             <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
               <Building2 size={18} className="text-blue-600" />
-              Arsitektur Sirkuit 8 Stase & Urutan Rotasi (Kanban Order)
+              Arsitektur Sirkuit {totalStationCount} Stase & Urutan Rotasi (Kanban Order)
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Urutan 6 Stase Ujian Aktif yang disusun secara terstruktur untuk rotasi sirkuit peserta.
+              Urutan {activeExamCount} Stase Ujian Aktif yang disusun secara terstruktur untuk rotasi sirkuit peserta.
             </p>
           </div>
 
           <span className="rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-bold text-blue-700">
-            Sirkuit 6 Stase Ujian Aktif
+            Sirkuit {activeExamCount} Stase Ujian Aktif
           </span>
         </div>
 
@@ -321,7 +342,7 @@ export default function SessionDetailPage() {
                     </div>
 
                     <span className="text-xs font-semibold text-slate-600 bg-white border border-slate-200 px-2.5 py-1 rounded-md whitespace-nowrap">
-                      12 Menit (1m/10m/1m)
+                      {stage.duration_minutes || session.station_duration_minutes || 12} Menit
                     </span>
 
                     {isExpanded ? (
@@ -339,12 +360,18 @@ export default function SessionDetailPage() {
                       <div>
                         <span className="text-[10px] font-bold text-slate-400 uppercase">Dokter Penguji Stase</span>
                         <p className="font-bold text-slate-900 text-xs mt-0.5">
-                          {stage.examiner_name || "Belum ditugaskan"}
+                          {stage.examiner_name || stage.assigned_examiner || "Belum ditugaskan"}
                         </p>
                       </div>
-                      <span className="rounded-md bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800">
-                        Penguji Siap
-                      </span>
+                      {stage.examiner_name || stage.assigned_examiner ? (
+                        <span className="rounded-md bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800 border border-emerald-200">
+                          Penguji Siap
+                        </span>
+                      ) : (
+                        <span className="rounded-md bg-amber-100 px-2.5 py-0.5 text-[11px] font-bold text-amber-800 border border-amber-200">
+                          Belum Ditugaskan
+                        </span>
+                      )}
                     </div>
 
                     {/* Skenario Kasus */}
@@ -425,15 +452,27 @@ function SummaryCard({ icon, title, value, subtext }) {
   );
 }
 
+function getNormalizedStatus(rawStatus) {
+  if (!rawStatus) return "draft";
+  const s = String(rawStatus).toLowerCase();
+  if (s === "scheduled" || s === "published") return "published";
+  if (s === "ongoing" || s === "running") return "running";
+  if (s === "finished" || s === "completed") return "completed";
+  if (s === "cancelled" || s === "canceled") return "cancelled";
+  return "draft";
+}
+
 function StatusBadge({ status }) {
+  const norm = getNormalizedStatus(status);
   const configs = {
-    running: { label: "Berlangsung", bg: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+    running: { label: "Berlangsung (Live)", bg: "bg-emerald-50 text-emerald-700 border-emerald-200" },
     published: { label: "Dipublikasikan", bg: "bg-indigo-50 text-indigo-700 border-indigo-200" },
     draft: { label: "Draft", bg: "bg-amber-50 text-amber-700 border-amber-200" },
     completed: { label: "Selesai", bg: "bg-blue-50 text-blue-700 border-blue-200" },
+    cancelled: { label: "Dibatalkan", bg: "bg-rose-50 text-rose-700 border-rose-200" },
   };
 
-  const cfg = configs[status] || configs.draft;
+  const cfg = configs[norm] || configs.draft;
 
   return (
     <span className={`rounded-full border px-3 py-0.5 text-xs font-bold ${cfg.bg}`}>

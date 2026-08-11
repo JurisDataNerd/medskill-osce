@@ -60,6 +60,17 @@ export default function SessionsPage() {
     loadSessions();
   }, []);
 
+  // Helper to normalize status values across legacy database records ('scheduled', 'published', 'draft', etc.)
+  function getNormalizedStatus(rawStatus) {
+    if (!rawStatus) return "draft";
+    const s = String(rawStatus).toLowerCase();
+    if (s === "scheduled" || s === "published") return "published";
+    if (s === "ongoing" || s === "running") return "running";
+    if (s === "finished" || s === "completed") return "completed";
+    if (s === "cancelled" || s === "canceled") return "cancelled";
+    return "draft";
+  }
+
   // Filtered Sessions
   const filteredSessions = sessions.filter((session) => {
     const matchesSearch =
@@ -70,7 +81,7 @@ export default function SessionsPage() {
         .includes(searchQuery.toLowerCase());
 
     const matchesStatus =
-      statusFilter === "all" || session.status === statusFilter;
+      statusFilter === "all" || getNormalizedStatus(session.status) === statusFilter;
 
     return matchesSearch && matchesStatus;
   });
@@ -132,7 +143,9 @@ export default function SessionsPage() {
 
   async function handleStatusChange(id, newStatus) {
     if (newStatus === "running" || newStatus === "ongoing") {
-      const active = sessions.find((s) => (s.status === "running" || s.status === "ongoing") && s.id !== id);
+      const active = sessions.find(
+        (s) => getNormalizedStatus(s.status) === "running" && s.id !== id
+      );
       if (active) {
         alert(
           `PERINGATAN: Sesi OSCE tidak dapat dijalankan secara paralel!\n\nSesi "${active.title}" saat ini sedang berlangsung. Harap selesaikan sesi tersebut terlebih dahulu.`
@@ -153,7 +166,10 @@ export default function SessionsPage() {
           ? {
               ...s,
               status: newStatus,
-              current_round: (newStatus === "running" || newStatus === "ongoing") ? Math.max(1, s.current_round || 1) : s.current_round,
+              current_round:
+                newStatus === "running" || newStatus === "ongoing"
+                  ? Math.max(1, s.current_round || 1)
+                  : s.current_round,
             }
           : s
       )
@@ -174,11 +190,21 @@ export default function SessionsPage() {
 
   // Stats calculation
   const totalCount = sessions.length;
-  const activeSession = sessions.find((s) => s.status === "running");
-  const runningCount = sessions.filter((s) => s.status === "running").length;
-  const draftCount = sessions.filter((s) => s.status === "draft").length;
-  const completedCount = sessions.filter((s) => s.status === "completed").length;
-  const publishedCount = sessions.filter((s) => s.status === "published").length;
+  const activeSession = sessions.find(
+    (s) => getNormalizedStatus(s.status) === "running"
+  );
+  const runningCount = sessions.filter(
+    (s) => getNormalizedStatus(s.status) === "running"
+  ).length;
+  const draftCount = sessions.filter(
+    (s) => getNormalizedStatus(s.status) === "draft"
+  ).length;
+  const completedCount = sessions.filter(
+    (s) => getNormalizedStatus(s.status) === "completed"
+  ).length;
+  const publishedCount = sessions.filter(
+    (s) => getNormalizedStatus(s.status) === "published"
+  ).length;
 
   return (
     <AdminLayout>
@@ -373,111 +399,116 @@ export default function SessionsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
-                {paginatedSessions.map((session) => (
-                  <tr
-                    key={session.id}
-                    className="transition hover:bg-slate-50/70"
-                  >
-                    {/* Title & Location */}
-                    <td className="px-5 py-4">
-                      <div>
-                        <div className="font-bold text-slate-900 text-sm">
-                          {session.title}
+                {paginatedSessions.map((session) => {
+                  const normStatus = getNormalizedStatus(session.status);
+
+                  return (
+                    <tr
+                      key={session.id}
+                      className="transition hover:bg-slate-50/70"
+                    >
+                      {/* Title & Location */}
+                      <td className="px-5 py-4">
+                        <div>
+                          <div className="font-bold text-slate-900 text-sm">
+                            {session.title}
+                          </div>
+                          <div className="mt-1 text-xs text-slate-500 flex items-center gap-1">
+                            <MapPin size={13} className="text-slate-400" />
+                            <span>{session.location || "Gedung Skill Lab Kedokteran"}</span>
+                          </div>
                         </div>
-                        <div className="mt-1 text-xs text-slate-500 flex items-center gap-1">
-                          <MapPin size={13} className="text-slate-400" />
-                          <span>{session.location || "Gedung Skill Lab Kedokteran"}</span>
+                      </td>
+
+                      {/* Date & Time */}
+                      <td className="px-5 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5 text-slate-800 font-medium">
+                          <CalendarDays size={13} className="text-slate-400" />
+                          {session.session_date}
                         </div>
-                      </div>
-                    </td>
+                        <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
+                          <Clock size={13} className="text-slate-400" />
+                          {session.start_time} - {session.end_time || "Selesai"}
+                        </div>
+                      </td>
 
-                    {/* Date & Time */}
-                    <td className="px-5 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-1.5 text-slate-800 font-medium">
-                        <CalendarDays size={13} className="text-slate-400" />
-                        {session.session_date}
-                      </div>
-                      <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
-                        <Clock size={13} className="text-slate-400" />
-                        {session.start_time} - {session.end_time || "Selesai"}
-                      </div>
-                    </td>
+                      {/* Station & Durations */}
+                      <td className="px-5 py-4 whitespace-nowrap">
+                        <div className="font-semibold text-slate-800">
+                          {session.total_stations || 6} Stase
+                        </div>
+                        <div className="mt-1 text-xs text-slate-500 flex items-center gap-2">
+                          <span>{session.station_duration_minutes || 15}m stase</span>
+                          <span>•</span>
+                          <span>{session.break_duration_minutes || 3}m break</span>
+                        </div>
+                      </td>
 
-                    {/* Station & Durations */}
-                    <td className="px-5 py-4 whitespace-nowrap">
-                      <div className="font-semibold text-slate-800">
-                        {session.total_stations || 6} Stase
-                      </div>
-                      <div className="mt-1 text-xs text-slate-500 flex items-center gap-2">
-                        <span>{session.station_duration_minutes || 15}m stase</span>
-                        <span>•</span>
-                        <span>{session.break_duration_minutes || 3}m break</span>
-                      </div>
-                    </td>
+                      {/* Participants & Examiners */}
+                      <td className="px-5 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5 font-medium text-slate-800">
+                          <Users size={13} className="text-slate-400" />
+                          {session.registered_participants || session.max_participants || 6} Peserta
+                        </div>
+                        <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
+                          <UserCheck size={13} className="text-slate-400" />
+                          {session.total_examiners || session.total_stations || 6} Penguji
+                        </div>
+                      </td>
 
-                    {/* Participants & Examiners */}
-                    <td className="px-5 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-1.5 font-medium text-slate-800">
-                        <Users size={13} className="text-slate-400" />
-                        {session.registered_participants || session.max_participants || 6} Peserta
-                      </div>
-                      <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
-                        <UserCheck size={13} className="text-slate-400" />
-                        {session.total_examiners || session.total_stations || 6} Penguji
-                      </div>
-                    </td>
+                      {/* Live Edit Status Dropdown */}
+                      <td className="px-5 py-4 whitespace-nowrap">
+                        <select
+                          value={normStatus}
+                          onChange={(e) => handleStatusChange(session.id, e.target.value)}
+                          className={`rounded-lg border px-2.5 py-1 text-xs font-bold transition focus:outline-none focus:ring-2 ${
+                            normStatus === "running"
+                              ? "bg-emerald-50 text-emerald-800 border-emerald-300 focus:ring-emerald-200"
+                              : normStatus === "published"
+                              ? "bg-indigo-50 text-indigo-800 border-indigo-300 focus:ring-indigo-200"
+                              : normStatus === "completed"
+                              ? "bg-blue-50 text-blue-800 border-blue-300 focus:ring-blue-200"
+                              : normStatus === "cancelled"
+                              ? "bg-rose-50 text-rose-800 border-rose-300 focus:ring-rose-200"
+                              : "bg-amber-50 text-amber-800 border-amber-300 focus:ring-amber-200"
+                          }`}
+                        >
+                          <option value="draft">Draft</option>
+                          <option value="published">Dipublikasikan</option>
+                          <option value="running">Berlangsung (Live)</option>
+                          <option value="completed">Selesai</option>
+                          <option value="cancelled">Dibatalkan</option>
+                        </select>
+                      </td>
 
-                    {/* Live Edit Status Dropdown */}
-                    <td className="px-5 py-4 whitespace-nowrap">
-                      <select
-                        value={session.status}
-                        onChange={(e) => handleStatusChange(session.id, e.target.value)}
-                        className={`rounded-lg border px-2.5 py-1 text-xs font-bold transition focus:outline-none focus:ring-2 ${
-                          session.status === "running"
-                            ? "bg-emerald-50 text-emerald-800 border-emerald-300 focus:ring-emerald-200"
-                            : session.status === "published"
-                            ? "bg-indigo-50 text-indigo-800 border-indigo-300 focus:ring-indigo-200"
-                            : session.status === "completed"
-                            ? "bg-blue-50 text-blue-800 border-blue-300 focus:ring-blue-200"
-                            : session.status === "cancelled"
-                            ? "bg-rose-50 text-rose-800 border-rose-300 focus:ring-rose-200"
-                            : "bg-amber-50 text-amber-800 border-amber-300 focus:ring-amber-200"
-                        }`}
-                      >
-                        <option value="draft">Draft</option>
-                        <option value="published">Dipublikasikan</option>
-                        <option value="running">Berlangsung (Live)</option>
-                        <option value="completed">Selesai</option>
-                        <option value="cancelled">Dibatalkan</option>
-                      </select>
-                    </td>
+                      {/* Actions */}
+                      <td className="px-5 py-4 whitespace-nowrap text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {/* Published / Scheduled status -> Show Start & Edit */}
+                          {normStatus === "published" && (
+                            <>
+                              <button
+                                onClick={() => handleStart(session.id)}
+                                className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-emerald-700 shadow-xs"
+                                title="Mulai Sesi Ujian"
+                              >
+                                <Play size={13} />
+                                Start
+                              </button>
 
+                              <button
+                                onClick={() => handleEdit(session)}
+                                className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-amber-600"
+                                title="Edit Sesi"
+                              >
+                                <Pencil size={13} />
+                                Edit
+                              </button>
+                            </>
+                          )}
 
-                    {/* Actions */}
-                    <td className="px-5 py-4 whitespace-nowrap text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {session.status === "running" && (
-                          <button
-                            onClick={() => navigate("/admin/live")}
-                            className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-emerald-700 shadow-xs"
-                            title="Buka Monitor Live"
-                          >
-                            <Activity size={13} />
-                            Monitor
-                          </button>
-                        )}
-
-                        {session.status === "draft" && (
-                          <>
-                            <button
-                              onClick={() => handleStart(session.id)}
-                              className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-emerald-700 shadow-xs"
-                              title="Mulai Sesi Ujian"
-                            >
-                              <Play size={13} />
-                              Start
-                            </button>
-
+                          {/* Draft status -> Show Edit only (No Start button) */}
+                          {normStatus === "draft" && (
                             <button
                               onClick={() => handleEdit(session)}
                               className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-amber-600"
@@ -486,40 +517,52 @@ export default function SessionsPage() {
                               <Pencil size={13} />
                               Edit
                             </button>
-                          </>
-                        )}
+                          )}
 
-                        {session.status === "running" && (
+                          {/* Running / Ongoing status -> Show Monitor & Akhiri */}
+                          {normStatus === "running" && (
+                            <>
+                              <button
+                                onClick={() => navigate("/admin/live")}
+                                className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-emerald-700 shadow-xs"
+                                title="Buka Monitor Live"
+                              >
+                                <Activity size={13} />
+                                Monitor
+                              </button>
+
+                              <button
+                                onClick={() => handleFinish(session.id)}
+                                className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-100"
+                                title="Akhiri Sesi"
+                              >
+                                <Square size={13} />
+                                Akhiri
+                              </button>
+                            </>
+                          )}
+
                           <button
-                            onClick={() => handleFinish(session.id)}
-                            className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-100"
-                            title="Akhiri Sesi"
+                            onClick={() => navigate(`/admin/sessions/${session.id}`)}
+                            className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-blue-600"
+                            title="Lihat Detail Sesi"
                           >
-                            <Square size={13} />
-                            Akhiri
+                            Detail
+                            <ArrowRight size={12} />
                           </button>
-                        )}
 
-                        <button
-                          onClick={() => navigate(`/admin/sessions/${session.id}`)}
-                          className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-blue-600"
-                          title="Lihat Detail Sesi"
-                        >
-                          Detail
-                          <ArrowRight size={12} />
-                        </button>
-
-                        <button
-                          onClick={() => handleDelete(session.id)}
-                          className="p-1 rounded-md text-slate-400 transition hover:bg-red-50 hover:text-red-600"
-                          title="Hapus Sesi"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          <button
+                            onClick={() => handleDelete(session.id)}
+                            className="p-1 rounded-md text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                            title="Hapus Sesi"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

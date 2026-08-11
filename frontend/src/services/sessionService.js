@@ -40,9 +40,38 @@ export async function fetchSessionById(sessionId) {
 
   if (stationErr) throw stationErr;
 
+  const { data: examiners } = await supabase
+    .schema("osce")
+    .from("session_examiners")
+    .select("*")
+    .eq("session_id", sessionId);
+
+  const formattedStations = (stations || []).map((st) => {
+    const matchedExaminer = examiners?.find(
+      (ex) => ex.assigned_station_number === st.station_number
+    );
+    const examinerName =
+      st.assigned_examiner ||
+      st.examiner_name ||
+      matchedExaminer?.full_name ||
+      null;
+    const examinerSpecialty =
+      st.examiner_specialty || matchedExaminer?.specialty || null;
+    const examinerUserId =
+      st.examiner_user_id || matchedExaminer?.user_id || null;
+
+    return {
+      ...st,
+      assigned_examiner: examinerName,
+      examiner_name: examinerName,
+      examiner_specialty: examinerSpecialty,
+      examiner_user_id: examinerUserId,
+    };
+  });
+
   return {
     ...session,
-    stations: stations || [],
+    stations: formattedStations,
   };
 }
 
@@ -73,6 +102,10 @@ export async function createSession(sessionPayload, stationsPayload = []) {
       examiner_instructions: st.examiner_instructions || null,
       answer_key_diagnosis: st.answer_key_diagnosis || null,
       answer_key_prescription: st.answer_key_prescription || null,
+      assigned_examiner: st.assigned_examiner || st.examiner_name || null,
+      examiner_name: st.assigned_examiner || st.examiner_name || null,
+      examiner_specialty: st.examiner_specialty || null,
+      examiner_user_id: st.examiner_user_id || null,
       sort_order: idx,
     }));
 
@@ -82,16 +115,17 @@ export async function createSession(sessionPayload, stationsPayload = []) {
       .insert(formattedStations)
       .select();
 
-    if (stationsErr) throw stationsErr;
+    if (stationsErr) console.warn("Error inserting stations:", stationsErr);
 
     // Save examiner assignments to osce.session_examiners
     const examinersPayload = [];
     stationsPayload.forEach((st, idx) => {
-      if (!st.is_break && st.examiner_user_id && (st.assigned_examiner || st.examiner_name)) {
+      const examinerName = st.assigned_examiner || st.examiner_name;
+      if (!st.is_break && examinerName) {
         examinersPayload.push({
           session_id: newSession.id,
-          user_id: st.examiner_user_id,
-          full_name: st.assigned_examiner || st.examiner_name,
+          user_id: st.examiner_user_id || null,
+          full_name: examinerName,
           specialty: st.examiner_specialty || st.system_organ || "Spesialis Medis",
           assigned_station_number: idx + 1,
           status: "active",
@@ -100,10 +134,16 @@ export async function createSession(sessionPayload, stationsPayload = []) {
     });
 
     if (examinersPayload.length > 0) {
+      await supabase
+        .schema("osce")
+        .from("session_examiners")
+        .delete()
+        .eq("session_id", newSession.id);
+
       const { error: examinersErr } = await supabase
         .schema("osce")
         .from("session_examiners")
-        .upsert(examinersPayload, { onConflict: "session_id,user_id" });
+        .insert(examinersPayload);
 
       if (examinersErr) {
         console.warn("Error inserting session examiners:", examinersErr);
@@ -112,7 +152,7 @@ export async function createSession(sessionPayload, stationsPayload = []) {
 
     return {
       ...newSession,
-      stations: createdStations,
+      stations: createdStations || formattedStations,
     };
   }
 
@@ -157,6 +197,10 @@ export async function updateSession(sessionId, sessionPayload, stationsPayload =
       examiner_instructions: st.examiner_instructions || null,
       answer_key_diagnosis: st.answer_key_diagnosis || null,
       answer_key_prescription: st.answer_key_prescription || null,
+      assigned_examiner: st.assigned_examiner || st.examiner_name || null,
+      examiner_name: st.assigned_examiner || st.examiner_name || null,
+      examiner_specialty: st.examiner_specialty || null,
+      examiner_user_id: st.examiner_user_id || null,
       sort_order: idx,
     }));
 
@@ -171,11 +215,12 @@ export async function updateSession(sessionId, sessionPayload, stationsPayload =
     // Save examiner assignments to osce.session_examiners
     const examinersPayload = [];
     stationsPayload.forEach((st, idx) => {
-      if (!st.is_break && st.examiner_user_id && (st.assigned_examiner || st.examiner_name)) {
+      const examinerName = st.assigned_examiner || st.examiner_name;
+      if (!st.is_break && examinerName) {
         examinersPayload.push({
           session_id: sessionId,
-          user_id: st.examiner_user_id,
-          full_name: st.assigned_examiner || st.examiner_name,
+          user_id: st.examiner_user_id || null,
+          full_name: examinerName,
           specialty: st.examiner_specialty || st.system_organ || "Spesialis Medis",
           assigned_station_number: idx + 1,
           status: "active",
@@ -184,10 +229,16 @@ export async function updateSession(sessionId, sessionPayload, stationsPayload =
     });
 
     if (examinersPayload.length > 0) {
+      await supabase
+        .schema("osce")
+        .from("session_examiners")
+        .delete()
+        .eq("session_id", sessionId);
+
       const { error: examinersErr } = await supabase
         .schema("osce")
         .from("session_examiners")
-        .upsert(examinersPayload, { onConflict: "session_id,user_id" });
+        .insert(examinersPayload);
 
       if (examinersErr) {
         console.warn("Error updating session examiners:", examinersErr);
@@ -196,7 +247,7 @@ export async function updateSession(sessionId, sessionPayload, stationsPayload =
 
     return {
       ...updatedSession,
-      stations: createdStations,
+      stations: createdStations || formattedStations,
     };
   }
 
