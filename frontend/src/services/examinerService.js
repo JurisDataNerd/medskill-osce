@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabaseClient";
+import { supabase as publicSupabase } from "@/supabase/client";
 
 /**
  * Fetch assigned station for examiner in a session
@@ -250,6 +251,7 @@ export async function fetchDoctorExaminers() {
             list.push({
               id: m.id,
               name: name,
+              university: m.university || "Universitas Gadjah Mada",
               specialty: m.university || "Spesialis Medis FK",
               nip: "-",
               email: m.email || "",
@@ -275,6 +277,7 @@ export async function fetchDoctorExaminers() {
             list.push({
               id: p.id,
               name: name,
+              university: p.university || p.specialty || "Universitas Gadjah Mada",
               specialty: p.specialty || p.university || "Dokter Penguji OSCE",
               nip: p.nip || "-",
               email: p.email || "",

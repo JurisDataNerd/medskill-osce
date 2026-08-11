@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import AdminLayout from "@/layouts/AdminLayout";
 import { supabase } from "@/supabase/client";
 import { Mail, University } from "lucide-react";
+import { fetchDoctorExaminers } from "@/services/examinerService";
 
 export default function ExaminersPage() {
   const [examiners, setExaminers] = useState([]);
@@ -30,54 +31,13 @@ export default function ExaminersPage() {
   }, []);
 
   async function loadExaminers() {
-    const [{ data: mentors, error: mentorError }, { data: profiles, error: profileError }] =
-      await Promise.all([
-        supabase
-          .from("mentors")
-          .select(`
-            id,
-            name,
-            university,
-            email,
-            img_url,
-            is_active
-          `)
-          .order("name"),
-
-        supabase
-          .from("profiles")
-          .select(`
-            mentor_id,
-            is_online,
-            last_seen,
-            role
-          `)
-          .eq("role", "examiner"),
-      ]);
-
-    if (mentorError) {
-      console.error(mentorError);
-      return;
+    try {
+      const data = await fetchDoctorExaminers();
+      setExaminers(data || []);
+    } catch (err) {
+      console.error("Error loading examiners:", err);
+      setExaminers([]);
     }
-
-    if (profileError) {
-      console.error(profileError);
-      return;
-    }
-
-    const merged = (mentors || []).map((mentor) => {
-      const profile = (profiles || []).find(
-        (p) => p.mentor_id === mentor.id
-      );
-
-      return {
-        ...mentor,
-        is_online: profile?.is_online ?? false,
-        last_seen: profile?.last_seen ?? null,
-      };
-    });
-
-    setExaminers(merged);
   }
 
   function formatLastSeen(lastSeen) {
