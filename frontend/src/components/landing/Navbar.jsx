@@ -37,7 +37,8 @@ export default function Navbar() {
           .eq("id", session.user.id)
           .maybeSingle();
 
-        setRole(data?.role ?? "participant");
+        const activeRole = data?.role || session.user.user_metadata?.role || "participant";
+        setRole(activeRole);
       }
     }
 
@@ -59,11 +60,34 @@ export default function Navbar() {
         .eq("id", session.user.id)
         .maybeSingle();
 
-      setRole(data?.role ?? "participant");
+      const activeRole = data?.role || session.user.user_metadata?.role || "participant";
+      setRole(activeRole);
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  async function handleRoleChange(newRole) {
+    setRole(newRole);
+    if (!user) return;
+
+    try {
+      // Sync to profiles table
+      await supabase.from("profiles").upsert({
+        id: user.id,
+        email: user.email,
+        role: newRole,
+        updated_at: new Date().toISOString(),
+      });
+
+      // Sync to auth user_metadata
+      await supabase.auth.updateUser({
+        data: { role: newRole },
+      });
+    } catch (err) {
+      console.error("Gagal memperbarui role pengembang:", err);
+    }
+  }
 
   function handleLogout() {
     setDropdownOpen(false);
@@ -95,7 +119,7 @@ export default function Navbar() {
         return "Penguji OSCE";
 
       default:
-        return "Peserta Simulasi";
+        return "Peserta OSCE";
     }
   }
 
@@ -207,15 +231,52 @@ export default function Navbar() {
                         transition={{ duration: 0.15 }}
                         className="absolute right-0 mt-3 w-64 overflow-hidden rounded-2xl border border-blue-100 bg-white p-2.5 shadow-2xl backdrop-blur-xl z-50 space-y-1.5"
                       >
-                        <div className="px-3 py-2 border border-slate-100 bg-slate-50/80 rounded-xl">
-                          <p className="text-[10px] uppercase font-bold text-slate-400">Masuk Sebagai:</p>
-                          <p className="text-xs font-extrabold text-slate-900 truncate">
-                            {user.email}
-                          </p>
-                          <p className="text-[11px] font-bold text-blue-600 mt-0.5 flex items-center gap-1">
-                            <ShieldCheck className="h-3.5 w-3.5" />
-                            Role: {getRoleLabel()}
-                          </p>
+                        <div className="px-3 py-2 border border-slate-100 bg-slate-50/80 rounded-xl space-y-2">
+                          <div>
+                            <p className="text-[10px] uppercase font-bold text-slate-400">Masuk Sebagai:</p>
+                            <p className="text-xs font-extrabold text-slate-900 truncate">
+                              {user.email}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Ganti Role Active:</p>
+                            <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-200/60 p-1 text-[10px] font-bold">
+                              <button
+                                type="button"
+                                onClick={() => handleRoleChange("participant")}
+                                className={`rounded-lg py-1 transition ${
+                                  role === "participant"
+                                    ? "bg-white text-blue-700 shadow-2xs font-extrabold"
+                                    : "text-slate-600 hover:text-slate-900"
+                                }`}
+                              >
+                                Peserta
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRoleChange("examiner")}
+                                className={`rounded-lg py-1 transition ${
+                                  role === "examiner" || role === "mentor"
+                                    ? "bg-white text-blue-700 shadow-2xs font-extrabold"
+                                    : "text-slate-600 hover:text-slate-900"
+                                }`}
+                              >
+                                Penguji
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRoleChange("admin")}
+                                className={`rounded-lg py-1 transition ${
+                                  role === "admin"
+                                    ? "bg-white text-blue-700 shadow-2xs font-extrabold"
+                                    : "text-slate-600 hover:text-slate-900"
+                                }`}
+                              >
+                                Admin
+                              </button>
+                            </div>
+                          </div>
                         </div>
 
                         {/* Always Displayed Prominent Dashboard Link Button */}

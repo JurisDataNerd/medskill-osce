@@ -1,5 +1,6 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthProvider";
+import { parseUserRole } from "@/services/role.service";
 
 export default function ProtectedRoute({
   children,
@@ -14,8 +15,8 @@ export default function ProtectedRoute({
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        Loading...
+      <div className="flex h-screen items-center justify-center font-bold text-slate-600">
+        Memuat Akses Halaman...
       </div>
     );
   }
@@ -29,25 +30,25 @@ export default function ProtectedRoute({
     return children;
   }
 
-  // Admin dari metadata Supabase
-  if (
-    user?.user_metadata?.role === "admin" &&
-    allow.includes("admin")
-  ) {
+  // Parse active role from raw_user_meta_data JSON array / profile
+  const userRole =
+    parseUserRole(user?.user_metadata?.role || user?.user_metadata?.roles) ||
+    parseUserRole(profile?.role) ||
+    "participant";
+
+  // Check matching role permission
+  if (allow.includes(userRole)) {
     return children;
   }
 
-  // Mentor / Examiner
-  if (
-    profile?.mentor_id &&
-    allow.includes("examiner")
-  ) {
+  // Fallback checks for mentor / examiner
+  if (profile?.mentor_id && allow.includes("examiner")) {
     return children;
   }
 
-  // Semua user login dianggap participant
+  // Fallback check for participant / user
   if (
-    !profile?.mentor_id &&
+    (userRole === "participant" || userRole === "user") &&
     allow.includes("participant")
   ) {
     return children;

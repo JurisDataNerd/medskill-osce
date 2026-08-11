@@ -24,7 +24,7 @@ import {
 
 import AdminLayout from "@/layouts/AdminLayout";
 import SessionModal from "@/features/admin/components/SessionModal";
-import { fetchSessions, deleteSession } from "@/services/sessionService";
+import { fetchSessions, deleteSession, updateSessionStatus } from "@/services/sessionService";
 
 export default function SessionsPage() {
   const navigate = useNavigate();
@@ -130,9 +130,9 @@ export default function SessionsPage() {
     setSessions((prev) => prev.filter((s) => s.id !== id));
   }
 
-  function handleStatusChange(id, newStatus) {
-    if (newStatus === "running") {
-      const active = sessions.find((s) => s.status === "running" && s.id !== id);
+  async function handleStatusChange(id, newStatus) {
+    if (newStatus === "running" || newStatus === "ongoing") {
+      const active = sessions.find((s) => (s.status === "running" || s.status === "ongoing") && s.id !== id);
       if (active) {
         alert(
           `PERINGATAN: Sesi OSCE tidak dapat dijalankan secara paralel!\n\nSesi "${active.title}" saat ini sedang berlangsung. Harap selesaikan sesi tersebut terlebih dahulu.`
@@ -141,19 +141,25 @@ export default function SessionsPage() {
       }
     }
 
+    try {
+      await updateSessionStatus(id, newStatus);
+    } catch (err) {
+      console.warn("Could not update status to Supabase:", err);
+    }
+
     setSessions((prev) =>
       prev.map((s) =>
         s.id === id
           ? {
               ...s,
               status: newStatus,
-              current_round: newStatus === "running" ? Math.max(1, s.current_round || 1) : s.current_round,
+              current_round: (newStatus === "running" || newStatus === "ongoing") ? Math.max(1, s.current_round || 1) : s.current_round,
             }
           : s
       )
     );
 
-    if (newStatus === "running") {
+    if (newStatus === "running" || newStatus === "ongoing") {
       navigate("/admin/live");
     }
   }
@@ -439,9 +445,9 @@ export default function SessionsPage() {
                         }`}
                       >
                         <option value="draft">Draft</option>
+                        <option value="published">Dipublikasikan</option>
                         <option value="running">Berlangsung (Live)</option>
                         <option value="completed">Selesai</option>
-                        <option value="published">Dipublikasikan</option>
                         <option value="cancelled">Dibatalkan</option>
                       </select>
                     </td>

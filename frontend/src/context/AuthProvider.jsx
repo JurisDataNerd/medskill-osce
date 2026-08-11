@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/supabase/client";
 import { getProfile } from "@/services/profile.service";
+import { parseUserRole } from "@/services/role.service";
 import { updatePresence } from "@/services/presence.service";
 import { logout as logoutService } from "@/services/auth.service";
 import LogoutConfirmModal from "@/components/LogoutConfirmModal";
@@ -30,13 +31,42 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      const profile = await getProfile(session.user.id);
+      let userProfile = await getProfile(session.user.id);
 
-      setProfile(profile);
+      // Auto-create profile in Supabase DB for OAuth / Google users if missing
+      if (!userProfile && session?.user) {
+        const u = session.user;
+        const metaRole = parseUserRole(u.user_metadata?.role || u.user_metadata?.roles) || "participant";
+
+        const { data: newProfile, error: upsertErr } = await supabase
+          .from("profiles")
+          .upsert({
+            id: u.id,
+            email: u.email,
+            full_name:
+              u.user_metadata?.full_name ||
+              u.user_metadata?.name ||
+              u.email?.split("@")[0] ||
+              "Peserta OSCE",
+            avatar_url: u.user_metadata?.avatar_url || u.user_metadata?.picture || null,
+            role: metaRole,
+            is_online: true,
+            last_seen: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .select()
+          .maybeSingle();
+
+        if (!upsertErr && newProfile) {
+          userProfile = newProfile;
+        }
+      }
+
+      setProfile(userProfile);
 
       await updatePresence("online");
     } catch (err) {
-      console.error(err);
+      console.error("Error loading profile:", err);
     }
 
     setLoading(false);

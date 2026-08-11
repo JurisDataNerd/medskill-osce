@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   User,
   Stethoscope,
@@ -13,17 +13,29 @@ import {
 import { login, signUp, signIn } from "@/services/auth.service";
 import { getCurrentRole } from "@/services/role.service";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthProvider";
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { session, user } = useAuth();
 
   const [mode, setMode] = useState("login"); // 'login' or 'register'
-  const [role, setRole] = useState("participant"); // 'participant', 'examiner', 'admin'
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Auto redirect active session users (including Google OAuth return)
+  useEffect(() => {
+    async function autoRedirect() {
+      if (session && user) {
+        const detectedRole = await getCurrentRole(user);
+        redirectByRole(detectedRole);
+      }
+    }
+    autoRedirect();
+  }, [session, user]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -31,8 +43,8 @@ export default function LoginPage() {
 
     try {
       if (mode === "register") {
-        // Direct Registration to Supabase database
-        const { data, error } = await signUp(email, password, role, fullName);
+        // Direct Registration to Supabase database (auto assigns role: ["user"])
+        const { data, error } = await signUp(email, password, fullName);
 
         if (error) {
           alert("Gagal Registrasi Supabase: " + error.message);
@@ -41,7 +53,7 @@ export default function LoginPage() {
         }
 
         alert(
-          `Akun ${fullName || email} berhasil terdaftar di Supabase sebagai ${role.toUpperCase()}!`
+          `Akun ${fullName || email} berhasil terdaftar sebagai Peserta (User)!`
         );
         // Switch to login tab
         setMode("login");
@@ -49,8 +61,8 @@ export default function LoginPage() {
         return;
       }
 
-      // Direct Login to Supabase database
-      const { data, error } = await login(email, password, role);
+      // Direct Login to Supabase database (auto detects role from raw_user_meta_data JSON)
+      const { data, error } = await login(email, password);
 
       if (error) {
         alert("Gagal Login: " + error.message);
@@ -58,10 +70,10 @@ export default function LoginPage() {
         return;
       }
 
-      // Get confirmed role from Supabase DB profiles table
-      const osceRole = (await getCurrentRole()) || role;
+      // Get auto-detected role from raw_user_meta_data or DB profile
+      const detectedRole = await getCurrentRole(data?.user);
 
-      redirectByRole(osceRole);
+      redirectByRole(detectedRole);
     } catch (err) {
       console.error(err);
       alert("Terjadi kesalahan saat terhubung ke Supabase.");
@@ -76,11 +88,11 @@ export default function LoginPage() {
         navigate("/admin");
         break;
       case "examiner":
+      case "mentor":
         navigate("/examiner");
         break;
       case "participant":
-        navigate("/participant");
-        break;
+      case "user":
       default:
         navigate("/participant");
     }
@@ -126,53 +138,6 @@ export default function LoginPage() {
           >
             Daftar Akun Baru (Register)
           </button>
-        </div>
-
-        {/* Role Selector Tabs */}
-        <div>
-          <label className="mb-1.5 block text-xs font-bold text-slate-700">
-            Pilih Role Akun Supabase:
-          </label>
-          <div className="grid grid-cols-3 gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-200">
-            <button
-              type="button"
-              onClick={() => setRole("participant")}
-              className={`flex flex-col items-center justify-center rounded-xl p-2.5 text-xs font-bold transition ${
-                role === "participant"
-                  ? "bg-white text-blue-700 shadow-sm border border-slate-200"
-                  : "text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              <User size={16} className="mb-1" />
-              <span>Peserta</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setRole("examiner")}
-              className={`flex flex-col items-center justify-center rounded-xl p-2.5 text-xs font-bold transition ${
-                role === "examiner"
-                  ? "bg-white text-blue-700 shadow-sm border border-slate-200"
-                  : "text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              <Stethoscope size={16} className="mb-1" />
-              <span>Penguji</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setRole("admin")}
-              className={`flex flex-col items-center justify-center rounded-xl p-2.5 text-xs font-bold transition ${
-                role === "admin"
-                  ? "bg-white text-blue-700 shadow-sm border border-slate-200"
-                  : "text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              <Shield size={16} className="mb-1" />
-              <span>Admin</span>
-            </button>
-          </div>
         </div>
 
         {/* Form Login / Register Direct to Supabase */}
@@ -239,41 +204,39 @@ export default function LoginPage() {
             {mode === "register" ? (
               <>
                 <UserPlus size={16} />
-                {loading ? "Mendaftarkan ke Supabase..." : `Daftar Akun ${role.toUpperCase()} Baru`}
+                {loading ? "Mendaftarkan ke Supabase..." : `Daftar Akun Baru (User)`}
               </>
             ) : (
               <>
                 <LogIn size={16} />
-                {loading ? "Menghubungkan Supabase..." : `Login sebagai ${role.toUpperCase()}`}
+                {loading ? "Menghubungkan Supabase..." : "Masuk ke Sistem"}
               </>
             )}
           </button>
         </form>
 
-        {/* Google OAuth Option for Participants */}
-        {role === "participant" && (
-          <div className="space-y-3 pt-1">
-            <div className="relative flex items-center justify-center">
-              <div className="w-full border-t border-slate-200" />
-              <span className="absolute bg-white px-3 text-[11px] font-semibold text-slate-400">
-                atau
-              </span>
-            </div>
-
-            <button
-              type="button"
-              onClick={signIn}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition active:scale-95"
-            >
-              <img
-                src="https://www.svgrepo.com/show/475656/google-color.svg"
-                alt="Google"
-                className="h-4 w-4"
-              />
-              Masuk dengan Google (Supabase Auth)
-            </button>
+        {/* Google OAuth Option */}
+        <div className="space-y-3 pt-1">
+          <div className="relative flex items-center justify-center">
+            <div className="w-full border-t border-slate-200" />
+            <span className="absolute bg-white px-3 text-[11px] font-semibold text-slate-400">
+              atau
+            </span>
           </div>
-        )}
+
+          <button
+            type="button"
+            onClick={signIn}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition active:scale-95"
+          >
+            <img
+              src="https://www.svgrepo.com/show/475656/google-color.svg"
+              alt="Google"
+              className="h-4 w-4"
+            />
+            Masuk dengan Google (Supabase Auth)
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -87,10 +87,10 @@ export async function createSession(sessionPayload, stationsPayload = []) {
     // Save examiner assignments to osce.session_examiners
     const examinersPayload = [];
     stationsPayload.forEach((st, idx) => {
-      if (!st.is_break && (st.assigned_examiner || st.examiner_name)) {
+      if (!st.is_break && st.examiner_user_id && (st.assigned_examiner || st.examiner_name)) {
         examinersPayload.push({
           session_id: newSession.id,
-          user_id: st.examiner_user_id || `00000000-0000-4000-8000-00000000000${(idx % 9) + 1}`,
+          user_id: st.examiner_user_id,
           full_name: st.assigned_examiner || st.examiner_name,
           specialty: st.examiner_specialty || st.system_organ || "Spesialis Medis",
           assigned_station_number: idx + 1,
@@ -117,6 +117,90 @@ export async function createSession(sessionPayload, stationsPayload = []) {
   }
 
   return newSession;
+}
+
+/**
+ * Update an existing OSCE session with its stations
+ */
+export async function updateSession(sessionId, sessionPayload, stationsPayload = []) {
+  const { data: updatedSession, error: sessionErr } = await supabase
+    .schema("osce")
+    .from("sessions")
+    .update({
+      ...sessionPayload,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", sessionId)
+    .select()
+    .single();
+
+  if (sessionErr) throw sessionErr;
+
+  if (stationsPayload && stationsPayload.length > 0) {
+    // Delete existing stations for this session to update cleanly
+    await supabase
+      .schema("osce")
+      .from("stations")
+      .delete()
+      .eq("session_id", sessionId);
+
+    const formattedStations = stationsPayload.map((st, idx) => ({
+      session_id: sessionId,
+      station_number: idx + 1,
+      is_break: st.is_break || false,
+      title: st.title || `Stase ${idx + 1}`,
+      case_title: st.case_title || null,
+      system_organ: st.system_organ || null,
+      skdi_level: st.skdi_level || null,
+      scenario: st.scenario || null,
+      participant_instructions: st.participant_instructions || null,
+      examiner_instructions: st.examiner_instructions || null,
+      answer_key_diagnosis: st.answer_key_diagnosis || null,
+      answer_key_prescription: st.answer_key_prescription || null,
+      sort_order: idx,
+    }));
+
+    const { data: createdStations, error: stationsErr } = await supabase
+      .schema("osce")
+      .from("stations")
+      .insert(formattedStations)
+      .select();
+
+    if (stationsErr) console.warn("Error updating stations:", stationsErr);
+
+    // Save examiner assignments to osce.session_examiners
+    const examinersPayload = [];
+    stationsPayload.forEach((st, idx) => {
+      if (!st.is_break && st.examiner_user_id && (st.assigned_examiner || st.examiner_name)) {
+        examinersPayload.push({
+          session_id: sessionId,
+          user_id: st.examiner_user_id,
+          full_name: st.assigned_examiner || st.examiner_name,
+          specialty: st.examiner_specialty || st.system_organ || "Spesialis Medis",
+          assigned_station_number: idx + 1,
+          status: "active",
+        });
+      }
+    });
+
+    if (examinersPayload.length > 0) {
+      const { error: examinersErr } = await supabase
+        .schema("osce")
+        .from("session_examiners")
+        .upsert(examinersPayload, { onConflict: "session_id,user_id" });
+
+      if (examinersErr) {
+        console.warn("Error updating session examiners:", examinersErr);
+      }
+    }
+
+    return {
+      ...updatedSession,
+      stations: createdStations,
+    };
+  }
+
+  return updatedSession;
 }
 
 /**
@@ -210,6 +294,22 @@ export async function upsertSessionExaminer(examinerPayload) {
     .upsert([examinerPayload], { onConflict: "session_id,user_id" })
     .select()
     .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Delete session examiner assignment for a station
+ */
+export async function deleteSessionExaminer(sessionId, stationNumber) {
+  const { data, error } = await supabase
+    .schema("osce")
+    .from("session_examiners")
+    .delete()
+    .eq("session_id", sessionId)
+    .eq("assigned_station_number", stationNumber)
+    .select();
 
   if (error) throw error;
   return data;

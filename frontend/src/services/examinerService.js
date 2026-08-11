@@ -232,52 +232,60 @@ export async function fetchExaminerHistory(examinerUserId) {
  */
 export async function fetchDoctorExaminers() {
   try {
-    const { data: examiners, error } = await supabase
-      .from("profiles")
-      .select("id, full_name, specialty, nip, role")
-      .eq("role", "examiner");
+    const list = [];
+    const seenNames = new Set();
 
-    if (error || !examiners || examiners.length === 0) {
-      // Fallback query to osce.session_examiners
-      const { data: sessionExaminers } = await supabase
-        .schema("osce")
-        .from("session_examiners")
-        .select("user_id, examiner_name, specialty, nip");
+    // 1. Primary Source: Fetch from mentors table via publicSupabase (contains full doctor profiles & img_url)
+    try {
+      const { data: mentors } = await publicSupabase
+        .from("mentors")
+        .select("id, name, university, email, img_url, is_active")
+        .order("name");
 
-      if (sessionExaminers && sessionExaminers.length > 0) {
-        // Unique by user_id or examiner_name
-        const unique = [];
-        const seen = new Set();
-        sessionExaminers.forEach((e) => {
-          const key = e.user_id || e.examiner_name;
-          if (!seen.has(key)) {
-            seen.add(key);
-            unique.push({
-              id: e.user_id || `doc-${unique.length + 1}`,
-              name: e.examiner_name || "dr. Alexander Budiman, Sp.JP",
-              specialty: e.specialty || "Sp.JP (Kardiovaskular)",
-              nip: e.nip || "197805122005011002",
+      if (mentors && mentors.length > 0) {
+        mentors.forEach((m) => {
+          const name = m.name;
+          if (name && !seenNames.has(name.toLowerCase())) {
+            seenNames.add(name.toLowerCase());
+            list.push({
+              id: m.id,
+              name: name,
+              specialty: m.university || "Spesialis Medis FK",
+              nip: "-",
+              email: m.email || "",
+              img_url: m.img_url || null,
             });
           }
         });
-        return unique;
       }
+    } catch (e) {}
 
-      // Default real examiner profile if empty in database
-      return [
-        { id: "doc-1", name: "dr. Alexander Budiman, Sp.JP", specialty: "Sp.JP (Kardiovaskular)", nip: "197805122005011002" },
-        { id: "doc-2", name: "dr. Faisal Hasibuan, Sp.P", specialty: "Sp.P (Respirasi/Pulmonologi)", nip: "198203142008021004" },
-        { id: "doc-3", name: "dr. Doni Prasetyo, Sp.N", specialty: "Sp.N (Neurologi)", nip: "198011202006041001" },
-        { id: "doc-4", name: "dr. Citra Dewi, Sp.B", specialty: "Sp.B (Bedah Umum/Digestif)", nip: "198509182010122003" },
-      ];
-    }
+    // 2. Secondary Source: Fetch from public profiles where role = 'examiner'
+    try {
+      const { data: profiles } = await publicSupabase
+        .from("profiles")
+        .select("*")
+        .eq("role", "examiner");
 
-    return examiners.map((e) => ({
-      id: e.id,
-      name: e.full_name || "Dokter Penguji",
-      specialty: e.specialty || "Spesialis Medis",
-      nip: e.nip || "-",
-    }));
+      if (profiles && profiles.length > 0) {
+        profiles.forEach((p) => {
+          const name = p.full_name || p.name || p.email;
+          if (name && !seenNames.has(name.toLowerCase())) {
+            seenNames.add(name.toLowerCase());
+            list.push({
+              id: p.id,
+              name: name,
+              specialty: p.specialty || p.university || "Dokter Penguji OSCE",
+              nip: p.nip || "-",
+              email: p.email || "",
+              img_url: p.img_url || p.avatar_url || null,
+            });
+          }
+        });
+      }
+    } catch (e) {}
+
+    return list;
   } catch (err) {
     console.error("Error fetching doctor examiners from Supabase:", err);
     return [];

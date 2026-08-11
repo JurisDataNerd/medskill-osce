@@ -2,6 +2,7 @@ import { createBrowserRouter, Outlet } from "react-router-dom";
 
 import LandingPage from "@/pages/LandingPage";
 import LoginPage from "@/pages/LoginPage";
+import AuthCallbackPage from "@/pages/AuthCallbackPage";
 import UnauthorizedPage from "@/pages/UnauthorizedPage";
 
 import ProtectedRoute from "@/routes/ProtectedRoute";
@@ -73,6 +74,11 @@ export const router = createBrowserRouter([
   {
     path: "/login",
     element: <LoginPage />,
+  },
+
+  {
+    path: "/auth/callback",
+    element: <AuthCallbackPage />,
   },
 
   {

@@ -115,10 +115,7 @@ export default function ParticipantsPage() {
       <div className="space-y-6">
         {/* Header */}
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-1">
-          <span className="rounded-md bg-emerald-100 border border-emerald-200 px-3 py-1 text-xs font-extrabold text-emerald-900">
-            PESERTA UJIAN SUPABASE
-          </span>
-          <h1 className="text-xl font-black text-slate-900 pt-1">
+          <h1 className="text-xl font-black text-slate-900">
             Data Peserta & Registrasi Mahasiswa
           </h1>
           <p className="text-xs text-slate-500">
@@ -137,7 +134,7 @@ export default function ParticipantsPage() {
 
           {participants.length === 0 ? (
             <div className="p-8 text-center text-xs text-slate-500">
-              Belum ada peserta yang terdaftar di database Supabase schema `osce`.
+              Belum ada peserta yang terdaftar di database Supabase.
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -155,10 +152,10 @@ export default function ParticipantsPage() {
                   {participants.map((p) => (
                     <tr key={p.id} className="hover:bg-slate-50/80 transition">
                       <td className="py-3 px-3 font-bold text-slate-900">
-                        {p.profiles?.full_name}
+                        {p.full_name || p.profiles?.full_name || "Peserta Ujian"}
                       </td>
                       <td className="py-3 px-3 font-mono text-slate-500">
-                        {p.profiles?.email}
+                        {p.email || p.profiles?.email || p.nim || "-"}
                       </td>
                       <td className="py-3 px-3 text-center font-bold text-blue-700">
                         Pos #{p.station_number || 1}

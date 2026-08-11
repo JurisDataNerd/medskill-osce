@@ -62,49 +62,28 @@ export default function StationMonitorDetailPage() {
             system_organ: st.system_organ || "Kardiovaskular",
             skdi_level: st.skdi_level || "4A (Tuntas Mandiri)",
             examiner: {
-              name: examiner ? examiner.profiles?.full_name : "dr. Alexander Budiman, Sp.JP",
-              title: examiner ? examiner.profiles?.specialty || "Spesialis Medis" : "Spesialis Jantung & Pembuluh Darah",
+              name: examiner ? (examiner.profiles?.full_name || examiner.full_name) : "Belum ditugaskan",
+              title: examiner ? (examiner.profiles?.specialty || examiner.specialty || "Spesialis Medis") : "-",
             },
-            participants: (participants.length > 0 ? participants : [
-              { id: "p1", profiles: { full_name: "Ahmad Rizky Pratama", email: "20200710042@student.ac.id" } },
-              { id: "p2", profiles: { full_name: "Fira Anindya", email: "20200710058@student.ac.id" } },
-              { id: "p3", profiles: { full_name: "Eko Wijaya", email: "20200710012@student.ac.id" } },
-              { id: "p4", profiles: { full_name: "Dewi Sartika", email: "20200710099@student.ac.id" } },
-            ]).map((p, idx) => ({
+            participants: participants.map((p, idx) => ({
               id: p.id || `p-${idx}`,
-              nim: p.profiles?.email?.split("@")[0] || `202201100${idx + 1}`,
-              name: p.profiles?.full_name || `Peserta Ujian ${idx + 1}`,
+              nim: p.nim || p.profiles?.email?.split("@")[0] || "-",
+              name: p.full_name || p.profiles?.full_name || "Peserta Ujian",
               round: idx + 1,
-              status: idx === 0 ? "completed" : idx === 1 ? "in_progress" : "upcoming",
-              score: idx === 0 ? 95.0 : idx === 1 ? 82.5 : null,
-              grs: idx === 0 ? "Superior (Lulus)" : idx === 1 ? "Lulus" : "-",
-              step: idx === 0 ? "Selesai" : idx === 1 ? "Halaman 3: Pemeriksaan Penunjang" : "Menunggu Rotasi",
-              duration: idx === 0 ? "10m 12s" : idx === 1 ? "06m 45s" : "-",
-              rubric_scores: (st.rubric_items && st.rubric_items.length > 0
-                ? st.rubric_items
-                : [
-                    { question: "Menyapa pasien & sambung rasa", max_points: 1 },
-                    { question: "Anamnesis terarah nyeri dada (PQRST)", max_points: 3 },
-                    { question: "Pemeriksaan fisik auskultasi katup jantung", max_points: 3 },
-                    { question: "Interpretasi EKG 12 Lead & STEMI Anteroseptal", max_points: 3 },
-                  ]
-              ).map((r) => ({
+              status: p.status || "upcoming",
+              score: null,
+              grs: "-",
+              step: "Rotasi Ujian",
+              duration: "-",
+              examiner_feedback: null,
+              rubric_scores: (st.rubric_items || []).map((r) => ({
                 item: r.question,
-                score: idx === 0 ? r.max_points : idx === 1 ? Math.max(1, r.max_points - 1) : 0,
+                score: 0,
                 max_score: r.max_points || 3,
               })),
-              examiner_feedback:
-                idx === 0
-                  ? "Teknik auskultasi jantung 4 katup sangat sistematis. Komunikasi dengan pasien tenang."
-                  : idx === 1
-                  ? "Progres berjalan lancar. Peserta sedang meminta berkas penunjang EKG."
-                  : null,
-              auxiliary_requested: (st.station_auxiliary_configs && st.station_auxiliary_configs.length > 0
-                ? st.station_auxiliary_configs
-                : [{ name: "EKG 12 Lead" }]
-              ).map((a) => ({
+              auxiliary_requested: (st.station_auxiliary_configs || []).map((a) => ({
                 name: a.name,
-                time: "03:15",
+                time: "-",
                 status: "Diterima",
               })),
             })),

@@ -1,6 +1,7 @@
 import { supabase } from "@/supabase/client";
+import { parseUserRole } from "@/services/role.service";
 
-export async function login(email, password, selectedRole = "participant") {
+export async function login(email, password) {
   const result = await supabase.auth.signInWithPassword({
     email,
     password,
@@ -16,8 +17,11 @@ export async function login(email, password, selectedRole = "participant") {
       .eq("id", user.id)
       .maybeSingle();
 
-    // If role in Supabase profiles is missing, write selectedRole directly to Supabase DB
-    const effectiveRole = profile?.role || user.user_metadata?.role || selectedRole;
+    // Auto-detect role from raw_user_meta_data JSON or profile table
+    const effectiveRole =
+      parseUserRole(user.user_metadata?.role || user.user_metadata?.roles) ||
+      parseUserRole(profile?.role) ||
+      "participant";
 
     await supabase.from("profiles").upsert({
       id: user.id,
@@ -37,13 +41,13 @@ export async function login(email, password, selectedRole = "participant") {
   return result;
 }
 
-export async function signUp(email, password, role = "participant", fullName = "") {
+export async function signUp(email, password, fullName = "") {
   const result = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: {
-        role,
+        role: ["user"],
         full_name: fullName || email.split("@")[0],
       },
     },
@@ -56,7 +60,7 @@ export async function signUp(email, password, role = "participant", fullName = "
       id: user.id,
       email: user.email,
       full_name: fullName || email.split("@")[0],
-      role: role,
+      role: "participant",
       is_online: true,
       last_seen: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -67,10 +71,12 @@ export async function signUp(email, password, role = "participant", fullName = "
 }
 
 export async function signIn() {
+  const baseUrl = import.meta.env.VITE_SITE_URL || window.location.origin;
+  const redirectUrl = `${baseUrl}/auth/callback`;
   return supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: window.location.origin,
+      redirectTo: redirectUrl,
     },
   });
 }

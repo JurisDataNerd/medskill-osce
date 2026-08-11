@@ -34,9 +34,10 @@ export default function HeroSection() {
           .from("profiles")
           .select("role")
           .eq("id", session.user.id)
-          .single();
+          .maybeSingle();
 
-        setRole(data?.role ?? "participant");
+        const activeRole = data?.role || session.user.user_metadata?.role || "participant";
+        setRole(activeRole);
       }
     }
     loadUser();

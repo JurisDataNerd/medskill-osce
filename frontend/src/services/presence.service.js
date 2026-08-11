@@ -11,7 +11,7 @@ export async function updatePresence(status = "online") {
     const { data: participant } = await supabase
       .schema("osce")
       .from("session_participants")
-      .select("session_id, assigned_start_station_number")
+      .select("session_id, starting_station_number")
       .eq("user_id", user.id)
       .maybeSingle();
 

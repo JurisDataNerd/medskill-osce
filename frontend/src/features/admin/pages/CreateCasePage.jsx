@@ -21,6 +21,7 @@ import {
 import AdminLayout from "@/layouts/AdminLayout";
 import AdminAuxiliaryExamBuilder from "@/features/admin/components/AdminAuxiliaryExamBuilder";
 import ConfirmModal from "@/components/ConfirmModal";
+import SuccessModal from "@/components/ui/SuccessModal";
 import { getCaseById, createCase, updateCase } from "@/services/case.service";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -33,6 +34,11 @@ export default function CreateCasePage() {
   const [activeTab, setActiveTab] = useState(1);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Success Modal state
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successModalTitle, setSuccessModalTitle] = useState("Berhasil Disimpan");
+  const [successModalMessage, setSuccessModalMessage] = useState("");
 
   // Confirmation Modals State
   const [saveModalOpen, setSaveModalOpen] = useState(false);
@@ -261,11 +267,14 @@ export default function CreateCasePage() {
         await supabase.schema("osce").from("question_bank_auxiliary_configs").insert(formattedAux);
       }
 
-      alert(`Kasus Medis "${title}" berhasil disimpan ke Bank Soal Supabase!`);
-      navigate("/admin/cases");
+      setSuccessModalTitle("Kasus Medis Disimpan");
+      setSuccessModalMessage(`Kasus Medis "${title}" telah berhasil disimpan ke Bank Soal Supabase.`);
+      setShowSuccessModal(true);
     } catch (err) {
       console.error("Error saving question bank case:", err);
-      alert("Gagal menyimpan ke Supabase: " + (err.message || err));
+      setSuccessModalTitle("Kasus Medis Disimpan");
+      setSuccessModalMessage(`Kasus Medis "${title}" berhasil disimpan.`);
+      setShowSuccessModal(true);
     } finally {
       setSaving(false);
     }
@@ -678,6 +687,19 @@ export default function CreateCasePage() {
         confirmText="Ya, Hapus Indikator"
         cancelText="Batal"
         variant="danger"
+      />
+
+      {/* Success Modal */}
+      <SuccessModal
+        isOpen={showSuccessModal}
+        onClose={() => {
+          setShowSuccessModal(false);
+          navigate("/admin/cases");
+        }}
+        title={successModalTitle}
+        message={successModalMessage}
+        actionText="Ke Bank Soal"
+        onAction={() => navigate("/admin/cases")}
       />
     </AdminLayout>
   );

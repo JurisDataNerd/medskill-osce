@@ -29,15 +29,11 @@ import {
 import AdminLayout from "@/layouts/AdminLayout";
 import AdminAuxiliaryExamBuilder from "@/features/admin/components/AdminAuxiliaryExamBuilder";
 import QuestionBankSelectModal from "@/features/admin/components/QuestionBankSelectModal";
-import { createSession, fetchSessionById } from "@/services/sessionService";
+import SuccessModal from "@/components/ui/SuccessModal";
+import { createSession, updateSession, fetchSessionById } from "@/services/sessionService";
 import { fetchDoctorExaminers } from "@/services/examinerService";
 
-export const DOCTOR_EXAMINER_LIST = [
-  { id: "doc-1", name: "dr. Alexander Budiman, Sp.JP", specialty: "Sp.JP (Kardiovaskular)", nip: "197805122005011002" },
-  { id: "doc-2", name: "dr. Faisal Hasibuan, Sp.P", specialty: "Sp.P (Respirasi/Pulmonologi)", nip: "198203142008021004" },
-  { id: "doc-3", name: "dr. Doni Prasetyo, Sp.N", specialty: "Sp.N (Neurologi)", nip: "198011202006041001" },
-  { id: "doc-4", name: "dr. Citra Dewi, Sp.B", specialty: "Sp.B (Bedah Umum/Digestif)", nip: "198509182010122003" },
-];
+export const DOCTOR_EXAMINER_LIST = [];
 
 export default function CreateSessionPage() {
   const { id } = useParams();
@@ -54,7 +50,7 @@ export default function CreateSessionPage() {
   const [isQuestionBankOpen, setIsQuestionBankOpen] = useState(false);
 
   // Registered Doctor Examiners List from Supabase
-  const [doctorList, setDoctorList] = useState(DOCTOR_EXAMINER_LIST);
+  const [doctorList, setDoctorList] = useState([]);
 
   useEffect(() => {
     async function loadExaminers() {
@@ -98,7 +94,7 @@ export default function CreateSessionPage() {
           ...stg,
           station_number: slotNum,
           break_number: breakCounter,
-          title: `Stase Istirahat ${breakCounter}`,
+          title: "Stase Istirahat",
           case_title: `Rotasi Istirahat ${breakCounter}`,
         };
       } else {
@@ -107,7 +103,7 @@ export default function CreateSessionPage() {
           ...stg,
           station_number: slotNum,
           exam_number: examCounter,
-          title: `Stase ${examCounter}`,
+          title: `Stase Ujian ${examCounter}`,
           case_title:
             stg.case_title && !stg.case_title.startsWith("Rotasi Istirahat")
               ? stg.case_title
@@ -347,6 +343,11 @@ export default function CreateSessionPage() {
   const [autoLockAnswerRule, setAutoLockAnswerRule] = useState(true);
   const [autoPublishResults, setAutoPublishResults] = useState(false);
 
+  // Success Modal state
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successModalTitle, setSuccessModalTitle] = useState("Berhasil Disimpan");
+  const [successModalMessage, setSuccessModalMessage] = useState("");
+
   // Prepopulate if EDIT mode
   useEffect(() => {
     async function loadSessionForEdit() {
@@ -367,6 +368,27 @@ export default function CreateSessionPage() {
             setTotalStations(foundSession.total_stations || 6);
             setStationDurationMinutes(foundSession.station_duration_minutes || 12);
             setTransitionDurationMinutes(foundSession.break_duration_minutes || 2);
+
+            if (foundSession.stations && foundSession.stations.length > 0) {
+              const loadedStations = foundSession.stations.map((st, idx) => ({
+                id: st.id,
+                station_number: st.station_number || idx + 1,
+                is_break: st.is_break,
+                title: st.title || (st.is_break ? `Stase Istirahat ${idx + 1}` : `Stase ${idx + 1}`),
+                case_title: st.case_title || (st.is_break ? `Rotasi Istirahat ${idx + 1}` : `Stase ${idx + 1}`),
+                system_organ: st.system_organ || null,
+                skdi_level: st.skdi_level || null,
+                scenario: st.scenario || "",
+                participant_instructions: st.participant_instructions || "",
+                examiner_instructions: st.examiner_instructions || "",
+                answer_key_diagnosis: st.answer_key_diagnosis || "",
+                answer_key_prescription: st.answer_key_prescription || "",
+                assigned_examiner: st.assigned_examiner || null,
+                checklist_items: st.rubric_items || [],
+                auxiliary_exam_configs: st.station_auxiliary_configs || [],
+              }));
+              setStationsConfig(loadedStations);
+            }
           }
         } catch (err) {
           console.error("Error loading session for edit:", err);
@@ -594,17 +616,24 @@ export default function CreateSessionPage() {
     };
 
     try {
-      await createSession(sessionPayload, stationsConfig);
-      alert(
-        isDraftOnly
-          ? `Draft Sesi berhasil disimpan ke database Supabase!`
-          : `Sesi OSCE "${title}" berhasil diterbitkan di database Supabase!`
-      );
+      if (isEdit && id) {
+        await updateSession(id, sessionPayload, stationsConfig);
+        alert(`Sesi OSCE "${title}" berhasil diperbarui di database Supabase!`);
+      } else {
+        await createSession(sessionPayload, stationsConfig);
+        alert(
+          isDraftOnly
+            ? `Draft Sesi berhasil disimpan ke database Supabase!`
+            : `Sesi OSCE "${title}" berhasil diterbitkan di database Supabase!`
+        );
+      }
       navigate("/admin/sessions");
     } catch (err) {
       console.warn("Could not save to Supabase database, saved locally:", err);
       alert(
-        isDraftOnly
+        isEdit
+          ? `Perubahan Sesi OSCE "${title}" disimpan!`
+          : isDraftOnly
           ? `Draft Sesi disimpan!`
           : `Sesi OSCE "${title}" berhasil diterbitkan!`
       );
@@ -1099,30 +1128,23 @@ export default function CreateSessionPage() {
                         </div>
 
                         <div>
-                          {/* Automatic Station Title Badge */}
+                          {/* Station Title Badge */}
                           <div className="flex items-center gap-1.5">
                             <span
-                              className={`w-full rounded-lg border p-2 text-xs font-bold text-center ${
+                              className={`w-full rounded-lg border p-2.5 text-xs font-bold text-center ${
                                 isBreak
                                   ? "border-amber-300 bg-amber-100 text-amber-950"
                                   : "border-slate-200 bg-slate-50 text-slate-900"
                               }`}
                             >
                               {isBreak ? (
-                                <span className="flex items-center justify-center gap-1">
-                                  <Coffee size={13} className="text-amber-700" />
-                                  {stg.title}
+                                <span className="flex items-center justify-center gap-1.5">
+                                  <Coffee size={14} className="text-amber-700" />
+                                  Stase Istirahat
                                 </span>
                               ) : (
-                                stg.title
+                                `Stase Ujian ${stg.exam_number || (idx + 1)}`
                               )}
-                            </span>
-                          </div>
-
-                          <div className="mt-2 text-[11px]">
-                            <span className="text-slate-500 font-medium">Tipe Slot:</span>{" "}
-                            <span className={`font-bold ${isBreak ? "text-amber-800" : "text-blue-700"}`}>
-                              {isBreak ? "Stase Istirahat (Break)" : "Stase Ujian Medis"}
                             </span>
                           </div>
                         </div>
@@ -1739,6 +1761,19 @@ export default function CreateSessionPage() {
         isOpen={isQuestionBankOpen}
         onClose={() => setIsQuestionBankOpen(false)}
         onSelectCase={handleApplyQuestionBankCase}
+      />
+
+      {/* Success Modal */}
+      <SuccessModal
+        isOpen={showSuccessModal}
+        onClose={() => {
+          setShowSuccessModal(false);
+          navigate("/admin/sessions");
+        }}
+        title={successModalTitle}
+        message={successModalMessage}
+        actionText="Ke Daftar Sesi"
+        onAction={() => navigate("/admin/sessions")}
       />
     </AdminLayout>
   );

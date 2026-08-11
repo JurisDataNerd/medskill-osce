@@ -339,7 +339,7 @@ export default function SessionDetailPage() {
                       <div>
                         <span className="text-[10px] font-bold text-slate-400 uppercase">Dokter Penguji Stase</span>
                         <p className="font-bold text-slate-900 text-xs mt-0.5">
-                          {stage.examiner_name || "dr. Alexander Budiman, Sp.JP"}
+                          {stage.examiner_name || "Belum ditugaskan"}
                         </p>
                       </div>
                       <span className="rounded-md bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800">

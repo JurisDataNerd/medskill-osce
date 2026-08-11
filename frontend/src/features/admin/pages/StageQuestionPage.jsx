@@ -137,7 +137,7 @@ export default function StageQuestionPage() {
 
   // Rubric Items State
   const [rubricItems, setRubricItems] = useState([]);
-  const [doctorList, setDoctorList] = useState(DOCTOR_EXAMINER_LIST);
+  const [doctorList, setDoctorList] = useState([]);
 
   useEffect(() => {
     async function initExaminers() {
@@ -167,7 +167,7 @@ export default function StageQuestionPage() {
     setCaseTitle(data.case_title || "");
     setSystemOrgan(data.system_organ || "Kardiovaskular");
     setCompetencyLevel(data.competency_level || "4A (Tuntas Mandiri)");
-    setAssignedExaminer(data.assigned_examiner || "dr. Alexander Budiman, Sp.JP");
+    setAssignedExaminer(data.assigned_examiner || "");
     setScenario(data.scenario || "");
     setParticipantInstruction(data.participant_instruction || "");
     setExaminerInstruction(data.examiner_instruction || "");

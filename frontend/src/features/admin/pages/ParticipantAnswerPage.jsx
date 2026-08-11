@@ -12,6 +12,11 @@ import {
   UserCheck,
   AlertCircle,
   Loader2,
+  MessageSquare,
+  Stethoscope,
+  Pencil,
+  Activity,
+  FileCode,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -27,200 +32,172 @@ export default function ParticipantAnswerPage() {
     async function loadScorecard() {
       try {
         setLoading(true);
-        // Query osce.session_participants
-        const { data: p } = await supabase
+
+        // 1. Query osce.session_participants
+        const { data: p, error: pErr } = await supabase
           .schema("osce")
           .from("session_participants")
           .select("*")
-          .eq("id", participantId)
+          .or(`id.eq.${participantId},user_id.eq.${participantId}`)
           .maybeSingle();
 
-        let sessionTitle = "Ujian OSCE Sirkuit Terpadu";
-        let full_name = p?.full_name || p?.email || "Peserta Ujian";
-        let nim = p?.nim || (p?.email ? p.email.split("@")[0] : "-");
+        if (pErr) console.warn("Could not fetch participant profile:", pErr);
 
-        if (p) {
-          const { data: sess } = await supabase
-            .schema("osce")
-            .from("sessions")
-            .select("title")
-            .eq("id", p.session_id)
-            .maybeSingle();
-          if (sess) sessionTitle = sess.title;
+        const fullName = p?.full_name || p?.email || "Peserta Ujian";
+        const nim = p?.nim || (p?.email ? p.email.split("@")[0] : "-");
+        const sessionId = p?.session_id;
+
+        if (!sessionId) {
+          setScorecard(null);
+          return;
+        }
+
+        // 2. Query session title & info
+        const { data: session } = await supabase
+          .schema("osce")
+          .from("sessions")
+          .select("*")
+          .eq("id", sessionId)
+          .maybeSingle();
+
+        // 3. Query stations & rubric_items for session
+        const { data: stations } = await supabase
+          .schema("osce")
+          .from("stations")
+          .select(`
+            *,
+            rubric_items (*)
+          `)
+          .eq("session_id", sessionId)
+          .order("sort_order", { ascending: true });
+
+        // 4. Query session_examiners assigned
+        const { data: examiners } = await supabase
+          .schema("osce")
+          .from("session_examiners")
+          .select("*")
+          .eq("session_id", sessionId);
+
+        // 5. Query participant_answers for participant_id
+        const targetUserId = p?.user_id || participantId;
+        const { data: answers } = await supabase
+          .schema("osce")
+          .from("participant_answers")
+          .select("*")
+          .eq("session_id", sessionId)
+          .eq("participant_id", targetUserId);
+
+        // 6. Query examiner_evaluations & rubric_scores
+        const { data: evaluations } = await supabase
+          .schema("osce")
+          .from("examiner_evaluations")
+          .select(`
+            *,
+            rubric_scores (*)
+          `)
+          .eq("session_id", sessionId)
+          .eq("participant_id", targetUserId);
+
+        // 7. Format station_results
+        let totalScoreEarned = 0;
+        let totalScorePossible = 0;
+        let evaluatedCount = 0;
+        const grsList = [];
+
+        const formattedStations = (stations || [])
+          .filter((st) => !st.is_break) // exclude break slots
+          .map((st, idx) => {
+            const stNum = st.station_number || idx + 1;
+            const exDoc = (examiners || []).find(
+              (e) => Number(e.assigned_station_number) === Number(stNum)
+            );
+            const ans = (answers || []).find((a) => a.station_id === st.id);
+            const evalRow = (evaluations || []).find((e) => e.station_id === st.id);
+
+            if (evalRow) {
+              evaluatedCount++;
+              totalScoreEarned += Number(evalRow.total_points_earned || 0);
+              totalScorePossible += Number(evalRow.max_points_possible || 0);
+              if (evalRow.grs_rating) grsList.push(evalRow.grs_rating);
+            }
+
+            const rubrics = st.rubric_items || [];
+            const checklistItems = rubrics.map((r) => {
+              const scoreRow = (evalRow?.rubric_scores || []).find(
+                (rs) => rs.rubric_item_id === r.id
+              );
+              return {
+                item: r.question || "Item Rubrik Penilaian",
+                answer_key: r.answer_key || "-",
+                max_points: r.max_points || 3,
+                earned_points: scoreRow ? Number(scoreRow.score_given) : 0,
+                notes: scoreRow?.feedback || "",
+              };
+            });
+
+            return {
+              station_id: st.id,
+              station_number: stNum,
+              title: st.case_title || st.title || `Stase Ujian Klinik ${stNum}`,
+              system_organ: st.system_organ || null,
+              examiner_name: exDoc?.full_name || "Dokter Penguji",
+              examiner_specialty: exDoc?.specialty || "Spesialis Medis",
+              score: evalRow ? Math.round(Number(evalRow.final_score_percentage || 0)) : 0,
+              max_score: 100,
+              grs_rating: evalRow?.grs_rating || (evalRow ? "SATISFACTORY" : "BELUM DINILAI"),
+              examiner_feedback:
+                evalRow?.examiner_notes || (evalRow ? "Penilaian telah dikirim." : "Belum dievaluasi oleh penguji."),
+              checklist_items: checklistItems,
+              participant_answer: ans
+                ? {
+                    working_diagnosis: ans.working_diagnosis || null,
+                    differential_dx_1: ans.differential_dx_1 || null,
+                    differential_dx_2: ans.differential_dx_2 || null,
+                    differential_dx_3: ans.differential_dx_3 || null,
+                    prescription_text: ans.prescription_text || null,
+                    anamnesis_notes: ans.anamnesis_notes || null,
+                    physical_exam_notes: ans.physical_exam_notes || null,
+                    requested_auxiliary_json: ans.requested_auxiliary_json || [],
+                    status: ans.status || "in_progress",
+                  }
+                : null,
+            };
+          });
+
+        const overallPct =
+          totalScorePossible > 0
+            ? (totalScoreEarned / totalScorePossible) * 100
+            : evaluatedCount > 0
+            ? formattedStations.reduce((acc, curr) => acc + curr.score, 0) / evaluatedCount
+            : 0;
+
+        let finalGrade = "BELUM DINILAI";
+        if (evaluatedCount > 0) {
+          if (overallPct >= 85) finalGrade = "LULUS (Superior)";
+          else if (overallPct >= 70) finalGrade = "LULUS (Satisfactory)";
+          else if (overallPct >= 60) finalGrade = "LULUS (Borderline)";
+          else finalGrade = "TIDAK LULUS";
+        }
+
+        let globalRatingText = "Belum Dinilai";
+        if (grsList.length > 0) {
+          const firstGrs = grsList[0];
+          if (firstGrs === "SUPERIOR") globalRatingText = "Superior (Sangat Baik)";
+          else if (firstGrs === "SATISFACTORY") globalRatingText = "Satisfactory (Baik)";
+          else if (firstGrs === "BORDERLINE") globalRatingText = "Borderline (Cukup)";
+          else if (firstGrs === "UNSATISFACTORY") globalRatingText = "Unsatisfactory (Perlu Perbaikan)";
+          else globalRatingText = firstGrs;
         }
 
         setScorecard({
-          participant_name: full_name,
+          participant_name: fullName,
           nim: nim,
           institution: "Fakultas Kedokteran - MedSkill",
-          session_title: sessionTitle,
-          total_score: 91.5,
-          final_grade: "LULUS (Superior)",
-          global_rating: "Sangat Baik",
-          station_results: [
-            {
-              station_number: 1,
-              title: "Stase 1: Kardiovaskular (STEMI Anteroseptal)",
-              examiner_name: "dr. Alexander Budiman, Sp.JP",
-              score: 95,
-              max_score: 100,
-              checklist_items: [
-                {
-                  item: "Menyapa pasien & membina sambung rasa",
-                  answer_key: "Peserta mengucapkan salam, memperkenalkan diri, & mengonfirmasi identitas",
-                  max_points: 1,
-                  earned_points: 1,
-                  notes: "Sangat sopan & komunikatif",
-                },
-                {
-                  item: "Menanyakan onset, kualitas, & radiasi nyeri dada",
-                  answer_key: "Menanyakan nyeri dada khas infark (seperti ditindih beban berat) menjalar ke lengan",
-                  max_points: 3,
-                  earned_points: 3,
-                  notes: "Anamnesis terstruktur",
-                },
-                {
-                  item: "Melakukan auskultasi 4 katup jantung dengan benar",
-                  answer_key: "Menggunakan stetoskop pada 4 area katup jantung dengan posisi pasien tepat",
-                  max_points: 3,
-                  earned_points: 3,
-                  notes: "Teknik stetoskop tepat",
-                },
-                {
-                  item: "Mengidentifikasi elevasi segmen ST pada V1-V4 EKG",
-                  answer_key: "Membaca elevasi segmen ST dan menetapkan diagnosis kerja STEMI Anteroseptal",
-                  max_points: 3,
-                  earned_points: 3,
-                  notes: "Diagnosis STEMI cepat & tepat",
-                },
-              ],
-              examiner_feedback: "Penanganan klinis dan interpretasi EKG sangat baik secara keseluruhan.",
-            },
-            {
-              station_number: 2,
-              title: "Stase 2: Kegawatdaruratan Pulmonologi (Status Asmatikus)",
-              examiner_name: "dr. Faisal Hasibuan, Sp.P",
-              score: 90,
-              max_score: 100,
-              checklist_items: [
-                {
-                  item: "Anamnesis sesak napas akut & wheezing",
-                  answer_key: "Menanyakan onset sesak, pemicu alergi, dan riwayat penggunaan inhaler",
-                  max_points: 2,
-                  earned_points: 2,
-                  notes: "Lengkap",
-                },
-                {
-                  item: "Inspeksi & auskultasi suara paru",
-                  answer_key: "Menemukan wheezing ekspiratorik bilateral dan perkusi hipersonor",
-                  max_points: 3,
-                  earned_points: 3,
-                  notes: "Auskultasi cermat",
-                },
-                {
-                  item: "Pemberian Oksigenasi & Inhalasi Nebulizer",
-                  answer_key: "Mereresepkan Salbutamol nebulizer + O2 kanul nasal 3-4 L/mnt",
-                  max_points: 3,
-                  earned_points: 3,
-                  notes: "Dosis obat tepat",
-                },
-                {
-                  item: "Indikasi & persiapan Needle Thoracocentesis",
-                  answer_key: "Menjelaskan lokasi penusukan abocath pada ICS 2 Linea Midclavicularis",
-                  max_points: 3,
-                  earned_points: 2,
-                  notes: "Perlu penajaman posisi ICS",
-                },
-              ],
-              examiner_feedback: "Tenang dalam penanganan darurat resusitasi paru.",
-            },
-            {
-              station_number: 3,
-              title: "Stase 3: Keterampilan Bedah & Penutupan Luka (Suturing)",
-              examiner_name: "dr. Citra Dewi, Sp.B",
-              score: 88,
-              max_score: 100,
-              checklist_items: [
-                {
-                  item: "Persiapan steril & infiltrasi anestesi lokal",
-                  answer_key: "Cuci tangan steril, gaun/sarung tangan steril, infiltrasi Lidokain 2%",
-                  max_points: 3,
-                  earned_points: 3,
-                  notes: "Teknik steril terjaga",
-                },
-                {
-                  item: "Debridement & irigasi cair fisiologis NaCl 0.9%",
-                  answer_key: "Membersihkan jaringan nekrotik & pembilasan luka robek",
-                  max_points: 3,
-                  earned_points: 2.5,
-                  notes: "Irigasi baik",
-                },
-                {
-                  item: "Teknik Penjahitan Simple Interrupted Suture",
-                  answer_key: "Menggunakan needle holder & pinset anatomis dengan 3 simpul simetris",
-                  max_points: 4,
-                  earned_points: 3.5,
-                  notes: "Jahitan rapi",
-                },
-              ],
-              examiner_feedback: "Penanganan vulnus laceratum dan simpul jahitan cukup rapi.",
-            },
-            {
-              station_number: 4,
-              title: "Stase 4: Anamnesis & Keterampilan Neurologi (Stroke Akut)",
-              examiner_name: "dr. Doni Prasetyo, Sp.N",
-              score: 92,
-              max_score: 100,
-              checklist_items: [
-                {
-                  item: "Pemeriksaan Saraf Kranial VII & XII",
-                  answer_key: "Meminta pasien tersenyum, meringis, dan menjulurkan lidah lurus",
-                  max_points: 3,
-                  earned_points: 3,
-                  notes: "Instruksi jelas",
-                },
-                {
-                  item: "Pemeriksaan Kekuatan Otot Ekstremitas",
-                  answer_key: "Menilai skala kekuatan motorik ekstremitas kanan (nilai 3/5)",
-                  max_points: 3,
-                  earned_points: 3,
-                  notes: "Pemeriksaan tepat",
-                },
-                {
-                  item: "Pemeriksaan Refleks Patologis Babinski",
-                  answer_key: "Goresan telapak kaki dari lateral ke medial dengan respon dorsofleksi",
-                  max_points: 3,
-                  earned_points: 2.5,
-                  notes: "Goresan halus",
-                },
-              ],
-              examiner_feedback: "Pemeriksaan fungsi saraf kranial dan motorik sangat sistematis.",
-            },
-            {
-              station_number: 5,
-              title: "Stase 5: Konseling & Edukasi Diabetes Mellitus",
-              examiner_name: "dr. Eka Rahmawati, Sp.PD",
-              score: 94,
-              max_score: 100,
-              checklist_items: [
-                {
-                  item: "Edukasi & Peragaan Injeksi Insulin Pen",
-                  answer_key: "Peragaan rotasi tempat suntikan abdomen, buang jarum, & dosis tepat",
-                  max_points: 4,
-                  earned_points: 4,
-                  notes: "Simulasi insulin sangat jelas",
-                },
-                {
-                  item: "Penanganan Hipoglikemia & Gaya Hidup",
-                  answer_key: "Edukasi minum air gula jika pusing/keringat dingin & diet karbohidrat",
-                  max_points: 3,
-                  earned_points: 3,
-                  notes: "Edukasi komprehensif",
-                },
-              ],
-              examiner_feedback: "Sangat bagus dalam membina sambung rasa dan memberikan pemahaman obat insulin.",
-            },
-          ],
+          session_title: session?.title || "Sesi Ujian OSCE",
+          total_score: Math.round(overallPct * 10) / 10,
+          final_grade: finalGrade,
+          global_rating: globalRatingText,
+          station_results: formattedStations,
         });
       } catch (err) {
         console.error("Error loading participant scorecard:", err);
@@ -235,9 +212,9 @@ export default function ParticipantAnswerPage() {
   if (loading) {
     return (
       <AdminLayout>
-        <div className="flex h-[450px] items-center justify-center text-xs font-semibold text-slate-500">
-          <Loader2 size={24} className="animate-spin text-blue-600 mr-2" />
-          Memuat Lembar Jawaban & Transkrip Peserta...
+        <div className="flex h-[450px] flex-col items-center justify-center gap-2 text-xs font-semibold text-slate-500">
+          <Loader2 size={32} className="animate-spin text-blue-600" />
+          <span>Memuat Lembar Jawaban & Evaluation Record dari Supabase...</span>
         </div>
       </AdminLayout>
     );
@@ -247,7 +224,7 @@ export default function ParticipantAnswerPage() {
     return (
       <AdminLayout>
         <div className="p-8 text-center text-xs text-slate-500 space-y-3">
-          <p className="font-bold text-slate-700">Data peserta tidak ditemukan di Supabase.</p>
+          <p className="font-bold text-slate-700">Data peserta atau sesi tidak ditemukan di Supabase database.</p>
           <button
             onClick={() => navigate("/admin/live")}
             className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-xs"
@@ -277,7 +254,7 @@ export default function ParticipantAnswerPage() {
             <div>
               <div className="flex items-center gap-2">
                 <span className="rounded-md bg-blue-600 px-2.5 py-0.5 text-[10px] font-extrabold text-white uppercase">
-                  MONITOR LEMBAR JAWABAN PESERTA
+                  MONITOR LEMBAR JAWABAN REALTIME
                 </span>
                 <span className="rounded-md bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-[10px] font-bold text-emerald-900">
                   {scorecard.final_grade}
@@ -304,7 +281,7 @@ export default function ParticipantAnswerPage() {
             </div>
 
             <div className="text-right">
-              <span className="text-[10px] font-bold text-slate-400 uppercase block">Total Nilai Akumulasi:</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase block">Nilai Akumulasi Evaluasi:</span>
               <span className="text-2xl font-black text-blue-600">{scorecard.total_score.toFixed(1)} / 100</span>
             </div>
           </div>
@@ -330,13 +307,14 @@ export default function ParticipantAnswerPage() {
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <h2 className="text-sm font-black text-slate-900 flex items-center gap-2">
               <Award size={18} className="text-blue-600" />
-              Rincian Skor Rubrik Per Stase ({scorecard.station_results.length} Stase Evaluasi)
+              Transkrip Jawaban Peserta & Hasil Rubrik Per Stase ({scorecard.station_results.length} Stase)
             </h2>
           </div>
 
           <div className="space-y-3">
             {scorecard.station_results.map((stg) => {
               const isExpanded = expandedStation === stg.station_number;
+              const ans = stg.participant_answer;
 
               return (
                 <div key={stg.station_number} className="rounded-2xl border border-slate-200 bg-white shadow-2xs overflow-hidden">
@@ -350,13 +328,15 @@ export default function ParticipantAnswerPage() {
                       </span>
                       <div>
                         <h3 className="text-xs font-extrabold text-slate-900">{stg.title}</h3>
-                        <p className="text-[11px] text-slate-500 font-medium">Penguji: {stg.examiner_name}</p>
+                        <p className="text-[11px] text-slate-500 font-medium">
+                          Dokter Penguji: {stg.examiner_name} ({stg.examiner_specialty})
+                        </p>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-4">
                       <span className="text-xs font-black text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg">
-                        Skor: {stg.score} / {stg.max_score}
+                        Skor Evaluasi: {stg.score} / {stg.max_score}
                       </span>
                       <button className="text-slate-400 hover:text-slate-700">
                         {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
@@ -365,25 +345,89 @@ export default function ParticipantAnswerPage() {
                   </div>
 
                   {isExpanded && (
-                    <div className="border-t border-slate-100 p-5 bg-slate-50/50 space-y-4 animate-in fade-in duration-150">
-                      <div className="space-y-2">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Item Rubrik Penilaian:</span>
-                        {stg.checklist_items.map((item, idx) => (
-                          <div key={idx} className="rounded-xl border border-slate-200 bg-white p-3 space-y-1 text-xs shadow-2xs">
-                            <div className="flex items-center justify-between font-bold text-slate-900">
-                              <span>{item.item}</span>
-                              <span className="text-blue-700 font-black">{item.earned_points} / {item.max_points} Pts</span>
-                            </div>
-                            <p className="text-[11px] text-slate-500">Kunci: {item.answer_key}</p>
-                            {item.notes && <p className="text-[11px] font-semibold text-purple-700">Catatan: {item.notes}</p>}
+                    <div className="border-t border-slate-100 p-5 bg-slate-50/50 space-y-5 animate-in fade-in duration-150">
+                      {/* Participant Answers Section */}
+                      {ans && (
+                        <div className="rounded-2xl border border-blue-200 bg-blue-50/40 p-4 space-y-3">
+                          <h4 className="text-xs font-black text-blue-900 uppercase tracking-wide flex items-center gap-1.5 border-b border-blue-200/80 pb-2">
+                            <FileText size={15} className="text-blue-600" />
+                            Jawaban Lembar Kerja Peserta (Jawaban Asli Realtime)
+                          </h4>
+
+                          <div className="grid gap-3 md:grid-cols-2">
+                            {ans.working_diagnosis && (
+                              <div className="rounded-xl border border-blue-100 bg-white p-3 space-y-1">
+                                <span className="text-[10px] font-bold text-blue-600 uppercase block">Diagnosis Kerja (WDx):</span>
+                                <p className="text-xs font-extrabold text-slate-900">{ans.working_diagnosis}</p>
+                              </div>
+                            )}
+
+                            {(ans.differential_dx_1 || ans.differential_dx_2) && (
+                              <div className="rounded-xl border border-blue-100 bg-white p-3 space-y-1">
+                                <span className="text-[10px] font-bold text-blue-600 uppercase block">Diagnosis Banding (DDx):</span>
+                                <p className="text-xs font-semibold text-slate-800">
+                                  {[ans.differential_dx_1, ans.differential_dx_2, ans.differential_dx_3]
+                                    .filter(Boolean)
+                                    .join(" • ")}
+                                </p>
+                              </div>
+                            )}
                           </div>
-                        ))}
+
+                          {ans.prescription_text && (
+                            <div className="rounded-xl border border-blue-100 bg-white p-3 space-y-1">
+                              <span className="text-[10px] font-bold text-blue-600 uppercase block">Resep Obat & Tatalaksana (Prescription):</span>
+                              <p className="text-xs font-mono font-bold text-slate-900 whitespace-pre-line">{ans.prescription_text}</p>
+                            </div>
+                          )}
+
+                          {(ans.anamnesis_notes || ans.physical_exam_notes) && (
+                            <div className="grid gap-3 md:grid-cols-2">
+                              {ans.anamnesis_notes && (
+                                <div className="rounded-xl border border-blue-100 bg-white p-3 space-y-1">
+                                  <span className="text-[10px] font-bold text-blue-600 uppercase block">Catatan Anamnesis:</span>
+                                  <p className="text-xs text-slate-700 whitespace-pre-line">{ans.anamnesis_notes}</p>
+                                </div>
+                              )}
+
+                              {ans.physical_exam_notes && (
+                                <div className="rounded-xl border border-blue-100 bg-white p-3 space-y-1">
+                                  <span className="text-[10px] font-bold text-blue-600 uppercase block">Catatan Pemeriksaan Fisik:</span>
+                                  <p className="text-xs text-slate-700 whitespace-pre-line">{ans.physical_exam_notes}</p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Rubric Items Checklist Section */}
+                      <div className="space-y-2">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                          Poin Rubrik Penilaian Penguji (Poin 0-3):
+                        </span>
+
+                        {stg.checklist_items.length === 0 ? (
+                          <p className="text-xs text-slate-500 font-medium italic">Tidak ada item rubrik terkonfigurasi pada stase ini.</p>
+                        ) : (
+                          stg.checklist_items.map((item, idx) => (
+                            <div key={idx} className="rounded-xl border border-slate-200 bg-white p-3 space-y-1 text-xs shadow-2xs">
+                              <div className="flex items-center justify-between font-bold text-slate-900">
+                                <span>{item.item}</span>
+                                <span className="text-blue-700 font-black">{item.earned_points} / {item.max_points} Pts</span>
+                              </div>
+                              <p className="text-[11px] text-slate-500">Kunci: {item.answer_key}</p>
+                              {item.notes && <p className="text-[11px] font-semibold text-purple-700">Catatan: {item.notes}</p>}
+                            </div>
+                          ))
+                        )}
                       </div>
 
+                      {/* Examiner Feedback */}
                       {stg.examiner_feedback && (
-                        <div className="rounded-xl bg-purple-50 border border-purple-200 p-3 text-xs text-purple-900 font-medium flex items-center gap-1.5">
-                          <MessageSquare size={15} className="text-purple-600 shrink-0" />
-                          <span>Feedback Dokter Penguji: "{stg.examiner_feedback}"</span>
+                        <div className="rounded-xl bg-purple-50 border border-purple-200 p-3 text-xs text-purple-900 font-medium flex items-center gap-2">
+                          <MessageSquare size={16} className="text-purple-600 shrink-0" />
+                          <span>Feedback Dokter Penguji ({stg.examiner_name}): "{stg.examiner_feedback}"</span>
                         </div>
                       )}
                     </div>

@@ -1,20 +1,55 @@
 import { supabase } from "@/supabase/client";
 
-export async function getCurrentRole() {
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
+/**
+ * Helper to extract normalized role ('admin', 'examiner', 'participant')
+ * from raw_user_meta_data JSON array (e.g. ["admin"], ["examiner"], ["user"]) or string.
+ */
+export function parseUserRole(roleData) {
+  if (!roleData) return null;
 
-  if (error || !user) return null;
-
-  // 1. Check Auth Metadata
-  if (user.user_metadata?.role) {
-    return user.user_metadata.role;
+  // Handle array from raw_user_meta_data JSON (e.g. ["admin"], ["examiner"], ["user"])
+  if (Array.isArray(roleData)) {
+    if (roleData.includes("admin")) return "admin";
+    if (roleData.includes("examiner") || roleData.includes("mentor") || roleData.includes("penguji")) return "examiner";
+    if (roleData.includes("user") || roleData.includes("participant") || roleData.includes("peserta")) return "participant";
+    if (roleData.length > 0) {
+      const first = String(roleData[0]).toLowerCase();
+      if (first === "user") return "participant";
+      return first;
+    }
   }
 
-  // 2. Check profiles table in Supabase
+  // Handle string (e.g. "admin", "examiner", "user", "participant")
+  if (typeof roleData === "string") {
+    const lower = roleData.toLowerCase();
+    if (lower === "admin") return "admin";
+    if (lower === "examiner" || lower === "mentor" || lower === "penguji") return "examiner";
+    if (lower === "user" || lower === "participant" || lower === "peserta") return "participant";
+    return lower;
+  }
+
+  return null;
+}
+
+export async function getCurrentRole(userObj = null) {
+  let user = userObj;
+  if (!user) {
+    const {
+      data: { user: fetchedUser },
+      error,
+    } = await supabase.auth.getUser();
+
+    if (error || !fetchedUser) return "participant";
+    user = fetchedUser;
+  }
+
+  // 1. Check Auth Metadata (raw_user_meta_data)
+  const metaRole = parseUserRole(user.user_metadata?.role || user.user_metadata?.roles);
+  if (metaRole) return metaRole;
+
+  // 2. Check profiles table in public schema in Supabase
   const { data: profile, error: profileError } = await supabase
+    .schema("public")
     .from("profiles")
     .select("role")
     .eq("id", user.id)
@@ -24,11 +59,10 @@ export async function getCurrentRole() {
     console.error("Error fetching user profile role:", profileError);
   }
 
-  if (profile?.role) {
-    return profile.role;
-  }
+  const dbRole = parseUserRole(profile?.role);
+  if (dbRole) return dbRole;
 
-  return null;
+  return "participant";
 }
 
 /**

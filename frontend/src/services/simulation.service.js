@@ -31,7 +31,7 @@ export async function assignParticipants(sessionId) {
       .schema("osce")
       .from("session_participants")
       .update({
-        assigned_start_station_number: stage.station_number,
+        starting_station_number: stage.station_number,
       })
       .eq("id", participants[i].id);
 
@@ -82,13 +82,13 @@ export async function nextRotation(sessionId) {
   if (memberError || !members) return;
 
   for (const member of members) {
-    let nextStation = (member.assigned_start_station_number || 1) + 1;
+    let nextStation = (member.starting_station_number || 1) + 1;
 
     const { error } = await supabase
       .schema("osce")
       .from("session_participants")
       .update({
-        assigned_start_station_number: nextStation,
+        starting_station_number: nextStation,
       })
       .eq("id", member.id);
 
