@@ -127,26 +127,33 @@ export default function AdminAuxiliaryExamBuilder({
                 </button>
               </div>
 
-              {/* Image Upload & Preview Section */}
+              {/* Image & Google Drive Upload / URL Section */}
               <div className="rounded-lg border border-slate-200 bg-white p-3 space-y-2.5">
                 <label className="block text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
                   <Image size={14} className="text-blue-600" />
-                  Lampiran Gambar Hasil (Upload / Direct URL)
+                  Lampiran Hasil (Upload / Direct URL / Link Google Drive)
                 </label>
 
                 {item.imageUrl ? (
                   <div className="flex items-center gap-3">
-                    <div className="relative group h-16 w-24 shrink-0 rounded-lg overflow-hidden border border-slate-200 bg-slate-100">
-                      <img
-                        src={item.imageUrl}
-                        alt={item.name}
-                        className="h-full w-full object-cover"
-                      />
+                    <div className="relative group h-16 w-24 shrink-0 rounded-lg overflow-hidden border border-slate-200 bg-slate-100 flex items-center justify-center">
+                      {item.imageUrl.includes("drive.google.com") || item.imageUrl.includes("docs.google.com") ? (
+                        <div className="p-2 text-center text-[10px] font-bold text-blue-700 bg-blue-50 h-full w-full flex flex-col items-center justify-center">
+                          <FileText size={16} className="text-blue-600 mb-0.5" />
+                          <span>Google Drive</span>
+                        </div>
+                      ) : (
+                        <img
+                          src={item.imageUrl}
+                          alt={item.name}
+                          className="h-full w-full object-cover"
+                        />
+                      )}
                       <button
                         type="button"
                         onClick={() => handleUpdateConfig(item.itemId, "imageUrl", "")}
                         className="absolute top-1 right-1 bg-rose-600 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition shadow-xs"
-                        title="Hapus Gambar"
+                        title="Hapus Link / Gambar"
                       >
                         <X size={12} />
                       </button>
@@ -155,11 +162,11 @@ export default function AdminAuxiliaryExamBuilder({
                     <div className="flex-1 space-y-1">
                       <p className="text-[11px] font-semibold text-emerald-700 flex items-center gap-1">
                         <CheckCircle2 size={13} />
-                        Gambar Terlampir
+                        {item.imageUrl.includes("drive.google.com") ? "Google Drive Link Terlampir (Iframe Supported)" : "Berkas Terlampir"}
                       </p>
                       <input
                         type="text"
-                        placeholder="URL Gambar..."
+                        placeholder="URL Gambar / Link Google Drive..."
                         value={item.imageUrl}
                         onChange={(e) => handleUpdateConfig(item.itemId, "imageUrl", e.target.value)}
                         className="w-full rounded-md border border-slate-200 p-1.5 text-[11px] text-slate-600 truncate"
@@ -193,7 +200,7 @@ export default function AdminAuxiliaryExamBuilder({
                     <div className="flex items-center gap-1.5">
                       <input
                         type="text"
-                        placeholder="Paste URL Gambar..."
+                        placeholder="Paste URL Gambar / Google Drive..."
                         value={item.imageUrl || ""}
                         onChange={(e) => handleUpdateConfig(item.itemId, "imageUrl", e.target.value)}
                         className="w-full rounded-lg border border-slate-200 p-2 text-[11px] text-slate-800 focus:border-blue-500 focus:outline-none"

@@ -12,6 +12,7 @@ import {
   ChevronRight,
   Info,
 } from "lucide-react";
+import MediaEmbedViewer from "@/components/MediaEmbedViewer";
 
 export default function AuxiliaryExamResultModal({
   isOpen,
@@ -182,16 +183,13 @@ export default function AuxiliaryExamResultModal({
               </div>
             </div>
 
-            {/* Image Viewer Area */}
-            <div className="relative min-h-[320px] max-h-[500px] overflow-auto bg-slate-900 p-4 flex items-center justify-center">
-              <img
-                src={
-                  currentResult.imageUrl ||
-                  "https://placehold.co/800x500/1e293b/ffffff.png?text=HASIL+PEMERIKSAAN+PENUNJANG+(X-Ray/EKG/Lab)"
-                }
-                alt={currentResult.name}
-                style={{ transform: `scale(${zoomLevel})` }}
-                className="max-w-full h-auto rounded-lg object-contain transition-transform duration-200 shadow-xl"
+            {/* Media & Iframe Viewer Area */}
+            <div className="p-2 bg-slate-950">
+              <MediaEmbedViewer
+                src={currentResult.imageUrl || currentResult.file_url || currentResult.media_url}
+                alt={currentResult.name || "Hasil Pemeriksaan Penunjang"}
+                height={isFullscreen ? "620px" : "440px"}
+                zoomLevel={zoomLevel}
               />
             </div>
 

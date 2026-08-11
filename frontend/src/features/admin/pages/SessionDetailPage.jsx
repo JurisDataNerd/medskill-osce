@@ -25,6 +25,7 @@ import {
 
 import AdminLayout from "@/layouts/AdminLayout";
 import { fetchSessionById } from "@/services/sessionService";
+import SessionParticipantsInlineSection from "@/features/admin/components/SessionParticipantsInlineSection";
 
 export default function SessionDetailPage() {
   const navigate = useNavigate();
@@ -34,24 +35,24 @@ export default function SessionDetailPage() {
   const [stages, setStages] = useState([]);
   const [expandedStageIndex, setExpandedStageIndex] = useState(0);
 
-  useEffect(() => {
-    async function loadDetail() {
-      try {
-        const data = await fetchSessionById(id);
-        if (data) {
-          setSession(data);
-          setStages(data.stations || []);
-        } else {
-          setSession(null);
-          setStages([]);
-        }
-      } catch (err) {
-        console.warn("Could not fetch session detail from Supabase:", err);
+  async function loadDetail() {
+    try {
+      const data = await fetchSessionById(id);
+      if (data) {
+        setSession(data);
+        setStages(data.stations || []);
+      } else {
         setSession(null);
         setStages([]);
       }
+    } catch (err) {
+      console.warn("Could not fetch session detail from Supabase:", err);
+      setSession(null);
+      setStages([]);
     }
+  }
 
+  useEffect(() => {
     loadDetail();
   }, [id]);
 
@@ -167,39 +168,12 @@ export default function SessionDetailPage() {
         />
       </div>
 
-      {/* Quick Navigation to Participants & Examiners */}
-      <div className="mb-6 grid gap-4 sm:grid-cols-2">
-        <NavLink
-          to={`/admin/sessions/${session.id}/participants`}
-          className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs transition hover:border-blue-300 hover:shadow-md group"
-        >
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition">
-              <Users size={18} />
-            </div>
-            <div>
-              <div className="font-bold text-slate-900 text-xs">Penugasan & Verifikasi Peserta</div>
-              <div className="text-[11px] text-slate-500">Plotting daftar peserta ujian per gelombang</div>
-            </div>
-          </div>
-          <ArrowRight size={16} className="text-slate-400 group-hover:text-blue-600 transition" />
-        </NavLink>
-
-        <NavLink
-          to={`/admin/sessions/${session.id}/examiners`}
-          className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs transition hover:border-blue-300 hover:shadow-md group"
-        >
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition">
-              <UserCheck size={18} />
-            </div>
-            <div>
-              <div className="font-bold text-slate-900 text-xs">Penugasan Dokter Penguji</div>
-              <div className="text-[11px] text-slate-500">Mapping 1 dokter penguji untuk tiap stase</div>
-            </div>
-          </div>
-          <ArrowRight size={16} className="text-slate-400 group-hover:text-indigo-600 transition" />
-        </NavLink>
+      {/* Embedded Participant Verification Section */}
+      <div className="mb-6">
+        <SessionParticipantsInlineSection
+          sessionId={session.id}
+          onUpdate={loadDetail}
+        />
       </div>
 
       {/* OSCE Rules Summary Badge */}

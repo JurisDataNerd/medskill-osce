@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { fetchSessions } from "@/services/sessionService";
+import AuxiliaryExamResultModal from "@/components/AuxiliaryExamResultModal";
 
 export default function ExaminerStagePage() {
   const { stageId } = useParams();
@@ -41,6 +42,7 @@ export default function ExaminerStagePage() {
   const [stationData, setStationData] = useState(null);
   const [rubricItems, setRubricItems] = useState([]);
   const [participants, setParticipants] = useState([]);
+  const [selectedAuxModalResults, setSelectedAuxModalResults] = useState(null);
   const [activeRotationIndex, setActiveRotationIndex] = useState(0);
 
   // Rubric Scores State for active examinee (0, 1, 2, 3)
@@ -898,10 +900,16 @@ export default function ExaminerStagePage() {
                 <div className="flex flex-wrap gap-1.5">
                   {liveAnswer?.requested_auxiliary_json && Array.isArray(liveAnswer.requested_auxiliary_json) && liveAnswer.requested_auxiliary_json.length > 0 ? (
                     liveAnswer.requested_auxiliary_json.map((aux, aIdx) => (
-                      <span key={aIdx} className="rounded-md bg-emerald-100 border border-emerald-300 px-2 py-1 text-[10px] font-extrabold text-emerald-900 inline-flex items-center gap-1">
+                      <button
+                        key={aIdx}
+                        onClick={() => setSelectedAuxModalResults(liveAnswer.requested_auxiliary_json)}
+                        className="rounded-md bg-emerald-100 border border-emerald-300 px-2.5 py-1 text-[10px] font-extrabold text-emerald-900 inline-flex items-center gap-1 hover:bg-emerald-200 transition cursor-pointer active:scale-95 shadow-2xs"
+                        title="Klik untuk membuka pratinjau berkas penunjang (Iframe / Drive / Gambar)"
+                      >
                         <CheckCircle2 size={12} className="text-emerald-700" />
                         {aux.title || aux.name || "Berkas Penunjang"}
-                      </span>
+                        <Eye size={11} className="text-emerald-700 ml-0.5" />
+                      </button>
                     ))
                   ) : (
                     <span className="text-[11px] font-semibold text-slate-400">Belum ada berkas penunjang yang dibuka oleh peserta</span>
@@ -1066,6 +1074,12 @@ export default function ExaminerStagePage() {
           </div>
         </div>
       </div>
+
+      <AuxiliaryExamResultModal
+        isOpen={!!selectedAuxModalResults}
+        onClose={() => setSelectedAuxModalResults(null)}
+        results={selectedAuxModalResults || []}
+      />
     </div>
   );
 }
