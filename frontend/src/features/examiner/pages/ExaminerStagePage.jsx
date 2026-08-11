@@ -482,7 +482,7 @@ export default function ExaminerStagePage() {
                       <h4 className="text-sm font-extrabold text-slate-900">{s.title}</h4>
                       <p className="text-xs text-slate-500 mt-1 line-clamp-2">
                         {st
-                          ? `📌 Pos Penugasan Anda: Pos #${st.station_number} - ${st.case_title || st.title || "Kasus Medis"}`
+                          ? `Pos Penugasan Anda: Pos #${st.station_number} - ${st.case_title || st.title || "Kasus Medis"}`
                           : s.description || "Sesi evaluasi sirkuit terpadu stase aktif."}
                       </p>
                     </div>
@@ -576,8 +576,9 @@ export default function ExaminerStagePage() {
           <div className="flex items-center gap-3">
             <span className="flex h-3.5 w-3.5 rounded-full bg-amber-500 animate-ping" />
             <div>
-              <span className="text-[10px] font-black uppercase tracking-wider text-amber-900 bg-amber-200/80 px-3 py-1 rounded-md border border-amber-300">
-                ⏳ WAITING ROOM PENGUJI • STANDBY STASE
+              <span className="text-[10px] font-black uppercase tracking-wider text-amber-900 bg-amber-200/80 px-3 py-1 rounded-md border border-amber-300 flex items-center gap-1.5 w-fit">
+                <Clock size={12} className="text-amber-800" />
+                WAITING ROOM PENGUJI • STANDBY STASE
               </span>
               <h2 className="text-lg font-black text-amber-950 mt-1">
                 Menunggu Admin Control Room Memulai Sesi Ujian Sirkuit Live
@@ -605,7 +606,7 @@ export default function ExaminerStagePage() {
           <div className="space-y-3 max-w-2xl mx-auto">
             <h1 className="text-2xl font-black text-slate-900">{activeSession.title}</h1>
             <div className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 text-white px-4 py-1.5 text-xs font-black uppercase shadow-xs">
-              📌 Pos Stase Penugasan Anda: Pos #{stationData.station_number} - {stationData.case_title || stationData.title}
+              Pos Stase Penugasan Anda: Pos #{stationData.station_number} - {stationData.case_title || stationData.title}
             </div>
             <p className="text-xs text-slate-500 font-medium leading-relaxed pt-2">
               Anda telah terhubung ke <strong>Waiting Room Pos Stase #{stationData.station_number}</strong> ({stationData.system_organ || "Klinis"}). Silakan periksa skenario kasus dan rubrik penilaian SKDI di bawah untuk persiapan. Halaman ini akan <strong>otomatis beralih ke Lembar Penilaian Live</strong> ketika Admin memecet tombol Mulai Ujian.

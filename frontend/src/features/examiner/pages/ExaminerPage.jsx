@@ -217,7 +217,7 @@ export default function ExaminerPage() {
                       <h4 className="text-sm font-extrabold text-slate-900">{s.title}</h4>
                       <p className="text-xs text-slate-500 mt-1 line-clamp-2">
                         {st
-                          ? `📌 Pos Penugasan Anda: Pos #${st.station_number} - ${st.case_title || st.title || "Kasus Medis"}`
+                          ? `Pos Penugasan Anda: Pos #${st.station_number} - ${st.case_title || st.title || "Kasus Medis"}`
                           : s.description || "Sesi evaluasi sirkuit terpadu stase aktif."}
                       </p>
                     </div>
