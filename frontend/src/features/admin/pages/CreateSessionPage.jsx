@@ -63,6 +63,10 @@ export default function CreateSessionPage() {
   // Registered Doctor Examiners List from Supabase
   const [doctorList, setDoctorList] = useState([]);
 
+  // Draft Auto-save & Exit Confirmation State
+  const [showRestoreDraftBanner, setShowRestoreDraftBanner] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+
   useEffect(() => {
     async function loadExaminers() {
       try {
@@ -76,6 +80,23 @@ export default function CreateSessionPage() {
     }
     loadExaminers();
   }, []);
+
+  // Check for saved draft on mount
+  useEffect(() => {
+    if (!isEdit) {
+      try {
+        const savedDraft = localStorage.getItem("medskill_create_session_draft");
+        if (savedDraft) {
+          const parsed = JSON.parse(savedDraft);
+          if (parsed && (parsed.title || (parsed.stationsConfig && parsed.stationsConfig.length > 0))) {
+            setShowRestoreDraftBanner(true);
+          }
+        }
+      } catch (err) {
+        console.error("Error reading draft from localStorage:", err);
+      }
+    }
+  }, [isEdit]);
 
   // Form State 1: Detail Utama
   const [title, setTitle] = useState("");
@@ -307,6 +328,122 @@ export default function CreateSessionPage() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successModalTitle, setSuccessModalTitle] = useState("Berhasil Disimpan");
   const [successModalMessage, setSuccessModalMessage] = useState("");
+
+  // Auto-save form state to localStorage (when not editing existing session)
+  useEffect(() => {
+    if (isEdit || isSubmitted) return;
+    if (!title && (!stationsConfig || stationsConfig.length === 0)) return;
+
+    const draftData = {
+      title,
+      description,
+      sessionDate,
+      startTime,
+      endTime,
+      location,
+      maxParticipants,
+      stationDurationMinutes,
+      breakSlotDurationMinutes,
+      transitionDurationMinutes,
+      totalRounds,
+      totalStations,
+      stationsConfig,
+      updatedAt: new Date().toISOString(),
+    };
+
+    try {
+      localStorage.setItem("medskill_create_session_draft", JSON.stringify(draftData));
+    } catch (err) {
+      console.error("Error saving draft to localStorage:", err);
+    }
+  }, [
+    isEdit,
+    isSubmitted,
+    title,
+    description,
+    sessionDate,
+    startTime,
+    endTime,
+    location,
+    maxParticipants,
+    stationDurationMinutes,
+    breakSlotDurationMinutes,
+    transitionDurationMinutes,
+    totalRounds,
+    totalStations,
+    stationsConfig,
+  ]);
+
+  // Prevent accidental tab close or page refresh when form is modified
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (!isSubmitted && !isEdit && (title.trim() !== "" || description.trim() !== "")) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isSubmitted, isEdit, title, description]);
+
+  function handleRestoreDraft() {
+    try {
+      const savedDraft = localStorage.getItem("medskill_create_session_draft");
+      if (!savedDraft) return;
+      const data = JSON.parse(savedDraft);
+      if (data.title !== undefined) setTitle(data.title);
+      if (data.description !== undefined) setDescription(data.description);
+      if (data.sessionDate) setSessionDate(data.sessionDate);
+      if (data.startTime) setStartTime(data.startTime);
+      if (data.endTime) setEndTime(data.endTime);
+      if (data.location) setLocation(data.location);
+      if (data.maxParticipants) setMaxParticipants(data.maxParticipants);
+      if (data.stationDurationMinutes) setStationDurationMinutes(data.stationDurationMinutes);
+      if (data.breakSlotDurationMinutes) setBreakSlotDurationMinutes(data.breakSlotDurationMinutes);
+      if (data.transitionDurationMinutes) setTransitionDurationMinutes(data.transitionDurationMinutes);
+      if (data.totalRounds) setTotalRounds(data.totalRounds);
+      if (data.totalStations) setTotalStations(data.totalStations);
+      if (data.stationsConfig && data.stationsConfig.length > 0) setStationsConfig(data.stationsConfig);
+
+      setShowRestoreDraftBanner(false);
+      setConfirmModal({
+        isOpen: true,
+        title: "Draf Berhasil Dipulihkan!",
+        message: "Data formulir sesi OSCE Anda berhasil dipulihkan dari memori browser lokal.",
+        confirmText: "Mengerti",
+        variant: "success",
+        isAlert: true,
+        onConfirm: () => setConfirmModal((prev) => ({ ...prev, isOpen: false })),
+      });
+    } catch (err) {
+      console.error("Error restoring draft:", err);
+    }
+  }
+
+  function handleDiscardDraft() {
+    localStorage.removeItem("medskill_create_session_draft");
+    setShowRestoreDraftBanner(false);
+  }
+
+  function handleNavigateAway(targetPath) {
+    if (!isSubmitted && !isEdit && (title.trim() !== "" || description.trim() !== "")) {
+      setConfirmModal({
+        isOpen: true,
+        title: "Tinggalkan Halaman Buat Sesi?",
+        message: "Perubahan formulir sesi OSCE Anda yang belum disimpan akan hilang (namun draf otomatis tersimpan di memori browser Anda). Apakah Anda yakin ingin keluar?",
+        confirmText: "Ya, Keluar Halaman",
+        cancelText: "Batal / Lanjut Mengedit",
+        variant: "warning",
+        isAlert: false,
+        onConfirm: () => {
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+          navigate(targetPath);
+        },
+      });
+    } else {
+      navigate(targetPath);
+    }
+  }
 
   const isPublishedSession = isEdit && (
     sessionStatus === "published" ||
@@ -670,6 +807,8 @@ export default function CreateSessionPage() {
       setShowSuccessModal(true);
     }
 
+    localStorage.removeItem("medskill_create_session_draft");
+    setIsSubmitted(true);
     return true;
   }
 
@@ -702,10 +841,47 @@ export default function CreateSessionPage() {
 
   return (
     <AdminLayout>
+      {/* Auto-saved Draft Restore Notification Banner */}
+      {showRestoreDraftBanner && (
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50/90 p-4 shadow-sm animate-in slide-in-from-top duration-300">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white shadow-sm">
+              <RotateCw size={20} className="animate-spin" />
+            </div>
+            <div>
+              <h4 className="text-xs font-black text-amber-950 uppercase tracking-wider">
+                Draf Formulir Sesi Ditemukan!
+              </h4>
+              <p className="text-xs font-semibold text-amber-900 mt-0.5">
+                Draf sesi OSCE tersimpan otomatis di memori browser dari sesi pembuatan sebelumnya. Apakah Anda ingin memulihkannya?
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleRestoreDraft}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-amber-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-amber-700 active:scale-95 transition"
+            >
+              <RotateCw size={14} />
+              Pulihkan Draf Sesi
+            </button>
+            <button
+              type="button"
+              onClick={handleDiscardDraft}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-amber-300 bg-white px-3 py-2 text-xs font-bold text-amber-900 hover:bg-amber-100 transition"
+            >
+              Buang Draf
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Top Header */}
       <div className="mb-6">
         <button
-          onClick={() => navigate("/admin/sessions")}
+          onClick={() => handleNavigateAway("/admin/sessions")}
           className="mb-3 flex items-center gap-1.5 text-xs font-semibold text-slate-500 transition hover:text-slate-900"
         >
           <ArrowLeft size={16} />
