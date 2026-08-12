@@ -471,42 +471,27 @@ export default function StageQuestionPage() {
               const selectValue = matchedDoctor ? matchedDoctor.name : currentExaminer;
 
               return (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      Pilih Dokter Penguji Spesialis
-                    </label>
-                    <select
-                      value={selectValue}
-                      onChange={(e) => setAssignedExaminer(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-bold text-slate-900 focus:border-blue-500 focus:outline-none"
-                    >
-                      <option value="">-- Pilih Dokter Penguji --</option>
-                      {doctorList.map((doc) => (
-                        <option key={doc.id} value={doc.name}>
-                          {doc.name} ({doc.specialty})
-                        </option>
-                      ))}
-                      {currentExaminer && !matchedDoctor && (
-                        <option value={currentExaminer}>
-                          {currentExaminer} (Input Manual)
-                        </option>
-                      )}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      Nama Lengkap Penguji (Bila Ketik Manual)
-                    </label>
-                    <input
-                      type="text"
-                      value={currentExaminer}
-                      onChange={(e) => setAssignedExaminer(e.target.value)}
-                      placeholder="Contoh: dr. Alexander Budiman, Sp.JP"
-                      className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-medium text-slate-900 focus:border-blue-500 focus:outline-none"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Pilih Dokter Penguji Spesialis
+                  </label>
+                  <select
+                    value={selectValue}
+                    onChange={(e) => setAssignedExaminer(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-bold text-slate-900 focus:border-blue-500 focus:outline-none"
+                  >
+                    <option value="">-- Pilih Dokter Penguji Spesialis --</option>
+                    {doctorList.map((doc) => (
+                      <option key={doc.id} value={doc.name}>
+                        {doc.name} ({doc.specialty || "Spesialis Medis"}){doc.institution ? ` - ${doc.institution}` : ""}
+                      </option>
+                    ))}
+                    {currentExaminer && !matchedDoctor && (
+                      <option value={currentExaminer}>
+                        {currentExaminer}
+                      </option>
+                    )}
+                  </select>
                 </div>
               );
             })()}

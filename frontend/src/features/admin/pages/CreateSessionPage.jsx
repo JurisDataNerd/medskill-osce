@@ -1496,80 +1496,43 @@ export default function CreateSessionPage() {
                         const selectValue = matchedDoctor ? matchedDoctor.name : currentExaminer;
 
                         return (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div>
-                              <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                                Pilih Dokter Penguji Spesialis
-                              </label>
-                              <select
-                                value={selectValue}
-                                onChange={(e) => {
-                                  const selectedName = e.target.value;
-                                  const foundDoc = doctorList.find((d) => d.name === selectedName);
-                                  setStationsConfig((prev) =>
-                                    prev.map((item, i) =>
-                                      i === selectedStationIndex
-                                        ? {
-                                            ...item,
-                                            assigned_examiner: selectedName,
-                                            examiner_name: selectedName,
-                                            examiner_user_id: foundDoc ? foundDoc.id : item.examiner_user_id || null,
-                                            examiner_specialty: foundDoc ? foundDoc.specialty : item.examiner_specialty || "Spesialis Medis",
-                                          }
-                                        : item
-                                    )
-                                  );
-                                }}
-                                className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-bold text-slate-900 focus:border-blue-500 focus:outline-none"
-                              >
-                                <option value="">-- Pilih Dokter Penguji --</option>
-                                {doctorList.map((doc) => (
-                                  <option key={doc.id} value={doc.name}>
-                                    {doc.name} ({doc.specialty})
-                                  </option>
-                                ))}
-                                {currentExaminer && !matchedDoctor && (
-                                  <option value={currentExaminer}>
-                                    {currentExaminer} (Input Manual)
-                                  </option>
-                                )}
-                              </select>
-                            </div>
-
-                            <div>
-                              <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                                Nama Lengkap Penguji (Bila Ketik Manual)
-                              </label>
-                              <input
-                                type="text"
-                                value={currentExaminer}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  const foundDoc = doctorList.find((d) => {
-                                    if (!val) return false;
-                                    const target = val.trim().toLowerCase();
-                                    const docName = (d.name || "").trim().toLowerCase();
-                                    return docName === target || target.includes(docName) || docName.includes(target);
-                                  });
-
-                                  setStationsConfig((prev) =>
-                                    prev.map((item, i) =>
-                                      i === selectedStationIndex
-                                        ? {
-                                            ...item,
-                                            assigned_examiner: val,
-                                            examiner_name: val,
-                                            examiner_user_id: foundDoc ? foundDoc.id : item.examiner_user_id || null,
-                                            examiner_specialty: foundDoc ? foundDoc.specialty : item.examiner_specialty || "Spesialis Medis",
-                                          }
-                                        : item
-                                    )
-                                  );
-                                }}
-                                placeholder="Contoh: dr. Alexander Budiman, Sp.JP"
-                                className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-medium text-slate-900 focus:border-blue-500 focus:outline-none"
-                              />
-                            </div>
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                              Pilih Dokter Penguji Spesialis
+                            </label>
+                            <select
+                              value={selectValue}
+                              onChange={(e) => {
+                                const selectedName = e.target.value;
+                                const foundDoc = doctorList.find((d) => d.name === selectedName);
+                                setStationsConfig((prev) =>
+                                  prev.map((item, i) =>
+                                    i === selectedStationIndex
+                                      ? {
+                                          ...item,
+                                          assigned_examiner: selectedName,
+                                          examiner_name: selectedName,
+                                          examiner_user_id: foundDoc ? foundDoc.id : item.examiner_user_id || null,
+                                          examiner_specialty: foundDoc ? foundDoc.specialty : item.examiner_specialty || "Spesialis Medis",
+                                        }
+                                      : item
+                                  )
+                                );
+                              }}
+                              className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-bold text-slate-900 focus:border-blue-500 focus:outline-none"
+                            >
+                              <option value="">-- Pilih Dokter Penguji Spesialis --</option>
+                              {doctorList.map((doc) => (
+                                <option key={doc.id} value={doc.name}>
+                                  {doc.name} ({doc.specialty || "Spesialis Medis"}){doc.institution ? ` - ${doc.institution}` : ""}
+                                </option>
+                              ))}
+                              {currentExaminer && !matchedDoctor && (
+                                <option value={currentExaminer}>
+                                  {currentExaminer}
+                                </option>
+                              )}
+                            </select>
                           </div>
                         );
                       })()}
