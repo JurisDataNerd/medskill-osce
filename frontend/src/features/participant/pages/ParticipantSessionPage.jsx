@@ -1105,10 +1105,17 @@ export default function ParticipantSessionPage() {
             <div className="pt-2 flex justify-center">
               <button
                 onClick={handleStartNextRoundFromBreak}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-600 px-8 py-3.5 text-xs font-extrabold text-white shadow-lg shadow-amber-600/30 hover:bg-amber-700 active:scale-95 transition"
+                disabled={isSessionLive && globalTimerState?.phase === "transition" && roundSecondsLeft > 0}
+                className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl px-8 py-3.5 text-xs font-extrabold text-white shadow-lg transition ${
+                  isSessionLive && globalTimerState?.phase === "transition" && roundSecondsLeft > 0
+                    ? "bg-slate-400 cursor-not-allowed opacity-80"
+                    : "bg-amber-600 hover:bg-amber-700 shadow-amber-600/30 active:scale-95"
+                }`}
               >
                 <ArrowRight size={16} />
-                Mulai Ronde {nextRoundNumber} ({nextStationInfo.title})
+                {isSessionLive && globalTimerState?.phase === "transition" && roundSecondsLeft > 0
+                  ? `Menunggu Bel Transisi Selesai (${formatTime(roundSecondsLeft)})`
+                  : `Mulai Ronde ${nextRoundNumber} (${nextStationInfo.title})`}
               </button>
             </div>
           </div>
@@ -1231,16 +1238,26 @@ export default function ParticipantSessionPage() {
             </span>
           </div>
 
-          {/* Continuous Action Timer Banner */}
+          {/* Sub-Timer Circuit Phase Banner */}
           <div className="flex items-center gap-2">
             <div className={`flex items-center gap-2 rounded-xl border px-3.5 py-1.5 ${
               globalTimerState?.phase === "paused" || sessionDetail?.status === "paused"
                 ? "border-amber-300 bg-amber-50 text-amber-900"
-                : "border-emerald-200 bg-emerald-50 text-emerald-950"
+                : globalTimerState?.phase === "transition"
+                ? "border-amber-400 bg-amber-500 text-slate-950 font-black animate-pulse shadow-md"
+                : globalTimerState?.phase === "break"
+                ? "border-blue-300 bg-blue-50 text-blue-950 font-bold"
+                : "border-emerald-200 bg-emerald-50 text-emerald-950 font-bold"
             }`}>
-              <Clock size={16} className={globalTimerState?.phase === "paused" || sessionDetail?.status === "paused" ? "text-amber-600" : "text-emerald-600 animate-pulse"} />
+              <Clock size={16} className={globalTimerState?.phase === "paused" ? "text-amber-600" : "animate-pulse"} />
               <span className="text-[11px] font-bold uppercase hidden sm:inline">
-                {globalTimerState?.phase === "paused" || sessionDetail?.status === "paused" ? "Timer Paused Admin:" : "Timer Ronde Live:"}
+                {globalTimerState?.phase === "paused" || sessionDetail?.status === "paused"
+                  ? "Timer Paused Admin:"
+                  : globalTimerState?.phase === "transition"
+                  ? "Transisi Pergerakan Pos:"
+                  : globalTimerState?.phase === "break"
+                  ? "Waktu Istirahat Ronde:"
+                  : "Stase Ujian Live:"}
               </span>
               <span className="text-sm font-black font-mono">{formatTime(roundSecondsLeft)}</span>
               {(globalTimerState?.phase === "paused" || sessionDetail?.status === "paused") && (

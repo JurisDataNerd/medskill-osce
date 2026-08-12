@@ -1179,15 +1179,39 @@ export default function ExaminerStagePage() {
           </button>
 
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50/90 px-3.5 py-1.5 text-xs text-blue-950 font-bold shadow-2xs">
-              <Clock size={16} className="text-blue-600 animate-pulse" />
-              <span>Timer Live Global:</span>
-              <span className="font-mono text-sm font-black text-blue-700">
+            <div className={`flex items-center gap-2 rounded-xl border px-3.5 py-1.5 text-xs font-bold shadow-2xs ${
+              timerState?.phase === "transition"
+                ? "border-amber-300 bg-amber-100 text-amber-950 font-black"
+                : timerState?.phase === "break"
+                ? "border-blue-300 bg-blue-100 text-blue-950"
+                : timerState?.phase === "paused"
+                ? "border-rose-300 bg-rose-50 text-rose-950"
+                : "border-blue-200 bg-blue-50/90 text-blue-950"
+            }`}>
+              <Clock size={16} className={timerState?.phase === "paused" ? "text-rose-600" : "text-blue-600 animate-pulse"} />
+              <span>
+                {timerState?.phase === "transition"
+                  ? "Transisi Pergerakan Peserta:"
+                  : timerState?.phase === "break"
+                  ? "Waktu Istirahat Ronde:"
+                  : timerState?.phase === "paused"
+                  ? "Timer Paused Admin:"
+                  : "Timer Stase Ujian:"}
+              </span>
+              <span className="font-mono text-sm font-black">
                 {Math.floor(remainingSeconds / 60).toString().padStart(2, "0")}:
                 {(remainingSeconds % 60).toString().padStart(2, "0")}
               </span>
               {timerState?.phase && (
-                <span className="rounded-md bg-blue-600 px-2 py-0.5 text-[10px] font-black text-white uppercase ml-1">
+                <span className={`rounded-md px-2 py-0.5 text-[10px] font-black text-white uppercase ml-1 ${
+                  timerState.phase === 'transition'
+                    ? 'bg-amber-600'
+                    : timerState.phase === 'break'
+                    ? 'bg-indigo-600'
+                    : timerState.phase === 'paused'
+                    ? 'bg-rose-600'
+                    : 'bg-emerald-600'
+                }`}>
                   {timerState.phase}
                 </span>
               )}
