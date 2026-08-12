@@ -30,6 +30,7 @@ import AdminLayout from "@/layouts/AdminLayout";
 import AdminAuxiliaryExamBuilder from "@/features/admin/components/AdminAuxiliaryExamBuilder";
 import QuestionBankSelectModal from "@/features/admin/components/QuestionBankSelectModal";
 import SuccessModal from "@/components/ui/SuccessModal";
+import ConfirmModal from "@/components/ConfirmModal";
 import { createSession, updateSession, fetchSessionById } from "@/services/sessionService";
 import { fetchDoctorExaminers } from "@/services/examinerService";
 
@@ -42,6 +43,16 @@ export default function CreateSessionPage() {
 
   // Active Menu Tab in Left Sidebar (1: Detail Utama, 2: Stase & Timer, 3: Soal & Rubrik, 4: Rule OSCE)
   const [activeTab, setActiveTab] = useState(1);
+
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    confirmText: "Mengerti",
+    variant: "warning",
+    isAlert: true,
+    onConfirm: null,
+  });
 
   // Active Selected Station inside Tab 3 Soal & Rubrik (0 to stationsConfig.length - 1)
   const [selectedStationIndex, setSelectedStationIndex] = useState(0);
@@ -460,7 +471,15 @@ export default function CreateSessionPage() {
 
   function handleRemoveStationInline(index) {
     if (stationsConfig.length <= 1) {
-      alert("Minimal harus terdapat 1 Stase di Sirkuit!");
+      setConfirmModal({
+        isOpen: true,
+        title: "Peringatan Konfigurasi Stase",
+        message: "Minimal harus terdapat 1 Stase di Sirkuit Ujian OSCE!",
+        confirmText: "Mengerti",
+        variant: "warning",
+        isAlert: true,
+        onConfirm: () => setConfirmModal((prev) => ({ ...prev, isOpen: false })),
+      });
       return;
     }
     const filtered = stationsConfig.filter((_, idx) => idx !== index);
@@ -585,7 +604,15 @@ export default function CreateSessionPage() {
 
   async function handleSaveCurrentSection(isDraftOnly = true) {
     if (!title.trim() && activeTab === 1) {
-      alert("Harap isi Nama Sesi OSCE terlebih dahulu!");
+      setConfirmModal({
+        isOpen: true,
+        title: "Judul Sesi Diperlukan",
+        message: "Harap isi Nama Sesi OSCE terlebih dahulu!",
+        confirmText: "Mengerti",
+        variant: "warning",
+        isAlert: true,
+        onConfirm: () => setConfirmModal((prev) => ({ ...prev, isOpen: false })),
+      });
       return false;
     }
 
@@ -648,7 +675,15 @@ export default function CreateSessionPage() {
 
   function handleNextTab() {
     if (activeTab === 1 && !title.trim()) {
-      alert("Harap isi Nama Sesi OSCE terlebih dahulu!");
+      setConfirmModal({
+        isOpen: true,
+        title: "Judul Sesi Diperlukan",
+        message: "Harap isi Nama Sesi OSCE terlebih dahulu!",
+        confirmText: "Mengerti",
+        variant: "warning",
+        isAlert: true,
+        onConfirm: () => setConfirmModal((prev) => ({ ...prev, isOpen: false })),
+      });
       return;
     }
 
@@ -1853,17 +1888,17 @@ export default function CreateSessionPage() {
         onSelectCase={handleApplyQuestionBankCase}
       />
 
-      {/* Success Modal */}
-      <SuccessModal
-        isOpen={showSuccessModal}
-        onClose={() => {
-          setShowSuccessModal(false);
-          navigate("/admin/sessions");
-        }}
-        title={successModalTitle}
-        message={successModalMessage}
-        actionText="Ke Daftar Sesi"
-        onAction={() => navigate("/admin/sessions")}
+      {/* Confirm & Alert Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        cancelText={confirmModal.cancelText}
+        variant={confirmModal.variant}
+        isAlert={confirmModal.isAlert}
       />
     </AdminLayout>
   );

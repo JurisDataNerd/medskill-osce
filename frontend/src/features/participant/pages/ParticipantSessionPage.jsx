@@ -98,6 +98,17 @@ export default function ParticipantSessionPage() {
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
   const [showCheatingWarning, setShowCheatingWarning] = useState(false);
 
+  // Confirm & Alert Modal State
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    confirmText: "Mengerti",
+    variant: "info",
+    isAlert: true,
+    onConfirm: null,
+  });
+
   // Real-time Presence Tracking for Waiting Room
   useEffect(() => {
     if (!sessionId) return;
@@ -541,7 +552,15 @@ export default function ParticipantSessionPage() {
 
   function handleSubmitAuxiliaryRequests() {
     if (checkedAuxiliaryIds.length === 0) {
-      alert("Pilih minimal 1 pemeriksaan penunjang.");
+      setConfirmModal({
+        isOpen: true,
+        title: "Pemeriksaan Penunjang",
+        message: "Harap pilih minimal 1 pemeriksaan penunjang sebelum meminta rilis hasil.",
+        confirmText: "Mengerti",
+        variant: "warning",
+        isAlert: true,
+        onConfirm: () => setConfirmModal((prev) => ({ ...prev, isOpen: false })),
+      });
       return;
     }
 
@@ -563,8 +582,18 @@ export default function ParticipantSessionPage() {
   }
 
   function handleFinishTransit() {
-    alert("Anda telah berpindah ke Stase 2 (Pulmonologi)! Sesi ujian berikutnya akan dimulai.");
-    navigate("/participant");
+    setConfirmModal({
+      isOpen: true,
+      title: "Transisi Stase Selanjutnya",
+      message: "Anda telah berpindah ke Stase 2 (Pulmonologi)! Sesi ujian berikutnya akan dimulai.",
+      confirmText: "Lanjut ke Stase 2",
+      variant: "info",
+      isAlert: true,
+      onConfirm: () => {
+        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        navigate("/participant");
+      },
+    });
   }
 
   /* ============================================================
@@ -1632,6 +1661,18 @@ export default function ParticipantSessionPage() {
           </div>
         </div>
       )}
+
+      {/* Confirm & Alert Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        variant={confirmModal.variant}
+        isAlert={confirmModal.isAlert}
+      />
     </div>
   );
 }

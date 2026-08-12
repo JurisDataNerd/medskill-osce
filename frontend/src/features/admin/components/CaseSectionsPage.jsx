@@ -4,6 +4,7 @@ import { Plus, Pencil, Trash2 } from "lucide-react";
 
 import AdminLayout from "@/layouts/AdminLayout";
 import SectionModal from "@/features/admin/components/StaseModal";
+import ConfirmModal from "@/components/ConfirmModal";
 
 import {
   getSections,
@@ -19,6 +20,16 @@ export default function CaseSectionsPage() {
   const [sections,setSections]=useState([]);
   const [open,setOpen]=useState(false);
   const [selected,setSelected]=useState(null);
+
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    confirmText: "Ya, Lanjutkan",
+    cancelText: "Batal",
+    variant: "primary",
+    onConfirm: null,
+  });
 
   async function load(){
     const data=await getSections(id);
@@ -52,14 +63,20 @@ export default function CaseSectionsPage() {
 
   }
 
-  async function remove(id){
-
-    if(!confirm("Hapus stase?")) return;
-
-    await deleteSection(id);
-
-    load();
-
+  async function remove(secId){
+    setConfirmModal({
+      isOpen: true,
+      title: "Hapus Stase?",
+      message: "Apakah Anda yakin ingin menghapus stase ini?",
+      confirmText: "Ya, Hapus Stase",
+      cancelText: "Batal",
+      variant: "danger",
+      onConfirm: async () => {
+        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        await deleteSection(secId);
+        load();
+      },
+    });
   }
 
   return(
@@ -165,6 +182,17 @@ export default function CaseSectionsPage() {
           setSelected(null);
         }}
         onSave={save}
+      />
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        cancelText={confirmModal.cancelText}
+        variant={confirmModal.variant}
       />
 
     </AdminLayout>

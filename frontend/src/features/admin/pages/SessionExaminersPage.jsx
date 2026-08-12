@@ -22,6 +22,7 @@ import {
 import { fetchDoctorExaminers } from "@/services/examinerService";
 
 import SearchableSelectMenu from "@/components/ui/SearchableSelectMenu";
+import ConfirmModal from "@/components/ConfirmModal";
 
 export default function SessionExaminersPage() {
   const { id } = useParams();
@@ -37,6 +38,16 @@ export default function SessionExaminersPage() {
   const [targetStation, setTargetStation] = useState(1);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    confirmText: "Ya, Lanjutkan",
+    cancelText: "Batal",
+    variant: "primary",
+    onConfirm: null,
+  });
 
   async function loadAllData() {
     try {
@@ -111,26 +122,32 @@ export default function SessionExaminersPage() {
 
   // Handle unassigning an examiner from a station slot
   async function handleUnassignExaminer(stationNum, doctorName) {
-    const ok = confirm(
-      `Hapus penugasan ${doctorName || "Dokter Penguji"} dari Pos Stase ${stationNum}?`
-    );
-    if (!ok) return;
-
-    try {
-      await deleteSessionExaminer(id, stationNum);
-      setExaminers((prev) =>
-        prev.filter(
-          (e) => Number(e.station_number || e.assigned_station_number) !== Number(stationNum)
-        )
-      );
-    } catch (err) {
-      console.warn("Could not delete from Supabase, updating locally:", err);
-      setExaminers((prev) =>
-        prev.filter(
-          (e) => Number(e.station_number || e.assigned_station_number) !== Number(stationNum)
-        )
-      );
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: "Hapus Penugasan Penguji?",
+      message: `Apakah Anda yakin ingin menghapus penugasan ${doctorName || "Dokter Penguji"} dari Pos Stase ${stationNum}?`,
+      confirmText: "Ya, Hapus Penugasan",
+      cancelText: "Batal",
+      variant: "danger",
+      onConfirm: async () => {
+        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        try {
+          await deleteSessionExaminer(id, stationNum);
+          setExaminers((prev) =>
+            prev.filter(
+              (e) => Number(e.station_number || e.assigned_station_number) !== Number(stationNum)
+            )
+          );
+        } catch (err) {
+          console.warn("Could not delete from Supabase, updating locally:", err);
+          setExaminers((prev) =>
+            prev.filter(
+              (e) => Number(e.station_number || e.assigned_station_number) !== Number(stationNum)
+            )
+          );
+        }
+      },
+    });
   }
 
   // Open modal preselected for a specific station
@@ -422,6 +439,17 @@ export default function SessionExaminersPage() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        cancelText={confirmModal.cancelText}
+        variant={confirmModal.variant}
+      />
     </AdminLayout>
   );
 }

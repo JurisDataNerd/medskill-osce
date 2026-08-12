@@ -20,6 +20,7 @@ import {
   Printer,
 } from "lucide-react";
 import AdminLayout from "@/layouts/AdminLayout";
+import ConfirmModal from "@/components/ConfirmModal";
 import { supabase } from "@/lib/supabaseClient";
 import { fetchSessions } from "@/services/sessionService";
 
@@ -31,6 +32,15 @@ export default function ReportsPage() {
   const [selectedSessionId, setSelectedSessionId] = useState("");
   const [activeTab, setActiveTab] = useState("recap"); // 'recap', 'standard_setting', 'analytics'
   const [searchQuery, setSearchQuery] = useState("");
+
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    confirmText: "Mengerti",
+    variant: "info",
+    isAlert: true,
+  });
   
   // Real Supabase State
   const [stations, setStations] = useState([]);
@@ -157,11 +167,25 @@ export default function ReportsPage() {
   );
 
   function handleExportExcel() {
-    alert(`Mengunduh Rekapitulasi Nilai Ujian OSCE (${activeSession.title}) (.xlsx)...`);
+    setConfirmModal({
+      isOpen: true,
+      title: "Ekspor Rekapitulasi Excel",
+      message: `Mengunduh Rekapitulasi Nilai Ujian OSCE (${activeSession.title}) (.xlsx)...`,
+      confirmText: "Mengerti",
+      variant: "info",
+      isAlert: true,
+    });
   }
 
   function handleExportPdf() {
-    alert(`Mencetak Berita Acara Resmi & Transkrip Hasil Ujian (${activeSession.title}) (.pdf)...`);
+    setConfirmModal({
+      isOpen: true,
+      title: "Cetak Berita Acara & Transkrip PDF",
+      message: `Mencetak Berita Acara Resmi & Transkrip Hasil Ujian (${activeSession.title}) (.pdf)...`,
+      confirmText: "Mengerti",
+      variant: "info",
+      isAlert: true,
+    });
   }
 
   if (loading && sessions.length === 0) {
@@ -442,6 +466,17 @@ export default function ReportsPage() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        variant={confirmModal.variant}
+        isAlert={confirmModal.isAlert}
+      />
     </AdminLayout>
   );
 }

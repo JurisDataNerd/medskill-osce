@@ -34,6 +34,7 @@ import { supabase } from "@/lib/supabaseClient";
 
 import ParticipantNavbar from "@/features/participant/components/ParticipantNavbar";
 import SessionRegistrationModal from "@/components/landing/SessionRegistrationModal";
+import ConfirmModal from "@/components/ConfirmModal";
 
 export default function ParticipantDashboardPage() {
   const navigate = useNavigate();
@@ -45,6 +46,15 @@ export default function ParticipantDashboardPage() {
   const [activeTab, setActiveTab] = useState("enrolled"); // "enrolled" | "history"
   const [searchQuery, setSearchQuery] = useState("");
 
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    confirmText: "Mengerti",
+    variant: "warning",
+    isAlert: true,
+    onConfirm: null,
+  });
   const [selectedSessionForModal, setSelectedSessionForModal] = useState(null);
   const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
   const [pendingModalSession, setPendingModalSession] = useState(null);
@@ -107,7 +117,15 @@ export default function ParticipantDashboardPage() {
       setRegistrationStatuses((prev) => ({ ...prev, [sessionId]: "pending" }));
     } catch (err) {
       console.error("Gagal mendaftar ke database Supabase:", err);
-      alert(err.message || "Gagal mendaftar sesi ke database Supabase.");
+      setConfirmModal({
+        isOpen: true,
+        title: "Gagal Pendaftaran Sesi",
+        message: err.message || "Gagal mendaftar sesi ke database Supabase.",
+        confirmText: "Mengerti",
+        variant: "warning",
+        isAlert: true,
+        onConfirm: () => setConfirmModal((prev) => ({ ...prev, isOpen: false })),
+      });
     } finally {
       setIsRegistrationModalOpen(false);
     }
@@ -465,6 +483,18 @@ export default function ParticipantDashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Confirm & Alert Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        variant={confirmModal.variant}
+        isAlert={confirmModal.isAlert}
+      />
     </div>
   );
 }

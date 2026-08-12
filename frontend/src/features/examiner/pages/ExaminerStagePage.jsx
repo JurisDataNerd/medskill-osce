@@ -74,6 +74,17 @@ export default function ExaminerStagePage() {
   const [assignedSessionsList, setAssignedSessionsList] = useState([]);
   const [allActiveSessions, setAllActiveSessions] = useState([]);
 
+  // Confirm & Alert Modal State
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    confirmText: "Mengerti",
+    variant: "warning",
+    isAlert: true,
+    onConfirm: null,
+  });
+
   useEffect(() => {
     async function loadStationDetail() {
       try {
@@ -527,7 +538,15 @@ export default function ExaminerStagePage() {
 
   async function handleSaveEvaluation() {
     if (!activeSession || !stationData || !currentParticipant) {
-      alert("Tidak dapat menyimpan: Data Sesi, Stase, atau Peserta tidak ditemukan.");
+      setConfirmModal({
+        isOpen: true,
+        title: "Tidak Dapat Menyimpan",
+        message: "Tidak dapat menyimpan: Data Sesi, Stase, atau Peserta tidak ditemukan.",
+        confirmText: "Mengerti",
+        variant: "warning",
+        isAlert: true,
+        onConfirm: () => setConfirmModal((prev) => ({ ...prev, isOpen: false })),
+      });
       return;
     }
 
@@ -539,7 +558,15 @@ export default function ExaminerStagePage() {
       } = await supabase.auth.getUser();
 
       if (!user?.id) {
-        alert("Sesi login penguji tidak ditemukan. Silakan login terlebih dahulu.");
+        setConfirmModal({
+          isOpen: true,
+          title: "Sesi Login Berakhir",
+          message: "Sesi login penguji tidak ditemukan. Silakan login terlebih dahulu.",
+          confirmText: "Mengerti",
+          variant: "warning",
+          isAlert: true,
+          onConfirm: () => setConfirmModal((prev) => ({ ...prev, isOpen: false })),
+        });
         return;
       }
 
@@ -548,50 +575,46 @@ export default function ExaminerStagePage() {
         0
       );
       const maxWeighted = rubricItems.reduce(
-        (acc, r) => acc + Number(r.max_points || 3) * Number(r.weight || 1),
+        (acc, r) => acc + 3 * Number(r.weight || 1),
         0
       );
-      const finalPerc = maxWeighted > 0 ? (earnedWeighted / maxWeighted) * 100 : 0;
+      const finalScorePercent = maxWeighted > 0 ? (earnedWeighted / maxWeighted) * 100 : 0;
 
       const evalPayload = {
         session_id: activeSession.id,
         station_id: stationData.id,
-        participant_id: examineeId,
-        examiner_id: user.id,
-        rotation_round: currentRoundNum,
+        examiner_user_id: user.id,
+        participant_user_id: examineeId,
+        total_earned_score: earnedWeighted,
+        max_possible_score: maxWeighted,
+        final_score_percentage: Number(finalScorePercent.toFixed(2)),
         grs_rating: globalRating,
-        examiner_notes: feedback,
-        total_points_earned: earnedWeighted,
-        max_points_possible: maxWeighted,
-        final_score_percentage: finalPerc,
+        feedback: feedback || null,
         is_locked: true,
-        submitted_at: new Date().toISOString(),
+        locked_at: new Date().toISOString(),
       };
 
-      const { data: evalRecord, error: evalErr } = await supabase
+      const { data: evalRes, error: evalErr } = await supabase
         .schema("osce")
         .from("examiner_evaluations")
-        .upsert([evalPayload], {
-          onConflict: "session_id,station_id,participant_id,examiner_id,rotation_round",
-        })
+        .upsert([evalPayload], { onConflict: "session_id,station_id,participant_user_id" })
         .select()
         .single();
 
       if (evalErr) throw evalErr;
 
-      // Upsert detail rubric scores into osce.rubric_scores table
-      if (evalRecord && rubricItems.length > 0) {
-        const scorePayloads = rubricItems.map((r) => ({
-          evaluation_id: evalRecord.id,
+      // Upsert detail rubric scores
+      if (evalRes?.id) {
+        const scoresPayload = rubricItems.map((r) => ({
+          evaluation_id: evalRes.id,
           rubric_item_id: r.id,
           score_given: Number(rubricScores[r.id] || 0),
-          scored_at: new Date().toISOString(),
         }));
 
         const { error: scoresErr } = await supabase
           .schema("osce")
           .from("rubric_scores")
-          .upsert(scorePayloads, { onConflict: "evaluation_id,rubric_item_id" });
+          .upsert(scoresPayload, { onConflict: "evaluation_id,rubric_item_id" });
 
         if (scoresErr) console.warn("Error saving detail rubric scores:", scoresErr);
       }
@@ -600,7 +623,15 @@ export default function ExaminerStagePage() {
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
       console.error("Error saving examiner evaluation to Supabase:", err);
-      alert("Gagal menyimpan penilaian ke database Supabase: " + err.message);
+      setConfirmModal({
+        isOpen: true,
+        title: "Gagal Menyimpan Penilaian",
+        message: "Gagal menyimpan penilaian ke database Supabase: " + err.message,
+        confirmText: "Mengerti",
+        variant: "warning",
+        isAlert: true,
+        onConfirm: () => setConfirmModal((prev) => ({ ...prev, isOpen: false })),
+      });
     } finally {
       setSaving(false);
     }
@@ -1522,6 +1553,17 @@ export default function ExaminerStagePage() {
         isOpen={!!selectedAuxModalResults}
         onClose={() => setSelectedAuxModalResults(null)}
         results={selectedAuxModalResults || []}
+      />
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        variant={confirmModal.variant}
+        isAlert={confirmModal.isAlert}
       />
     </div>
   );

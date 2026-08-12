@@ -19,6 +19,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { getOpenSessions } from "@/services/landing.service";
 import { registerParticipantToSession } from "@/services/session.service";
 import SessionRegistrationModal from "./SessionRegistrationModal";
+import ConfirmModal from "@/components/ConfirmModal";
 
 export default function SessionSection() {
   const navigate = useNavigate();
@@ -26,6 +27,19 @@ export default function SessionSection() {
   const [sessions, setSessions] = useState([]);
   const [registered, setRegistered] = useState({});
   const [loading, setLoading] = useState(true);
+
+  const [selectedSessionForModal, setSelectedSessionForModal] = useState(null);
+  const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
+
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    confirmText: "Mengerti",
+    variant: "warning",
+    isAlert: true,
+    onConfirm: null,
+  });
 
   useEffect(() => {
     load();
@@ -74,9 +88,6 @@ export default function SessionSection() {
       setLoading(false);
     }
   }
-
-  const [selectedSessionForModal, setSelectedSessionForModal] = useState(null);
-  const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
 
   async function handleOpenRegisterModal(sessionTarget) {
     const {
@@ -281,6 +292,18 @@ export default function SessionSection() {
         onClose={() => setIsRegistrationModalOpen(false)}
         onConfirm={handleConfirmRegistration}
         session={selectedSessionForModal}
+      />
+
+      {/* Confirm & Alert Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        variant={confirmModal.variant}
+        isAlert={confirmModal.isAlert}
       />
     </section>
   );

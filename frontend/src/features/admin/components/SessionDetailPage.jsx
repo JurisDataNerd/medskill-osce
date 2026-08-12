@@ -20,6 +20,7 @@ import {
 
 import AdminLayout from "@/layouts/AdminLayout";
 import StaseModal from "@/features/admin/components/StaseModal";
+import ConfirmModal from "@/components/ConfirmModal";
 
 import {
   getSessionById,
@@ -44,6 +45,16 @@ export default function SessionDetailPage() {
 
   const [openStage, setOpenStage] = useState(false);
   const [selectedStage, setSelectedStage] = useState(null);
+
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    confirmText: "Ya, Lanjutkan",
+    cancelText: "Batal",
+    variant: "primary",
+    onConfirm: null,
+  });
 
   useEffect(() => {
     load();
@@ -75,24 +86,51 @@ export default function SessionDetailPage() {
   }
 
   async function handleDeleteStage(stageId) {
-    if (!confirm("Hapus stase ini?")) return;
-
-    await deleteStage(stageId);
-    load();
+    setConfirmModal({
+      isOpen: true,
+      title: "Hapus Stase?",
+      message: "Apakah Anda yakin ingin menghapus stase ini?",
+      confirmText: "Ya, Hapus Stase",
+      cancelText: "Batal",
+      variant: "danger",
+      onConfirm: async () => {
+        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        await deleteStage(stageId);
+        load();
+      },
+    });
   }
 
   async function handleStart() {
-    if (!confirm("Mulai sesi simulasi sekarang?")) return;
-
-    await startSession(id);
-    load();
+    setConfirmModal({
+      isOpen: true,
+      title: "Mulai Sesi Simulasi?",
+      message: "Apakah Anda yakin ingin memulai sesi simulasi OSCE sekarang?",
+      confirmText: "Ya, Mulai Sesi",
+      cancelText: "Batal",
+      variant: "primary",
+      onConfirm: async () => {
+        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        await startSession(id);
+        load();
+      },
+    });
   }
 
   async function handleFinish() {
-    if (!confirm("Akhiri sesi simulasi?")) return;
-
-    await finishSession(id);
-    load();
+    setConfirmModal({
+      isOpen: true,
+      title: "Akhiri Sesi Simulasi?",
+      message: "Apakah Anda yakin ingin mengakhiri sesi simulasi ini?",
+      confirmText: "Ya, Selesaikan Sesi",
+      cancelText: "Batal",
+      variant: "warning",
+      onConfirm: async () => {
+        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        await finishSession(id);
+        load();
+      },
+    });
   }
 
   if (loading) {
@@ -320,6 +358,17 @@ export default function SessionDetailPage() {
           setOpenStage(false);
         }}
         onSave={handleSaveStage}
+      />
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        cancelText={confirmModal.cancelText}
+        variant={confirmModal.variant}
       />
 
     </AdminLayout>

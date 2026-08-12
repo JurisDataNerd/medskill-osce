@@ -40,10 +40,16 @@ export default function CreateCasePage() {
   const [successModalTitle, setSuccessModalTitle] = useState("Berhasil Disimpan");
   const [successModalMessage, setSuccessModalMessage] = useState("");
 
-  // Confirmation Modals State
+  // Confirmation & Alert Modals State
   const [saveModalOpen, setSaveModalOpen] = useState(false);
   const [deleteRubricModalOpen, setDeleteRubricModalOpen] = useState(false);
   const [targetRubricIndex, setTargetRubricIndex] = useState(null);
+
+  const [alertModal, setAlertModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+  });
 
   // Tab 1: Basic Info & Scenario
   const [title, setTitle] = useState("");
@@ -159,7 +165,11 @@ export default function CreateCasePage() {
 
   function requestRemoveRubricItem(index) {
     if (rubricItems.length <= 1) {
-      alert("Minimal terdapat 1 Item Rubrik Penilaian!");
+      setAlertModal({
+        isOpen: true,
+        title: "Peringatan Rubrik",
+        message: "Minimal terdapat 1 Item Rubrik Penilaian!",
+      });
       return;
     }
     setTargetRubricIndex(index);
@@ -203,7 +213,11 @@ export default function CreateCasePage() {
   // Save Case to Supabase osce schema
   async function handleSaveCase() {
     if (!title.trim()) {
-      alert("Harap isi Judul Kasus Medis!");
+      setAlertModal({
+        isOpen: true,
+        title: "Judul Kasus Diperlukan",
+        message: "Harap isi Judul Kasus Medis terlebih dahulu!",
+      });
       return;
     }
 
@@ -698,8 +712,20 @@ export default function CreateCasePage() {
         }}
         title={successModalTitle}
         message={successModalMessage}
-        actionText="Ke Bank Soal"
+        actionText="Ke Repository Bank Soal"
         onAction={() => navigate("/admin/cases")}
+      />
+
+      {/* Alert Modal */}
+      <ConfirmModal
+        isOpen={alertModal.isOpen}
+        onClose={() => setAlertModal((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={() => setAlertModal((prev) => ({ ...prev, isOpen: false }))}
+        title={alertModal.title}
+        message={alertModal.message}
+        confirmText="Mengerti"
+        variant="warning"
+        isAlert={true}
       />
     </AdminLayout>
   );
