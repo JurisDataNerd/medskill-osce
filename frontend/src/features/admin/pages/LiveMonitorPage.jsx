@@ -34,6 +34,8 @@ import {
   Layers,
   Building2,
   Loader2,
+  XCircle,
+  LogOut,
 } from "lucide-react";
 import {
   subscribeToSession,
