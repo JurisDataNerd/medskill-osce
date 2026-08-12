@@ -29,6 +29,7 @@ import {
   PlayCircle,
   Megaphone,
   X,
+  LogOut,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { fetchSessions } from "@/services/sessionService";
@@ -39,6 +40,7 @@ import {
   calcRemaining,
 } from "@/services/realtimeTimerService";
 import AuxiliaryExamResultModal from "@/components/AuxiliaryExamResultModal";
+import ConfirmModal from "@/components/ConfirmModal";
 
 export default function ExaminerStagePage() {
   const { stageId, sessionId, id } = useParams();
@@ -61,6 +63,32 @@ export default function ExaminerStagePage() {
   const [showScenario, setShowScenario] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    confirmText: "Mengerti",
+    variant: "warning",
+    isAlert: true,
+    onConfirm: null,
+  });
+
+  function handleExitExaminerWaitingRoom() {
+    setConfirmModal({
+      isOpen: true,
+      title: "Keluar dari Waiting Room Stase?",
+      message: "Apakah Anda yakin ingin keluar dari Waiting Room Stase ini dan kembali ke Dashboard Dokter Penguji?",
+      confirmText: "Ya, Keluar ke Dashboard",
+      cancelText: "Batal",
+      variant: "danger",
+      isAlert: false,
+      onConfirm: () => {
+        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        navigate("/examiner");
+      },
+    });
+  }
+
   // Live Synchronized Global Timer State
   const [timerState, setTimerState] = useState(null);
   const [remainingSeconds, setRemainingSeconds] = useState(720);
@@ -74,16 +102,7 @@ export default function ExaminerStagePage() {
   const [assignedSessionsList, setAssignedSessionsList] = useState([]);
   const [allActiveSessions, setAllActiveSessions] = useState([]);
 
-  // Confirm & Alert Modal State
-  const [confirmModal, setConfirmModal] = useState({
-    isOpen: false,
-    title: "",
-    message: "",
-    confirmText: "Mengerti",
-    variant: "warning",
-    isAlert: true,
-    onConfirm: null,
-  });
+
 
   useEffect(() => {
     async function loadStationDetail() {
@@ -854,11 +873,11 @@ export default function ExaminerStagePage() {
               Masuk Lembar Penilaian Live
             </button>
             <button
-              onClick={() => navigate("/examiner")}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition shadow-2xs"
+              onClick={handleExitExaminerWaitingRoom}
+              className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 transition shadow-2xs"
             >
-              <ArrowLeft size={15} />
-              Kembali ke Dashboard
+              <LogOut size={15} />
+              Keluar Waiting Room
             </button>
           </div>
         </div>
@@ -931,13 +950,22 @@ export default function ExaminerStagePage() {
             <p className="text-xs text-slate-300">
               Layar akan otomatis beralih saat Admin memulai ujian, atau Anda dapat mengklik tombol di samping untuk langsung membuka Lembar Penilaian.
             </p>
-            <button
-              onClick={() => setForceLiveView(true)}
-              className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-6 py-3 text-xs font-black text-white shadow-lg hover:bg-emerald-700 active:scale-95 transition"
-            >
-              <PlayCircle size={18} />
-              Masuk ke Lembar Penilaian Live (Pos #{stationData?.station_number || 1})
-            </button>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                onClick={handleExitExaminerWaitingRoom}
+                className="inline-flex items-center gap-2 rounded-2xl bg-rose-50 border border-rose-200 hover:bg-rose-100 px-5 py-3 text-xs font-bold text-rose-700 shadow-2xs active:scale-95 transition"
+              >
+                <LogOut size={16} />
+                Keluar dari Waiting Room
+              </button>
+              <button
+                onClick={() => setForceLiveView(true)}
+                className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-6 py-3 text-xs font-black text-white shadow-lg hover:bg-emerald-700 active:scale-95 transition"
+              >
+                <PlayCircle size={18} />
+                Masuk ke Lembar Penilaian Live (Pos #{stationData?.station_number || 1})
+              </button>
+            </div>
           </div>
         </div>
 

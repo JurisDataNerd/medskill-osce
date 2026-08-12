@@ -349,6 +349,39 @@ export default function LiveMonitorPage() {
     }
   }
 
+  // Handle Closing / Leaving Waiting Room (Admin cancels/resets waiting room to published)
+  async function handleCloseWaitingRoom() {
+    if (!activeSession) return;
+    setConfirmModal({
+      isOpen: true,
+      title: "Tutup / Keluar dari Waiting Room?",
+      message: `Apakah Anda yakin ingin menutup Waiting Room untuk sesi "${activeSession.title}" dan mengembalikan status sesi ke Published? Peserta & penguji yang terhubung di waiting room akan diputuskan.`,
+      confirmText: "Ya, Tutup Waiting Room",
+      cancelText: "Batal",
+      variant: "danger",
+      isAlert: false,
+      onConfirm: async () => {
+        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        try {
+          await updateSessionStatus(activeSession.id, "published");
+          addLog("warning", "Admin menutup Waiting Room. Status sesi dikembalikan ke Published.");
+          await loadLiveMonitorData();
+        } catch (err) {
+          console.error("Gagal menutup waiting room:", err);
+          setConfirmModal({
+            isOpen: true,
+            title: "Gagal Menutup Waiting Room",
+            message: err.message || "Terjadi kesalahan saat memperbarui status sesi.",
+            confirmText: "Mengerti",
+            variant: "warning",
+            isAlert: true,
+            onConfirm: () => setConfirmModal((prev) => ({ ...prev, isOpen: false })),
+          });
+        }
+      },
+    });
+  }
+
   // Handle Starting OSCE Session (Phase 2 — Timer begins)
   async function handleStartOsce() {
     if (!activeSession) return;
@@ -714,22 +747,31 @@ export default function LiveMonitorPage() {
             )}
           </div>
 
-          {/* Start OSCE Button */}
+          {/* Start / Exit Waiting Room Action Bar */}
           <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
                 <h3 className="text-sm font-black text-emerald-900">Siap Memulai Ujian OSCE?</h3>
                 <p className="text-xs text-emerald-700 mt-0.5">
-                  Tekan tombol di bawah untuk memulai timer global dan mengalihkan semua peserta & penguji ke layar ujian live.
+                  Tekan tombol di bawah untuk memulai timer global dan mengalihkan semua peserta & penguji ke layar ujian live, atau tutup waiting room.
                 </p>
               </div>
-              <button
-                onClick={handleStartOsce}
-                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-3 text-sm font-black text-white shadow-lg hover:bg-emerald-700 active:scale-95 transition"
-              >
-                <Play size={20} />
-                Mulai Sesi OSCE Sekarang
-              </button>
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  onClick={handleCloseWaitingRoom}
+                  className="inline-flex items-center gap-2 rounded-xl border border-rose-300 bg-white hover:bg-rose-100 px-5 py-3 text-xs font-bold text-rose-700 shadow-2xs active:scale-95 transition"
+                >
+                  <XCircle size={18} className="text-rose-600" />
+                  Tutup / Keluar Waiting Room
+                </button>
+                <button
+                  onClick={handleStartOsce}
+                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-3 text-sm font-black text-white shadow-lg hover:bg-emerald-700 active:scale-95 transition"
+                >
+                  <Play size={20} />
+                  Mulai Sesi OSCE Sekarang
+                </button>
+              </div>
             </div>
           </div>
         </div>
