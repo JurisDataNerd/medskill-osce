@@ -273,7 +273,7 @@ export default function LiveMonitorPage() {
     };
   }, [activeSession?.id]);
 
-  // Live Timer Local 1-second Tick derived from target_end_time
+  // Live Timer Local 1-second Tick & Multi-Phase Auto-Rolling
   useEffect(() => {
     if (!activeSession || activeSession.status === "waiting_room") return;
 
@@ -288,40 +288,75 @@ export default function LiveMonitorPage() {
         const rem = calcRemaining(timerState.target_end_time, null, false);
         setRemainingSeconds(rem);
 
-        if (rem === 120 && !isBreak) {
+        if (rem === 120 && timerState.phase === "action") {
           playOsceBell("warning");
           addLog("warning", "BEL AUTOMATIC: Sisa Waktu Stase 2 Menit!");
         }
 
         if (rem <= 0 && isTimerRunning) {
-          if (!isBreak) {
-            setIsBreak(true);
-            playOsceBell("rotation");
-            addLog(
-              "warning",
-              `BEL ROTASI: Stase Ronde ${currentRound} Selesai. Masuk ke Waktu Istirahat (Break).`
-            );
-            updateTimerPhase(activeSession.id, "break", 3, { roundNumber: currentRound }).catch(console.error);
+          const currentPhase = timerState.phase || "action";
+          const stationDuration = activeSession.station_duration_minutes || 12;
+          const transitionDuration = activeSession.transition_duration_minutes || 2;
+          const totalRounds = activeSession.total_rounds || activeSession.stations?.length || 6;
+
+          if (currentPhase === "action") {
+            if (transitionDuration > 0) {
+              playOsceBell("rotation");
+              addLog(
+                "warning",
+                `BEL ROTASI: Stase Ronde ${currentRound} Selesai. Masuk ke Waktu Transisi Perpindahan Pos (${transitionDuration} Mnt).`
+              );
+              updateTimerPhase(activeSession.id, "transition", transitionDuration, { roundNumber: currentRound }).catch(console.error);
+            } else {
+              advanceRound();
+            }
           } else {
-            setIsBreak(false);
-            const totalRounds = activeSession.total_rounds || activeSession.stations?.length || 8;
+            advanceRound();
+          }
+
+          function advanceRound() {
             const nextRound = currentRound < totalRounds ? currentRound + 1 : 1;
             setCurrentRound(nextRound);
             setViewRound(nextRound);
             playOsceBell("start");
             addLog(
               "info",
-              `BEL MULAI: Rolling Otomatis! Masuk ke Ronde ${nextRound} dari ${totalRounds}.`
+              `BEL MULAI: Rolling Otomatis! Masuk ke Stase Ujian Ronde ${nextRound} dari ${totalRounds} (${stationDuration} Mnt).`
             );
-            const duration = activeSession.station_duration_minutes || 12;
-            updateTimerPhase(activeSession.id, "action", duration, { roundNumber: nextRound }).catch(console.error);
+            updateTimerPhase(activeSession.id, "action", stationDuration, { roundNumber: nextRound }).catch(console.error);
           }
         }
       }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isTimerRunning, isBreak, currentRound, activeSession, timerState]);
+  }, [isTimerRunning, currentRound, activeSession, timerState]);
+
+  async function handleSkipPhase() {
+    if (!activeSession || !timerState) return;
+    const currentPhase = timerState.phase || "action";
+    const stationDuration = activeSession.station_duration_minutes || 12;
+    const transitionDuration = activeSession.transition_duration_minutes || 2;
+    const totalRounds = activeSession.total_rounds || activeSession.stations?.length || 6;
+
+    try {
+      if (currentPhase === "action" && transitionDuration > 0) {
+        playOsceBell("rotation");
+        addLog("warning", "Admin melakukan MANUAL SKIP ke Waktu Transisi Perpindahan Pos.");
+        await updateTimerPhase(activeSession.id, "transition", transitionDuration, { roundNumber: currentRound });
+      } else {
+        const nextRound = currentRound < totalRounds ? currentRound + 1 : 1;
+        setCurrentRound(nextRound);
+        setViewRound(nextRound);
+        playOsceBell("start");
+        addLog("info", `Admin melakukan MANUAL SKIP ke Stase Ujian Ronde ${nextRound}.`);
+        await updateTimerPhase(activeSession.id, "action", stationDuration, { roundNumber: nextRound });
+      }
+      await loadLiveMonitorData();
+    } catch (err) {
+      console.error("Error skipping phase:", err);
+    }
+  }
 
   function addLog(type, text) {
     const timeStr = new Date().toLocaleTimeString("id-ID");
@@ -927,45 +962,81 @@ export default function LiveMonitorPage() {
                   Status Ronde Live
                 </span>
                 <span className="text-xl font-black text-white mt-1 block">
-                  Ronde {currentRound} / {activeSession.total_rounds || 8}
+                  Ronde {currentRound} / {activeSession.total_rounds || 6}
+                </span>
+                <span className="text-[10px] text-slate-400 font-medium block mt-1">
+                  Sirkuit Pos Terjadwal
                 </span>
               </div>
 
               <div className="rounded-2xl bg-slate-800/80 p-4 border border-slate-700/60">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
-                  Timer Stase Aktif
-                </span>
-                <span className="text-xl font-black text-emerald-400 mt-1 block">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
+                    Sub-Timer Fase Aktif
+                  </span>
+                  {!isTimerRunning && (
+                    <span className="text-[9px] font-black uppercase text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded">
+                      PAUSED
+                    </span>
+                  )}
+                </div>
+                <span className="text-2xl font-black font-mono text-emerald-400 mt-1 block">
                   {formatMinutesSeconds(remainingSeconds)}
                 </span>
+                <span className="text-[10px] text-slate-400 font-medium block mt-1">
+                  Countdown Tersinkronisasi
+                </span>
               </div>
 
               <div className="rounded-2xl bg-slate-800/80 p-4 border border-slate-700/60">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
-                  Fase Rotasi
+                  Fase Rotasi Saat Ini
                 </span>
-                <span className="text-xl font-black text-blue-400 mt-1 flex items-center gap-1.5">
-                  {isBreak ? (
-                    <>
-                      <Coffee size={18} className="text-amber-400" />
-                      Break Jeda
-                    </>
+                <div className="mt-1 flex items-center gap-1.5">
+                  {timerState?.phase === "transition" ? (
+                    <span className="inline-flex items-center gap-1.5 text-base font-black text-amber-400">
+                      <ChevronRight size={18} className="animate-ping text-amber-400" />
+                      Transisi Pos ({activeSession.transition_duration_minutes || 2}m)
+                    </span>
+                  ) : timerState?.phase === "break" ? (
+                    <span className="inline-flex items-center gap-1.5 text-base font-black text-blue-400">
+                      <Coffee size={18} className="text-blue-400" />
+                      Istirahat ({activeSession.break_duration_minutes || 5}m)
+                    </span>
                   ) : (
-                    <>
-                      <Activity size={18} className="text-emerald-400" />
-                      Action Ujian
-                    </>
+                    <span className="inline-flex items-center gap-1.5 text-base font-black text-emerald-400">
+                      <Activity size={18} className="text-emerald-400 animate-pulse" />
+                      Stase Ujian ({activeSession.station_duration_minutes || 12}m)
+                    </span>
                   )}
+                </div>
+                <span className="text-[10px] text-slate-400 font-medium block mt-1">
+                  {timerState?.phase === "transition"
+                    ? "Peserta Pindah Pos Ruangan"
+                    : timerState?.phase === "break"
+                    ? "Jeda Fisik Ronde"
+                    : "Peserta Mengerjakan Soal"}
                 </span>
               </div>
 
-              <div className="rounded-2xl bg-slate-800/80 p-4 border border-slate-700/60">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
-                  Total Station Pos
-                </span>
-                <span className="text-xl font-black text-purple-400 mt-1 block">
-                  {activeSession.total_stations || 8} Pos
-                </span>
+              <div className="rounded-2xl bg-slate-800/80 p-4 border border-slate-700/60 flex flex-col justify-between">
+                <div>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
+                    Fase Selanjutnya
+                  </span>
+                  <span className="text-xs font-bold text-slate-200 mt-1 block">
+                    {timerState?.phase === "action"
+                      ? `Transisi Pos (${activeSession.transition_duration_minutes || 2} Menit)`
+                      : `Stase Ujian Ronde ${currentRound < (activeSession.total_rounds || 6) ? currentRound + 1 : 1}`}
+                  </span>
+                </div>
+                <button
+                  onClick={handleSkipPhase}
+                  className="mt-2 text-left text-[11px] font-extrabold text-blue-400 hover:text-blue-300 underline flex items-center gap-1"
+                >
+                  <ChevronRight size={14} />
+                  Skip Manual ke Fase Berikutnya
+                </button>
               </div>
             </div>
 
