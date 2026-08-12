@@ -385,6 +385,43 @@ export default function ParticipantSessionPage() {
   // Auxiliary Exams Search & Filter State
   const [auxSearchQuery, setAuxSearchQuery] = useState("");
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState("ALL");
+  const [expandedCategories, setExpandedCategories] = useState({
+    RADIOLOGI: true,
+    HEMATOLOGI: true,
+    ENZIM: true,
+    "LAIN-LAIN": true,
+  });
+
+  const filteredCatalog = useMemo(() => {
+    return (AUXILIARY_EXAM_CATALOG || [])
+      .map((cat) => {
+        if (
+          selectedCategoryFilter !== "ALL" &&
+          cat.category.toUpperCase() !== selectedCategoryFilter.toUpperCase()
+        ) {
+          return { ...cat, subcategories: [] };
+        }
+
+        if (!auxSearchQuery.trim()) return cat;
+
+        const q = auxSearchQuery.toLowerCase();
+        const matchingSub = (cat.subcategories || [])
+          .map((sub) => {
+            const matchingItems = (sub.items || []).filter(
+              (item) =>
+                item.name.toLowerCase().includes(q) ||
+                item.id.toLowerCase().includes(q) ||
+                sub.name.toLowerCase().includes(q) ||
+                cat.category.toLowerCase().includes(q)
+            );
+            return { ...sub, items: matchingItems };
+          })
+          .filter((sub) => sub.items.length > 0);
+
+        return { ...cat, subcategories: matchingSub };
+      })
+      .filter((cat) => cat.subcategories.length > 0);
+  }, [auxSearchQuery, selectedCategoryFilter]);
 
   // Station mapping for Candidate across 6 rounds (Example: Participant starts at Station 1 in Round 1)
   const candidateStationSchedule = {
