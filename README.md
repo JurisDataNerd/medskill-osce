@@ -1,135 +1,48 @@
-# MedSkill OSCE
+# Praxis by MedSkill — OSCE Platform
 
-Sistem manajemen ujian **OSCE (Objective Structured Clinical Examination)** berbasis web yang digunakan untuk mengelola seluruh proses ujian mulai dari registrasi peserta, pelaksanaan setiap stase dalam sirkuit 8 stase (6 stase aktif + 2 stase break dengan timer 12 menit: 1m Reading, 10m Action, 1m Transition), penilaian oleh penguji dengan acuan kunci jawaban baku, hingga publikasi hasil dan pengiriman email otomatis.
-
----
-
-# Tujuan
-
-- Mengelola pelaksanaan OSCE secara digital dan terstandarisasi.
-- Mengurangi proses manual selama ujian.
-- Mengotomatisasi perpindahan peserta (rolling sirkuit 8 stase).
-- Menyediakan penilaian real-time oleh penguji dengan acuan kunci jawaban resmi.
-- Menghasilkan hasil akhir yang dapat diakses peserta, ditranskripsikan ke PDF, dan dikirimkan otomatis via Email.
+Sistem Manajemen Ujian **OSCE (Objective Structured Clinical Examination)** berbasis web terstandarisasi untuk mengelola seluruh siklus ujian klinis kedokteran: mulai dari registrasi peserta, pelaksanaan sirkuit 6 stase aktif, penilaian objektif penguji, hingga publikasi hasil dan pengiriman email otomatis.
 
 ---
 
-# Role
+## 🎯 Fitur Utama & Keunggulan
 
-## Admin
-
-Memiliki akses penuh terhadap seluruh sistem.
-
-Fitur:
-
-- Membuat sesi OSCE & **Duplikasi Templat Stase (Paket Soal A, Paket Soal B)**
-- **Mengatur urutan stase aktif & stase istirahat via Kanban Board (Drag & Drop)**
-- Mengatur timer terstruktur per stase (Reading 1m, Action 10m, Transition 1m = Total 12m)
-- Mengatur bank soal, rubrik penilaian, form diagnosis (1 WDx + 3 DDx), blangko resep, & kunci jawaban pemeriksaan penunjang
-- Kontrol penuh: Memulai simulasi (*Start Session*) dan Menghentikan simulasi (*Stop Session*)
-- Monitoring seluruh peserta secara realtime (*Master Live Board*)
-- Review hasil, Publish hasil, Cetak PDF, & Pengiriman Email Otomatis ke peserta
+- **Sirkuit 6 Stase Ujian Aktif**: Rotasi 6 stase keterampilan medis dengan timer terstruktur 12 menit per stase (1m Reading, 10m Action, 1m Transition).
+- **Multi-Halaman Kiosk Peserta**: Flow 4 halaman berurutan (Anamnesis $\rightarrow$ Fisik $\rightarrow$ Penunjang Kondisional $\rightarrow$ Diagnosis & Resep) dengan navigasi 1-arah (*No Back Button*).
+- **Side-by-Side Examiner View**: Dokter penguji menilai peserta secara realtime berdampingan dengan **Kunci Jawaban Baku Admin (Gold Standard)**.
+- **Master Control Room & Timer Sync**: Kontrol timer server-side berbasis *Future Timestamp Pattern*, Web Audio Bell Synthesizer (Chime, Warning, Siren), dan Broadcast Emergency.
+- **Standar Penilaian AIPKI & NBL**: Penilaian Rubrik 0-3 SKDI terbobot, Global Performance Rating (GRS), dan kalkulasi otomatis Nilai Batas Lulus (NBL) metode *Borderline Regression*.
+- **Diisolasi di Schema Supabase `osce`**: Isolasi 19 tabel schema `osce` dengan RLS granular dan audit trail imutabel.
 
 ---
 
-## Penguji
+## 📚 Struktur Dokumentasi Master
 
-Setiap penguji bertanggung jawab pada satu stase aktif.
+Dokumentasi proyek terkelola secara padat dan terstruktur dalam 3 berkas utama:
 
-Fitur:
-
-- Memilih 1 stase penugasan
-- Melihat rekap peserta secara realtime (otomatis ter-update saat peserta klik *Next* / *Submit*)
-- **Melihat isian Form Diagnosis (1 WDx + 3 DDx) & Blangko Resep obat peserta secara realtime**
-- **Melihat Tampilan Acuan Kunci Jawaban Baku (Gold Standard) dari Admin sebagai pembanding penilaian**
-- Memberikan nilai (Skor Rubrik & Global Rating Scale - GRS)
-- Mengisi checklist penilaian & catatan *feedback* internal
-- Menekan tombol *Submit* untuk *auto-next* ke penilaian peserta berikutnya sampai peserta terakhir
-
-Catatan:
-
-- Penguji tidak berpindah stase.
-- Catatan penguji tidak dapat dilihat peserta saat ujian berlangsung.
+1. 📘 **[OSCE-SPEC.md](file:///c:/KAIRAV/project/2026/medskill/praxis/OSCE-SPEC.md)** — Spesifikasi Sistem, Aturan Operasional Sirkuit 6 Stase, Alur Peran (Admin, Penguji, Peserta), Penilaian SKDI/GRS/NBL, & Live Control Room.
+2. 🗄️ **[DATABASE-SPEC.md](file:///c:/KAIRAV/project/2026/medskill/praxis/DATABASE-SPEC.md)** — Single Source of Truth Schema `osce` Supabase (19 Tabel, DDL SQL, Enum, RLS Policies, Audit Triggers, & Realtime Timer Sync).
+3. 🎯 **[PLAN-OSCE.md](file:///c:/KAIRAV/project/2026/medskill/praxis/PLAN-OSCE.md)** — Master Implementation Roadmap & Checklist Progress TODO Integrasi Live Database.
 
 ---
 
-## Peserta
+## 🛠️ Stack Teknologi
 
-Peserta mengikuti seluruh rangkaian sirkuit OSCE (8 Stase: 6 Stase Aktif + 2 Stase Break).
-
-Fitur:
-
-- Registrasi & Login (Dilengkapi fitur *Forget Password*)
-- Waiting Room & Briefing (*stay in page* hingga Admin menekan *Start Simulation*)
-- Mengerjakan soal setiap stase aktif dengan timer 12 menit (Reading 1m, Action 10m, Transition 1m):
-  - **Blangko 1: Anamnesis & Pemeriksaan Fisik**
-  - **Blangko 2: Checklist Pemeriksaan Penunjang** (Hasil rilis jika benar, tidak rilis jika tidak dicentang, "Tidak ada data" jika salah)
-  - **Blangko 3: Diagnosis (1 WDx + 3 DDx) & Blangko Resep Obat (Long Text Area)**
-- Mengikuti perpindahan stase secara otomatis (rolling sirkuit 8 stase)
-- Menerima hasil & umpan balik via Email serta mengunduh Transkrip Nilai PDF setelah dipublikasikan
+- **Frontend**: React 18, Vite, Tailwind CSS, Lucide Icons, Web Audio API.
+- **Backend / Database**: Supabase PostgreSQL (Schema `osce`), Supabase Auth, Supabase Storage, Supabase Realtime Channels.
+- **Standard Setting**: Borderline Regression Method (BRM) & AIPKI Rubric Standard.
 
 ---
 
-# Alur Sistem & Sirkuit 8 Stase
+## 🚀 Memulai Aplikasi (Quick Start)
 
-## 1. Registrasi & Approval
+```bash
+# Clean install dependensi frontend
+cd frontend
+npm install
 
-Peserta melakukan registrasi akun dan memilih sesi.
+# Jalankan server pengembangan lokal
+npm run dev
 
+# Build produksi
+npm run build
 ```
-Register ──► Waiting Approval ──► Approved Admin ──► Dashboard
-```
-
----
-
-## 2. Persiapan OSCE & Kanban Ordering
-
-Admin membuat sesi OSCE, mengimpor/duplikasi paket soal, dan mengatur urutan **6 Stase Aktif** dan **2 Stase Break** menggunakan Kanban Board (Drag & Drop).
-
-```
-Draft ──► Import Paket Soal ──► Susun Kanban Urutan Stase & Break ──► Published
-```
-
----
-
-## 3. Waiting Room & Start OSCE
-
-Peserta masuk ke Ruang Tunggu Briefing (*stay in waiting page*). Admin menekan tombol `Start Simulation` untuk memulai timer otomatis sirkuit 8 stase (12 menit per stase).
-
----
-
-## 4. Pengerjaan Stase & Rotasi (Sirkuit 8 Stase)
-
-Peserta melewati sirkuit 8 stase (6 Stase Ujian Aktif + 2 Stase Break).
-
-```
-Round 1: [Stase 1 Aktif] ──► [Stase 2 Aktif] ──► [Stase Break 1] ──► [Stase 3 Aktif] ──► ...
-                                     │
-                                     ▼ (Rolling Otomatis)
-Round 2: [Stase Terakhir] ──► [Stase 1 Aktif] ──► [Stase 2 Aktif] ──► ...
-```
-
-Selama waktu berjalan pada stase aktif (12m: 1m Reading, 10m Action, 1m Transition):
-- Mengerjakan Blangko Anamnesis & Fisik
-- Mengisi Checklist Penunjang (Rilis Hasil / Tidak / No Data)
-- Mengisi 1 WDx, 3 DDx, dan Textarea Blangko Resep
-
-Penguji menilai dengan melihat **Acuan Kunci Jawaban Baku** di dasbor penguji.
-
----
-
-## 5. Finish, PDF & Auto Email
-
-Setelah seluruh peserta menyelesaikan 8 stase sirkuit, status berubah menjadi `Completed`. Admin mereview nilai, mengeklik `Publish Result`, dan sistem secara otomatis men-generate **PDF Transkrip** serta mengirirkannya ke **Email Peserta**.
-
----
-
-# Rule Utama OSCE
-
-- Sirkuit terdiri dari **8 Stase (6 Stase Ujian Aktif + 2 Stase Break)**.
-- Timer 12 Menit/stase: Reading (1m) + Action (10m) + Transition (1m).
-- Urutan stase ujian & break dapat diubah-ubah oleh Admin via **Kanban Drag & Drop Board**.
-- Admin dapat menyimpan templat stase untuk diduplikasi (**Paket Soal A / B**).
-- 1 Penguji menangani 1 Stase Aktif (Penguji tidak berpindah stase).
-- Penguji mendapat rekap realtime & acuan **Kunci Jawaban Baku**.
-- PDF Transkrip & Email Feedback dikirim otomatis ke peserta setelah publish.

@@ -39,8 +39,9 @@ export default function ExaminerPage() {
         let userProf = null;
         if (user) {
           const { data: profData } = await supabase
+            .schema("public")
             .from("profiles")
-            .select("full_name, specialty, email")
+            .select("full_name, email")
             .eq("id", user.id)
             .maybeSingle();
 
@@ -59,6 +60,7 @@ export default function ExaminerPage() {
           (s) =>
             s.status === "published" ||
             s.status === "scheduled" ||
+            s.status === "waiting_room" ||
             s.status === "ongoing" ||
             s.status === "running"
         );
@@ -236,7 +238,7 @@ export default function ExaminerPage() {
 
                   <div className="pt-3 border-t border-slate-200/60">
                     <button
-                      onClick={() => navigate(`/examiner/stage/${st?.id || s.id}`)}
+                      onClick={() => navigate(`/examiner/session/${s.id}`)}
                       className={`w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold text-white shadow-md transition active:scale-95 ${
                         isOngoing
                           ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/30 animate-pulse"

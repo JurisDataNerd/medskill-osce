@@ -9,7 +9,7 @@ export async function getActiveSession() {
     .schema("osce")
     .from("sessions")
     .select("*")
-    .in("status", ["running", "ongoing"])
+    .in("status", ["ongoing", "waiting_room"])
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();

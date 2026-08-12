@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AdminLayout from "@/layouts/AdminLayout";
+import { supabase } from "@/lib/supabaseClient";
 import {
   Activity,
   Clock,
   User,
   UserCheck,
+  Users,
   Play,
   Pause,
   RotateCw,
@@ -24,6 +26,8 @@ import {
   ExternalLink,
   Award,
   Bell,
+  BellRing,
+  AlertTriangle,
   Megaphone,
   Volume2,
   Calendar,
@@ -31,13 +35,21 @@ import {
   Building2,
   Loader2,
 } from "lucide-react";
-import { sendBroadcastMessage } from "@/services/broadcast.service";
+import {
+  subscribeToSession,
+  joinPresence,
+  openWaitingRoom,
+  startOsceSession,
+  updateTimerPhase,
+  pauseTimer,
+  resumeTimer,
+  sendBroadcast,
+  finishSession,
+  calcRemaining,
+} from "@/services/realtimeTimerService";
 import {
   getLiveStations,
-  startLiveSession,
-  subscribeLive,
   getSessionTimerState,
-  updateSessionTimerState,
 } from "@/services/live.service";
 import { fetchSessions, fetchSessionById, updateSessionStatus } from "@/services/sessionService";
 
@@ -49,11 +61,10 @@ function playOsceBell(type = "warning") {
     const ctx = new AudioContext();
 
     if (type === "start") {
-      // Single High Chime Bell (Reading Time / Start)
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = "sine";
-      osc.frequency.setValueAtTime(880, ctx.currentTime); // A5
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
       gain.gain.setValueAtTime(0.3, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2);
       osc.connect(gain);
@@ -61,12 +72,11 @@ function playOsceBell(type = "warning") {
       osc.start();
       osc.stop(ctx.currentTime + 1.2);
     } else if (type === "warning") {
-      // Double Beep Warning (2 Minutes Remaining)
       [0, 0.25].forEach((delay) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = "triangle";
-        osc.frequency.setValueAtTime(660, ctx.currentTime + delay); // E5
+        osc.frequency.setValueAtTime(660, ctx.currentTime + delay);
         gain.gain.setValueAtTime(0.3, ctx.currentTime + delay);
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.18);
         osc.connect(gain);
@@ -75,12 +85,11 @@ function playOsceBell(type = "warning") {
         osc.stop(ctx.currentTime + delay + 0.18);
       });
     } else if (type === "rotation") {
-      // Triple Siren Alarm (Station Rotation Time Up)
       [0, 0.3, 0.6].forEach((delay, idx) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = "sawtooth";
-        osc.frequency.setValueAtTime(idx === 2 ? 987.77 : 523.25, ctx.currentTime + delay); // C5 - B5
+        osc.frequency.setValueAtTime(idx === 2 ? 987.77 : 523.25, ctx.currentTime + delay);
         gain.gain.setValueAtTime(0.25, ctx.currentTime + delay);
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.22);
         osc.connect(gain);
@@ -104,9 +113,10 @@ export default function LiveMonitorPage() {
   const [liveStations, setLiveStations] = useState([]);
 
   // Live Timer State
-  const [activeTab, setActiveTab] = useState("grid"); // 'grid', 'matrix', 'logs'
+  const [activeTab, setActiveTab] = useState("grid");
   const [isTimerRunning, setIsTimerRunning] = useState(true);
   const [remainingSeconds, setRemainingSeconds] = useState(720);
+  const [timerState, setTimerState] = useState(null);
   const [isBreak, setIsBreak] = useState(false);
   const [currentRound, setCurrentRound] = useState(1);
   const [viewRound, setViewRound] = useState(1);
@@ -122,23 +132,80 @@ export default function LiveMonitorPage() {
   // Bell Menu State
   const [isBellMenuOpen, setIsBellMenuOpen] = useState(false);
 
+  // Live Presence State for Online Users
+  const [onlineUsers, setOnlineUsers] = useState([]);
+
+  // Real-time Presence Tracking for Admin
+  useEffect(() => {
+    if (!activeSession?.id) return;
+
+    let cleanupPresence = null;
+    async function initPresence() {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        const userState = {
+          user_id: user?.id || user?.email || `admin-${Date.now()}`,
+          full_name: user?.user_metadata?.full_name || user?.email || "Admin Control Room",
+          role: "admin",
+          email: user?.email,
+        };
+
+        cleanupPresence = joinPresence(activeSession.id, userState, (users) => {
+          setOnlineUsers(users || []);
+        });
+      } catch (err) {
+        console.error("Presence tracking error:", err);
+      }
+    }
+
+    initPresence();
+
+    return () => {
+      if (cleanupPresence) cleanupPresence();
+    };
+  }, [activeSession?.id]);
+
   // Load Real Supabase Data
   async function loadLiveMonitorData() {
     try {
       setLoading(true);
       const rawSessions = await fetchSessions();
-      const liveAndPublished = (rawSessions || []).filter(
-        (s) => s.status === "published" || s.status === "ongoing" || s.status === "running"
-      );
+      const relevantStatuses = ["published", "scheduled", "waiting_room", "ongoing", "running", "paused"];
+      const liveAndPublished = (rawSessions || []).filter((s) => relevantStatuses.includes(s.status));
       setDbSessions(liveAndPublished);
 
-      const ongoing = liveAndPublished.find((s) => s.status === "ongoing" || s.status === "running");
-      if (ongoing) {
-        const fullDetail = await fetchSessionById(ongoing.id);
-        const { stations: fetchedStations } = await getLiveStations();
+      // Find the active session: ongoing/paused first, then waiting_room
+      const active = liveAndPublished.find(
+        (s) => s.status === "ongoing" || s.status === "running" || s.status === "paused"
+      ) || liveAndPublished.find((s) => s.status === "waiting_room");
+
+      if (active) {
+        const fullDetail = await fetchSessionById(active.id);
         setActiveSession(fullDetail);
-        setLiveStations(fetchedStations || fullDetail.stations || []);
-        setIsTimerRunning(true);
+
+        if (active.status === "ongoing" || active.status === "running" || active.status === "paused") {
+          const { stations: fetchedStations } = await getLiveStations();
+          setLiveStations(fetchedStations || fullDetail.stations || []);
+
+          const stateData = await getSessionTimerState(active.id);
+          if (stateData) {
+            setTimerState(stateData);
+            setCurrentRound(stateData.round_number || 1);
+            setViewRound(stateData.round_number || 1);
+            setIsBreak(stateData.phase === "break");
+            setIsTimerRunning(stateData.phase !== "paused" && active.status !== "paused");
+            const rem = calcRemaining(stateData.target_end_time, stateData.paused_remaining_ms, stateData.phase === "paused");
+            setRemainingSeconds(rem);
+          }
+        } else {
+          // waiting_room: no timer yet
+          setLiveStations(fullDetail.stations || []);
+          setIsTimerRunning(false);
+          setRemainingSeconds(0);
+        }
       } else {
         setActiveSession(null);
         setLiveStations([]);
@@ -152,24 +219,66 @@ export default function LiveMonitorPage() {
 
   useEffect(() => {
     loadLiveMonitorData();
-    const channel = subscribeLive(loadLiveMonitorData);
-    return () => {
-      channel.unsubscribe();
-    };
   }, []);
 
-  // Live Timer Countdown Effect
+  // Realtime Subscription for Active Session (DB changes)
   useEffect(() => {
-    if (!isTimerRunning || !activeSession) return;
+    if (!activeSession?.id) return;
+
+    const unsubscribe = subscribeToSession(activeSession.id, {
+      onTimerUpdate: (newTimerState) => {
+        if (!newTimerState) return;
+        setTimerState(newTimerState);
+        setCurrentRound(newTimerState.round_number || 1);
+        setViewRound(newTimerState.round_number || 1);
+        setIsBreak(newTimerState.phase === "break");
+        const isPaused = newTimerState.phase === "paused";
+        setIsTimerRunning(!isPaused);
+        const rem = calcRemaining(
+          newTimerState.target_end_time,
+          newTimerState.paused_remaining_ms,
+          isPaused
+        );
+        setRemainingSeconds(rem);
+      },
+      onSessionUpdate: (sess) => {
+        if (!sess) return;
+        setActiveSession((prev) => (prev ? { ...prev, ...sess } : sess));
+        if (sess.status === "paused") setIsTimerRunning(false);
+        if (sess.status === "ongoing" || sess.status === "running") {
+          setIsTimerRunning(true);
+          // If transitioning from waiting_room to ongoing, reload full data
+          loadLiveMonitorData();
+        }
+      },
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [activeSession?.id]);
+
+  // Live Timer Local 1-second Tick derived from target_end_time
+  useEffect(() => {
+    if (!activeSession || activeSession.status === "waiting_room") return;
 
     const interval = setInterval(() => {
-      setRemainingSeconds((prev) => {
-        if (prev === 120 && !isBreak) {
+      if (timerState && timerState.phase === "paused") {
+        const rem = calcRemaining(null, timerState.paused_remaining_ms, true);
+        setRemainingSeconds(rem);
+        return;
+      }
+
+      if (timerState?.target_end_time) {
+        const rem = calcRemaining(timerState.target_end_time, null, false);
+        setRemainingSeconds(rem);
+
+        if (rem === 120 && !isBreak) {
           playOsceBell("warning");
           addLog("warning", "BEL AUTOMATIC: Sisa Waktu Stase 2 Menit!");
         }
 
-        if (prev <= 1) {
+        if (rem <= 0 && isTimerRunning) {
           if (!isBreak) {
             setIsBreak(true);
             playOsceBell("rotation");
@@ -177,7 +286,7 @@ export default function LiveMonitorPage() {
               "warning",
               `BEL ROTASI: Stase Ronde ${currentRound} Selesai. Masuk ke Waktu Istirahat (Break).`
             );
-            return 180; // 3 menit break
+            updateTimerPhase(activeSession.id, "break", 3, { roundNumber: currentRound }).catch(console.error);
           } else {
             setIsBreak(false);
             const totalRounds = activeSession.total_rounds || activeSession.stations?.length || 8;
@@ -189,15 +298,15 @@ export default function LiveMonitorPage() {
               "info",
               `BEL MULAI: Rolling Otomatis! Masuk ke Ronde ${nextRound} dari ${totalRounds}.`
             );
-            return (activeSession.station_duration_minutes || 12) * 60;
+            const duration = activeSession.station_duration_minutes || 12;
+            updateTimerPhase(activeSession.id, "action", duration, { roundNumber: nextRound }).catch(console.error);
           }
         }
-        return prev - 1;
-      });
+      }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isTimerRunning, isBreak, currentRound, activeSession]);
+  }, [isTimerRunning, isBreak, currentRound, activeSession, timerState]);
 
   function addLog(type, text) {
     const timeStr = new Date().toLocaleTimeString("id-ID");
@@ -207,15 +316,29 @@ export default function LiveMonitorPage() {
     ]);
   }
 
-  // Handle Starting a Session in Supabase
-  async function handleStartSession(sessionId) {
+  // Handle Opening Waiting Room (Phase 1 — like Zoom)
+  async function handleOpenWaitingRoom(sessionId) {
     try {
-      await startLiveSession(sessionId, 12);
-      addLog("success", "Admin memulai Sesi Ujian OSCE secara Live di Supabase!");
+      await openWaitingRoom(sessionId);
+      addLog("success", "Admin membuka Waiting Room. Peserta & Penguji dapat bergabung.");
       await loadLiveMonitorData();
     } catch (err) {
-      console.error("Failed to start live session:", err);
-      alert("Gagal memulai sesi live: " + err.message);
+      console.error("Failed to open waiting room:", err);
+      alert("Gagal membuka waiting room: " + err.message);
+    }
+  }
+
+  // Handle Starting OSCE Session (Phase 2 — Timer begins)
+  async function handleStartOsce() {
+    if (!activeSession) return;
+    try {
+      const duration = activeSession.station_duration_minutes || 12;
+      await startOsceSession(activeSession.id, duration);
+      addLog("success", "Admin memulai Sesi Ujian OSCE! Timer global berjalan.");
+      await loadLiveMonitorData();
+    } catch (err) {
+      console.error("Failed to start OSCE session:", err);
+      alert("Gagal memulai sesi OSCE: " + err.message);
     }
   }
 
@@ -228,7 +351,7 @@ export default function LiveMonitorPage() {
       )
     ) {
       try {
-        await updateSessionStatus(activeSession.id, "completed");
+        await finishSession(activeSession.id);
         addLog("success", "Sesi OSCE telah diselesaikan di Supabase.");
         await loadLiveMonitorData();
       } catch (err) {
@@ -237,13 +360,21 @@ export default function LiveMonitorPage() {
     }
   }
 
-  function handleTogglePause() {
-    const nextState = !isTimerRunning;
-    setIsTimerRunning(nextState);
-    addLog(
-      nextState ? "info" : "warning",
-      nextState ? "Admin melanjutkan timer OSCE." : "Admin menghentikan sementara (Pause) timer OSCE."
-    );
+  async function handleTogglePause() {
+    if (!activeSession) return;
+    try {
+      if (isTimerRunning) {
+        await pauseTimer(activeSession.id, remainingSeconds);
+        setIsTimerRunning(false);
+        addLog("warning", "Admin menghentikan sementara (Pause) timer global OSCE.");
+      } else {
+        await resumeTimer(activeSession.id, remainingSeconds);
+        setIsTimerRunning(true);
+        addLog("info", "Admin melanjutkan timer global OSCE.");
+      }
+    } catch (err) {
+      console.error("Error toggling pause timer:", err);
+    }
   }
 
   function handleTriggerBell(bellType) {
@@ -268,8 +399,8 @@ export default function LiveMonitorPage() {
         : "Layar Peserta";
 
     try {
-      await sendBroadcastMessage(
-        activeSession?.id || "session-osce-001",
+      await sendBroadcast(
+        activeSession?.id,
         broadcastMessage,
         "warning",
         broadcastTarget
@@ -423,11 +554,11 @@ export default function LiveMonitorPage() {
 
                     <div className="flex items-center gap-2 pt-3 border-t border-slate-200/60">
                       <button
-                        onClick={() => handleStartSession(sess.id)}
+                        onClick={() => handleOpenWaitingRoom(sess.id)}
                         className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-emerald-700 active:scale-95 transition"
                       >
                         <Play size={16} />
-                        Jalankan Sesi Live Ini
+                        Buka Waiting Room
                       </button>
                       <button
                         onClick={() => navigate(`/admin/sessions/${sess.id}/edit`)}
@@ -442,8 +573,133 @@ export default function LiveMonitorPage() {
             )}
           </div>
         </div>
+      ) : activeSession.status === "waiting_room" ? (
+        /* STATE B: WAITING ROOM OPEN → Participants joining, timer NOT started yet */
+        <div className="space-y-6">
+          {/* Waiting Room Header */}
+          <div className="rounded-3xl border border-blue-200 bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 p-8 text-white shadow-xl space-y-5">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/20 border border-blue-400/30 px-3 py-1 text-xs font-black text-blue-300">
+                    <span className="h-2 w-2 rounded-full bg-blue-400 animate-pulse" />
+                    WAITING ROOM AKTIF
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-400">
+                    <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
+                    Supabase Realtime Live
+                  </span>
+                </div>
+                <h1 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
+                  {activeSession.title}
+                </h1>
+                <p className="text-xs text-blue-200/90 font-medium leading-relaxed">
+                  Waiting Room sudah dibuka. Peserta dan Dokter Penguji dapat bergabung. Tekan tombol di bawah untuk memulai ujian dan mengaktifkan timer global.
+                </p>
+              </div>
+            </div>
+
+            {/* Quick Session Stats */}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 text-xs">
+              <div className="rounded-2xl bg-white/10 p-3.5 border border-white/10">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-300 block">Lokasi & Gedung</span>
+                <span className="font-extrabold text-white text-xs mt-0.5 block truncate">
+                  {activeSession.location_building || "Gedung Skill Lab"}
+                </span>
+              </div>
+              <div className="rounded-2xl bg-white/10 p-3.5 border border-white/10">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-300 block">Durasi / Stase</span>
+                <span className="font-extrabold text-white text-xs mt-0.5 block">
+                  {activeSession.station_duration_minutes || 12} Menit / Rotasi
+                </span>
+              </div>
+              <div className="rounded-2xl bg-white/10 p-3.5 border border-white/10">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-300 block">Total Station</span>
+                <span className="font-extrabold text-white text-xs mt-0.5 block">
+                  {activeSession.total_stations || 6} Pos Stase
+                </span>
+              </div>
+              <div className="rounded-2xl bg-white/10 p-3.5 border border-white/10">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-300 block">User Online</span>
+                <span className="font-extrabold text-emerald-400 text-xs mt-0.5 block">
+                  {onlineUsers.length} Terhubung
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Online Users Presence Grid */}
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                <Users size={18} className="text-blue-600" />
+                Pengguna Terhubung di Waiting Room ({onlineUsers.length} Online)
+              </h2>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-bold text-emerald-700">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
+                {onlineUsers.length} User Aktif Online
+              </span>
+            </div>
+
+            {onlineUsers.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center space-y-2">
+                <p className="text-xs text-slate-500 font-bold">Belum ada peserta atau penguji yang terhubung ke Waiting Room ini.</p>
+                <p className="text-[10px] text-slate-400">
+                  Peserta: <code className="bg-slate-200 px-1.5 py-0.5 rounded text-[10px]">http://localhost:5173/participant/session/{activeSession.id}</code>
+                </p>
+                <p className="text-[10px] text-slate-400">
+                  Penguji: <code className="bg-slate-200 px-1.5 py-0.5 rounded text-[10px]">http://localhost:5173/examiner/stage/{activeSession.id}</code>
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                {onlineUsers.map((u, i) => (
+                  <div key={u.user_id || i} className="rounded-2xl border border-slate-100 bg-slate-50 p-3 flex items-center gap-3">
+                    <div className="relative">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-700 font-black text-sm">
+                        {(u.full_name || "?")[0].toUpperCase()}
+                      </div>
+                      <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 border-2 border-white" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-slate-900 truncate">{u.full_name || u.email}</p>
+                      <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${
+                        u.role === "admin"
+                          ? "bg-red-100 text-red-700"
+                          : u.role === "examiner"
+                          ? "bg-amber-100 text-amber-700"
+                          : "bg-blue-100 text-blue-700"
+                      }`}>
+                        {u.role === "admin" ? "Admin" : u.role === "examiner" ? "Penguji" : "Peserta"}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Start OSCE Button */}
+          <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h3 className="text-sm font-black text-emerald-900">Siap Memulai Ujian OSCE?</h3>
+                <p className="text-xs text-emerald-700 mt-0.5">
+                  Tekan tombol di bawah untuk memulai timer global dan mengalihkan semua peserta & penguji ke layar ujian live.
+                </p>
+              </div>
+              <button
+                onClick={handleStartOsce}
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-3 text-sm font-black text-white shadow-lg hover:bg-emerald-700 active:scale-95 transition"
+              >
+                <Play size={20} />
+                Mulai Sesi OSCE Sekarang
+              </button>
+            </div>
+          </div>
+        </div>
       ) : (
-        /* STATE B: SESSION IS ONGOING -> SHOW LIVE MONITOR CONTROL ROOM */
+        /* STATE C: SESSION IS ONGOING → SHOW LIVE MONITOR CONTROL ROOM */
         <div className="space-y-6">
           {/* Top Control Room Header */}
           <div className="rounded-3xl border border-slate-200/80 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 p-6 text-white shadow-xl">
@@ -474,37 +730,37 @@ export default function LiveMonitorPage() {
                 <div className="relative">
                   <button
                     onClick={() => setIsBellMenuOpen(!isBellMenuOpen)}
-                    className="flex items-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 px-4 py-2.5 text-xs font-bold text-white transition active:scale-95 shadow-md"
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-800/80 px-4 py-2.5 text-xs font-bold text-slate-200 hover:bg-slate-700 hover:text-white transition shadow-sm"
                   >
-                    <Bell size={16} />
-                    Bunyikan Bel
+                    <BellRing size={16} className="text-amber-400" />
+                    Bel Manual Audio
                   </button>
 
                   {isBellMenuOpen && (
                     <div className="absolute right-0 mt-2 w-64 rounded-2xl border border-slate-700 bg-slate-900 p-2 shadow-2xl z-50 animate-in fade-in">
-                      <div className="px-3 py-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800">
-                        Generator Bel Audio Manual
+                      <div className="px-3 py-2 text-[10px] font-black uppercase text-slate-400 border-b border-slate-800">
+                        Pilihan Bunyi Bel Audio OSCE
                       </div>
                       <button
                         onClick={() => handleTriggerBell("start")}
-                        className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-800 rounded-lg transition flex items-center gap-1.5"
+                        className="w-full text-left px-3 py-2 text-xs font-bold text-slate-200 hover:bg-slate-800 rounded-xl transition flex items-center justify-between"
                       >
-                        <Bell size={14} className="text-indigo-400" />
-                        Bel 1x (Mulai / Reading Time)
+                        <span>Bel 1x (Mulai / Reading)</span>
+                        <Play size={12} className="text-emerald-400" />
                       </button>
                       <button
                         onClick={() => handleTriggerBell("warning")}
-                        className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-800 rounded-lg transition flex items-center gap-1.5"
+                        className="w-full text-left px-3 py-2 text-xs font-bold text-slate-200 hover:bg-slate-800 rounded-xl transition flex items-center justify-between"
                       >
-                        <AlertCircle size={14} className="text-amber-400" />
-                        Bel 2x (Peringatan 2 Menit Tersisa)
+                        <span>Bel 2x (Sisa 2 Menit)</span>
+                        <AlertTriangle size={12} className="text-amber-400" />
                       </button>
                       <button
                         onClick={() => handleTriggerBell("rotation")}
-                        className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-800 rounded-lg transition flex items-center gap-1.5"
+                        className="w-full text-left px-3 py-2 text-xs font-bold text-slate-200 hover:bg-slate-800 rounded-xl transition flex items-center justify-between"
                       >
-                        <AlertCircle size={14} className="text-rose-400" />
-                        Bel 3x (Selesai & Rotasi Stase)
+                        <span>Bel 3x (Selesai & Rotasi)</span>
+                        <BellRing size={12} className="text-red-400" />
                       </button>
                     </div>
                   )}
@@ -512,31 +768,44 @@ export default function LiveMonitorPage() {
 
                 <button
                   onClick={() => setIsBroadcastModalOpen(true)}
-                  className="flex items-center gap-2 rounded-xl bg-purple-600 hover:bg-purple-500 px-4 py-2.5 text-xs font-bold text-white transition active:scale-95 shadow-md"
+                  className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-indigo-700 active:scale-95 transition"
                 >
                   <Megaphone size={16} />
-                  Broadcast Pesan
-                </button>
-
-                <button
-                  onClick={handleTogglePause}
-                  className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold text-white transition active:scale-95 shadow-md ${
-                    isTimerRunning ? "bg-amber-600 hover:bg-amber-500" : "bg-emerald-600 hover:bg-emerald-500"
-                  }`}
-                >
-                  {isTimerRunning ? <Pause size={16} /> : <Play size={16} />}
-                  {isTimerRunning ? "Pause Timer" : "Lanjutkan Timer"}
+                  Kirim Broadcast Peringatan
                 </button>
 
                 <button
                   onClick={handleFinishOSCE}
-                  className="flex items-center gap-2 rounded-xl bg-rose-600 hover:bg-rose-500 px-4 py-2.5 text-xs font-bold text-white transition active:scale-95 shadow-md"
+                  className="inline-flex items-center gap-2 rounded-xl border border-red-500/50 bg-red-600/20 px-4 py-2.5 text-xs font-bold text-red-300 hover:bg-red-600 hover:text-white transition"
                 >
-                  <Square size={16} />
-                  Akhiri OSCE
+                  <Square size={15} />
+                  Akhiri Sesi OSCE
                 </button>
               </div>
             </div>
+
+            {/* Live Online Users Bar */}
+            <div className="pt-4 flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-300">
+                <Users size={16} className="text-emerald-400" />
+                <span>Pengguna & Peserta Terhubung Live Online ({onlineUsers.length} User):</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 max-w-2xl">
+                {onlineUsers.map((u, idx) => (
+                  <span
+                    key={u.user_id || idx}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-800/90 px-3 py-1 text-[11px] font-bold text-slate-200"
+                  >
+                    <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="truncate max-w-[120px]">{u.full_name}</span>
+                    <span className="text-[9px] text-slate-400 uppercase font-black">
+                      ({u.role === "examiner" ? "Penguji" : u.role === "admin" ? "Admin" : "Peserta"})
+                    </span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
 
             {/* Timer Stat Display Bar */}
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 pt-6">
@@ -584,6 +853,176 @@ export default function LiveMonitorPage() {
                 <span className="text-xl font-black text-purple-400 mt-1 block">
                   {activeSession.total_stations || 8} Pos
                 </span>
+              </div>
+            </div>
+
+          {/* Section 1: Realtime Online Users Presence Card */}
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-md space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+              <div>
+                <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
+                  <Users size={20} className="text-emerald-600" />
+                  Presensi Live Online Pengguna Terhubung ({onlineUsers.length} User)
+                </h2>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  Pantau dokter penguji dan peserta yang sedang terhubung ke channel Supabase WebSocket Realtime untuk ID Sesi: <code className="font-mono text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">{activeSession.id}</code>
+                </p>
+              </div>
+
+              <span className="rounded-full bg-emerald-100 border border-emerald-300 px-3.5 py-1 text-xs font-black text-emerald-900 inline-flex items-center gap-1.5 animate-pulse">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                {onlineUsers.length} User Aktif Online
+              </span>
+            </div>
+
+            {onlineUsers.length > 0 ? (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {onlineUsers.map((u, idx) => (
+                  <div
+                    key={u.user_id || idx}
+                    className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-3.5 hover:bg-white transition shadow-2xs"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700 font-black text-sm border border-indigo-200">
+                        {u.full_name ? u.full_name.charAt(0).toUpperCase() : "U"}
+                        <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 border-2 border-white" />
+                      </div>
+
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-slate-900 truncate">{u.full_name}</p>
+                        <p className="text-[10px] text-slate-500 truncate">
+                          {u.role === "examiner"
+                            ? `Dokter Penguji ${u.specialty ? `• ${u.specialty}` : ""}`
+                            : u.role === "admin"
+                            ? "Admin Control Room"
+                            : `Peserta ${u.nim ? `(NIM: ${u.nim})` : ""}`}
+                        </p>
+                      </div>
+                    </div>
+
+                    <span
+                      className={`rounded-md px-2 py-0.5 text-[9px] font-black uppercase shrink-0 ${
+                        u.role === "examiner"
+                          ? "bg-purple-100 text-purple-900 border border-purple-300"
+                          : u.role === "admin"
+                          ? "bg-amber-100 text-amber-900 border border-amber-300"
+                          : "bg-emerald-100 text-emerald-900 border border-emerald-300"
+                      }`}
+                    >
+                      {u.role === "examiner" ? "Penguji" : u.role === "admin" ? "Admin" : "Peserta"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-xs text-slate-500 font-medium space-y-2">
+                <p>Belum ada peserta atau penguji lain yang terhubung ke ID Sesi ini.</p>
+                <p className="text-[11px] text-slate-400">
+                  Untuk menguji realtime, buka tab browser baru dengan URL Peserta: <code className="font-mono text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-200">http://localhost:5173/participant/session/{activeSession.id}</code>
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Section 2: Realtime Broadcast & Chat Messenger Console */}
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-md space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+              <div>
+                <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
+                  <Megaphone size={20} className="text-indigo-600" />
+                  Konsol Broadcast & Chat Peringatan Realtime (Supabase WebSocket)
+                </h2>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  Kirim pesan broadcast instan yang akan muncul sebagai banner melayang secara real-time di layar Peserta dan Penguji.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-indigo-100 text-indigo-900 border border-indigo-300 px-3 py-1 text-xs font-bold flex items-center gap-1.5">
+                  <Send size={13} className="text-indigo-700" />
+                  Supabase Realtime Channel Active
+                </span>
+              </div>
+            </div>
+
+            {/* Quick Broadcast Presets */}
+            <div className="space-y-2">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                Tombol Pengumuman Cepat (Preset Broadcast 1-Klik):
+              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => {
+                    setBroadcastMessage("⚠️ Sisa waktu stase 2 menit lagi! Persiapkan penyelesaian dan instruksi penunjang.");
+                    setBroadcastTarget("all");
+                  }}
+                  className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100 transition flex items-center gap-1.5"
+                >
+                  <BellRing size={13} className="text-amber-600" />
+                  Peringatan Sisa 2 Menit
+                </button>
+
+                <button
+                  onClick={() => {
+                    setBroadcastMessage("🔔 Waktu stase ronde selesai! Dokter penguji dan peserta dipersilakan melakukan rotasi pos.");
+                    setBroadcastTarget("all");
+                  }}
+                  className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-900 hover:bg-blue-100 transition flex items-center gap-1.5"
+                >
+                  <RotateCw size={13} className="text-blue-600" />
+                  Instruksi Rotasi Pos
+                </button>
+
+                <button
+                  onClick={() => {
+                    setBroadcastMessage("📢 Pengumuman: Waktu istirahat ronde sedang berlangsung (Break 10 Menit).");
+                    setBroadcastTarget("all");
+                  }}
+                  className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-900 hover:bg-emerald-100 transition flex items-center gap-1.5"
+                >
+                  <Coffee size={13} className="text-emerald-600" />
+                  Pengumuman Break Sesi
+                </button>
+              </div>
+            </div>
+
+            {/* Interactive Chat Broadcast Input Form */}
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="sm:col-span-2">
+                  <label className="text-[11px] font-bold uppercase text-slate-500 block mb-1">Pesan Broadcast Peringatan:</label>
+                  <input
+                    type="text"
+                    value={broadcastMessage}
+                    onChange={(e) => setBroadcastMessage(e.target.value)}
+                    placeholder="Ketik pesan broadcast untuk dikirim ke seluruh layar realtime..."
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-medium text-slate-900 focus:border-indigo-500 focus:outline-hidden"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold uppercase text-slate-500 block mb-1">Target Layar Penerima:</label>
+                  <select
+                    value={broadcastTarget}
+                    onChange={(e) => setBroadcastTarget(e.target.value)}
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-800 focus:border-indigo-500 focus:outline-hidden"
+                  >
+                    <option value="all">Semua Layar (Peserta & Penguji)</option>
+                    <option value="examiners">Layar Dokter Penguji Only</option>
+                    <option value="participants">Layar Peserta Only</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-1">
+                <button
+                  onClick={handleSendBroadcast}
+                  disabled={!broadcastMessage.trim()}
+                  className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2 text-xs font-bold text-white shadow-md hover:bg-indigo-700 active:scale-95 transition disabled:opacity-50"
+                >
+                  <Send size={14} />
+                  Kirim Broadcast Realtime Now
+                </button>
               </div>
             </div>
           </div>

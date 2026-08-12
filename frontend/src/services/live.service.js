@@ -15,16 +15,19 @@ export async function getDashboardStats() {
       { data: activeSession },
     ] = await Promise.all([
       supabase
+        .schema("public")
         .from("profiles")
         .select("id", { count: "exact", head: true })
         .eq("role", "participant"),
 
       supabase
+        .schema("public")
         .from("profiles")
         .select("id", { count: "exact", head: true })
         .eq("role", "examiner"),
 
       supabase
+        .schema("public")
         .from("profiles")
         .select("id", { count: "exact", head: true })
         .eq("role", "mentor"),
@@ -50,7 +53,7 @@ export async function getDashboardStats() {
         .schema("osce")
         .from("sessions")
         .select("id, title, status, started_at, total_stations, station_duration_minutes, location_building")
-        .in("status", ["ongoing", "running"])
+        .in("status", ["ongoing", "waiting_room"])
         .limit(1)
         .maybeSingle(),
     ]);
@@ -81,17 +84,31 @@ export async function getDashboardStats() {
 /**
  * Get live station status for ongoing session
  */
-export async function getLiveStations() {
+export async function getLiveStations(targetSessionId = null) {
   try {
-    const { data: session, error: sessionError } = await supabase
-      .schema("osce")
-      .from("sessions")
-      .select("id, total_stations, started_at, status, current_round, current_wave")
-      .in("status", ["ongoing", "running"])
-      .limit(1)
-      .maybeSingle();
+    let session = null;
+    if (targetSessionId) {
+      const { data, error } = await supabase
+        .schema("osce")
+        .from("sessions")
+        .select("id, total_stations, started_at, status, current_round, current_wave")
+        .eq("id", targetSessionId)
+        .maybeSingle();
+      if (!error && data) session = data;
+    }
 
-    if (sessionError || !session) {
+    if (!session) {
+      const { data, error } = await supabase
+        .schema("osce")
+        .from("sessions")
+        .select("id, total_stations, started_at, status, current_round, current_wave")
+        .in("status", ["ongoing", "waiting_room"])
+        .limit(1)
+        .maybeSingle();
+      if (!error && data) session = data;
+    }
+
+    if (!session) {
       return { session: null, stations: [] };
     }
 
@@ -232,97 +249,15 @@ export async function getSessionTimerState(sessionId) {
   }
 }
 
-/**
- * Upsert session timer state for synchronization
- */
-export async function updateSessionTimerState(sessionId, { phase, targetEndTime, currentRound, waveNumber, pausedRemainingMs }) {
-  try {
-    const payload = {
-      session_id: sessionId,
-      phase: phase || "action",
-      round_number: currentRound || 1,
-      wave_number: waveNumber || 1,
-      target_end_time: targetEndTime || new Date(Date.now() + 12 * 60 * 1000).toISOString(),
-      paused_remaining_ms: pausedRemainingMs || null,
-      updated_at: new Date().toISOString(),
-    };
-
-    const { data, error } = await supabase
-      .schema("osce")
-      .from("session_timer_state")
-      .upsert([payload], { onConflict: "session_id" })
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  } catch (err) {
-    console.error("Error updating session timer state:", err);
-    return null;
-  }
-}
-
-/**
- * Start or resume live session
- */
-export async function startLiveSession(sessionId, durationMinutes = 12) {
-  const targetEndTime = new Date(Date.now() + durationMinutes * 60 * 1000).toISOString();
-
-  await Promise.all([
-    supabase
-      .schema("osce")
-      .from("sessions")
-      .update({ status: "ongoing", started_at: new Date().toISOString() })
-      .eq("id", sessionId),
-
-    updateSessionTimerState(sessionId, {
-      phase: "action",
-      targetEndTime,
-      currentRound: 1,
-    }),
-  ]);
-}
-
-/**
- * Subscribe to live session changes in osce schema
- */
+// ─────────────────────────────────────────────────────────────────
+// Compatibility export for general dashboard live updates
+// ─────────────────────────────────────────────────────────────────
 export function subscribeLive(callback) {
   return supabase
-    .channel("osce-live-monitor")
+    .channel("osce-general-live")
     .on(
       "postgres_changes",
-      {
-        event: "*",
-        schema: "osce",
-        table: "sessions",
-      },
-      callback
-    )
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "osce",
-        table: "session_timer_state",
-      },
-      callback
-    )
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "osce",
-        table: "rotation_states",
-      },
-      callback
-    )
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "osce",
-        table: "participant_answers",
-      },
+      { event: "*", schema: "osce", table: "sessions" },
       callback
     )
     .subscribe();

@@ -152,7 +152,7 @@ export async function fetchActiveSessionAndStationForExaminer(examinerUserId) {
     .schema("osce")
     .from("sessions")
     .select("*")
-    .in("status", ["ongoing", "running"])
+    .in("status", ["ongoing", "waiting_room"])
     .limit(1)
     .maybeSingle();
 
