@@ -1,5 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { Toaster } from "sonner";
 
 import "./index.css";
 
@@ -10,14 +11,11 @@ import { queryClient } from "@/lib/queryClient";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-
+        <Toaster position="top-right" richColors closeButton />
         <App />
-
       </AuthProvider>
-
     </QueryClientProvider>
   </React.StrictMode>
 );

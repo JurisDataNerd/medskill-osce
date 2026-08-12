@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   Building2,
@@ -773,7 +774,7 @@ export default function CreateSessionPage() {
       ? sessionStatus
       : isDraftOnly
       ? "draft"
-      : "published";
+      : "scheduled";
 
     const sessionPayload = {
       title: title || "Sesi OSCE Tanpa Judul",
@@ -796,40 +797,51 @@ export default function CreateSessionPage() {
     };
 
     try {
+      let savedSessionId = id;
       if (isEdit && id) {
         await updateSession(id, sessionPayload, stationsConfig);
-        setSuccessModalTitle("Sesi OSCE Diperbarui");
-        setSuccessModalMessage(`Sesi OSCE "${title}" telah berhasil diperbarui.`);
+        toast.success(`Sesi OSCE "${title}" berhasil diperbarui!`);
       } else {
-        await createSession(sessionPayload, stationsConfig);
-        setSuccessModalTitle(isDraftOnly ? "Draft Sesi Disimpan" : "Sesi OSCE Diterbitkan");
-        setSuccessModalMessage(
+        const newSession = await createSession(sessionPayload, stationsConfig);
+        savedSessionId = newSession?.id;
+        toast.success(
           isDraftOnly
-            ? `Draft Sesi "${title}" telah berhasil disimpan.`
-            : `Sesi OSCE "${title}" telah berhasil diterbitkan.`
+            ? `Draft Sesi "${title}" berhasil disimpan!`
+            : `Sesi OSCE "${title}" berhasil diterbitkan!`
         );
       }
-      setShowSuccessModal(true);
-    } catch (err) {
-      console.warn("Could not save to Supabase database, saved locally:", err);
-      setSuccessModalTitle(isEdit ? "Sesi OSCE Diperbarui" : isDraftOnly ? "Draft Sesi Disimpan" : "Sesi OSCE Diterbitkan");
-      setSuccessModalMessage(
-        isEdit
-          ? `Perubahan Sesi OSCE "${title}" telah disimpan.`
-          : isDraftOnly
-          ? `Draft Sesi "${title}" telah disimpan.`
-          : `Sesi OSCE "${title}" telah berhasil diterbitkan.`
-      );
-      setShowSuccessModal(true);
-    }
 
-    localStorage.removeItem("medskill_create_session_draft");
-    setIsSubmitted(true);
-    return true;
+      localStorage.removeItem("medskill_create_session_draft");
+      setIsSubmitted(true);
+
+      // Route to session detail page if saved successfully and we have an ID
+      if (savedSessionId) {
+        navigate(`/admin/sessions/${savedSessionId}`);
+      } else {
+        navigate("/admin/sessions");
+      }
+      return true;
+    } catch (err) {
+      console.error("Error saving session to Supabase:", err);
+      const errMsg = err?.message || err?.details || JSON.stringify(err);
+      toast.error(`Gagal menyimpan sesi: ${errMsg}`);
+
+      setConfirmModal({
+        isOpen: true,
+        title: "Gagal Menyimpan Sesi OSCE",
+        message: `Terjadi kesalahan database: ${errMsg}.\n\nFormulir Anda tetap tersimpan di layar dan Anda tidak dialihkan ke halaman lain.`,
+        confirmText: "Mengerti / Perbaiki",
+        variant: "danger",
+        isAlert: true,
+        onConfirm: () => setConfirmModal((prev) => ({ ...prev, isOpen: false })),
+      });
+      return false;
+    }
   }
 
   function handleNextTab() {
     if (activeTab === 1 && !title.trim()) {
+      toast.error("Harap isi Nama Sesi OSCE terlebih dahulu!");
       setConfirmModal({
         isOpen: true,
         title: "Judul Sesi Diperlukan",
@@ -846,7 +858,6 @@ export default function CreateSessionPage() {
       setActiveTab(activeTab + 1);
     } else {
       handleSaveCurrentSection(false);
-      navigate("/admin/sessions");
     }
   }
 
@@ -941,10 +952,7 @@ export default function CreateSessionPage() {
             )}
 
             <button
-              onClick={() => {
-                handleSaveCurrentSection(false);
-                navigate("/admin/sessions");
-              }}
+              onClick={() => handleSaveCurrentSection(false)}
               className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-blue-600/30 transition hover:bg-blue-700 active:scale-95"
             >
               <CheckCircle2 size={15} />
