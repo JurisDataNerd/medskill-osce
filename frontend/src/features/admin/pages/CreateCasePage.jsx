@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   Save,
@@ -400,16 +401,21 @@ export default function CreateCasePage() {
 
       localStorage.removeItem("medskill_create_case_draft");
       setIsSubmitted(true);
-      setSuccessModalTitle("Kasus Medis Disimpan");
-      setSuccessModalMessage(`Kasus Medis "${title}" telah berhasil disimpan ke Bank Soal Supabase.`);
-      setShowSuccessModal(true);
+      toast.success(`Kasus Medis "${title}" berhasil disimpan!`);
+
+      setTimeout(() => {
+        navigate("/admin/cases");
+      }, 1000);
     } catch (err) {
       console.error("Error saving question bank case:", err);
-      localStorage.removeItem("medskill_create_case_draft");
-      setIsSubmitted(true);
-      setSuccessModalTitle("Kasus Medis Disimpan");
-      setSuccessModalMessage(`Kasus Medis "${title}" berhasil disimpan.`);
-      setShowSuccessModal(true);
+      const errMsg = err?.message || err?.details || JSON.stringify(err);
+      toast.error(`Gagal menyimpan kasus: ${errMsg}`);
+      
+      setAlertModal({
+        isOpen: true,
+        title: "Gagal Menyimpan Kasus Medis",
+        message: `Terjadi kesalahan: ${errMsg}.\n\nFormulir Anda tidak akan hilang dan Anda tetap berada di halaman ini.`,
+      });
     } finally {
       setSaving(false);
     }
