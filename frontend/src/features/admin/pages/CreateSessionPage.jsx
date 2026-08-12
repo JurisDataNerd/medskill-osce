@@ -88,7 +88,7 @@ export default function CreateSessionPage() {
         const savedDraft = localStorage.getItem("medskill_create_session_draft");
         if (savedDraft) {
           const parsed = JSON.parse(savedDraft);
-          if (parsed && (parsed.title || (parsed.stationsConfig && parsed.stationsConfig.length > 0))) {
+          if (parsed && parsed.title && parsed.title.trim() !== "") {
             setShowRestoreDraftBanner(true);
           }
         }
@@ -332,7 +332,8 @@ export default function CreateSessionPage() {
   // Auto-save form state to localStorage (when not editing existing session)
   useEffect(() => {
     if (isEdit || isSubmitted) return;
-    if (!title && (!stationsConfig || stationsConfig.length === 0)) return;
+    // CRITICAL: Do NOT save if title is blank to prevent overwriting saved draft on initial mount
+    if (!title || !title.trim()) return;
 
     const draftData = {
       title,
@@ -348,6 +349,11 @@ export default function CreateSessionPage() {
       totalRounds,
       totalStations,
       stationsConfig,
+      singleLiveSessionRule,
+      autoRollingRule,
+      lateToleranceMinutes,
+      autoLockAnswerRule,
+      autoPublishResults,
       updatedAt: new Date().toISOString(),
     };
 
@@ -372,6 +378,11 @@ export default function CreateSessionPage() {
     totalRounds,
     totalStations,
     stationsConfig,
+    singleLiveSessionRule,
+    autoRollingRule,
+    lateToleranceMinutes,
+    autoLockAnswerRule,
+    autoPublishResults,
   ]);
 
   // Prevent accidental tab close or page refresh when form is modified
@@ -404,12 +415,17 @@ export default function CreateSessionPage() {
       if (data.totalRounds) setTotalRounds(data.totalRounds);
       if (data.totalStations) setTotalStations(data.totalStations);
       if (data.stationsConfig && data.stationsConfig.length > 0) setStationsConfig(data.stationsConfig);
+      if (data.singleLiveSessionRule !== undefined) setSingleLiveSessionRule(data.singleLiveSessionRule);
+      if (data.autoRollingRule !== undefined) setAutoRollingRule(data.autoRollingRule);
+      if (data.lateToleranceMinutes !== undefined) setLateToleranceMinutes(data.lateToleranceMinutes);
+      if (data.autoLockAnswerRule !== undefined) setAutoLockAnswerRule(data.autoLockAnswerRule);
+      if (data.autoPublishResults !== undefined) setAutoPublishResults(data.autoPublishResults);
 
       setShowRestoreDraftBanner(false);
       setConfirmModal({
         isOpen: true,
         title: "Draf Berhasil Dipulihkan!",
-        message: "Data formulir sesi OSCE Anda berhasil dipulihkan dari memori browser lokal.",
+        message: `Data formulir sesi "${data.title || "Draf Sesi"}" berhasil dipulihkan dari memori browser lokal.`,
         confirmText: "Mengerti",
         variant: "success",
         isAlert: true,

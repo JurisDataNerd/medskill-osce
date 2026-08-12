@@ -97,7 +97,7 @@ export default function CreateCasePage() {
         const savedDraft = localStorage.getItem("medskill_create_case_draft");
         if (savedDraft) {
           const parsed = JSON.parse(savedDraft);
-          if (parsed && parsed.title) {
+          if (parsed && parsed.title && parsed.title.trim() !== "") {
             setShowRestoreDraftBanner(true);
           }
         }
@@ -110,7 +110,7 @@ export default function CreateCasePage() {
   // Auto-save form state to localStorage
   useEffect(() => {
     if (isEdit || isSubmitted) return;
-    if (!title && !scenario && (!rubricItems || rubricItems.length === 0)) return;
+    if (!title || !title.trim()) return;
 
     const draftData = {
       title,
