@@ -679,11 +679,11 @@ export default function ExaminerStagePage() {
             </p>
           </div>
           <button
-            onClick={() => navigate("/examiner")}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
+            onClick={handleExitExaminerWaitingRoom}
+            className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 transition shadow-2xs"
           >
-            <ArrowLeft size={16} />
-            Kembali ke Dashboard
+            <LogOut size={15} />
+            Keluar ke Dashboard
           </button>
         </div>
 
@@ -769,6 +769,18 @@ export default function ExaminerStagePage() {
             </div>
           </div>
         )}
+
+        <ConfirmModal
+          isOpen={confirmModal.isOpen}
+          onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+          onConfirm={confirmModal.onConfirm}
+          title={confirmModal.title}
+          message={confirmModal.message}
+          confirmText={confirmModal.confirmText}
+          cancelText={confirmModal.cancelText}
+          variant={confirmModal.variant}
+          isAlert={confirmModal.isAlert}
+        />
       </div>
     );
   }
@@ -1167,6 +1179,18 @@ export default function ExaminerStagePage() {
             )}
           </div>
         </div>
+
+        <ConfirmModal
+          isOpen={confirmModal.isOpen}
+          onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+          onConfirm={confirmModal.onConfirm}
+          title={confirmModal.title}
+          message={confirmModal.message}
+          confirmText={confirmModal.confirmText}
+          cancelText={confirmModal.cancelText}
+          variant={confirmModal.variant}
+          isAlert={confirmModal.isAlert}
+        />
       </div>
     );
   }
@@ -1177,11 +1201,11 @@ export default function ExaminerStagePage() {
       <header className="border-b border-slate-200 bg-white px-6 py-3.5 shadow-2xs sticky top-0 z-40">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
           <button
-            onClick={() => navigate("/examiner")}
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 transition"
+            onClick={handleExitExaminerWaitingRoom}
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-rose-700 hover:text-rose-900 bg-rose-50 border border-rose-200 px-3 py-1.5 rounded-xl transition shadow-2xs"
           >
-            <ArrowLeft size={16} />
-            Kembali ke Dashboard Dokter Penguji
+            <LogOut size={15} />
+            Keluar ke Dashboard
           </button>
 
           <div className="flex items-center gap-3">
