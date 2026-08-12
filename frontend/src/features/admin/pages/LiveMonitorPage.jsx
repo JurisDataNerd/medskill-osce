@@ -52,6 +52,7 @@ import {
   getSessionTimerState,
 } from "@/services/live.service";
 import { fetchSessions, fetchSessionById, updateSessionStatus } from "@/services/sessionService";
+import ConfirmModal from "@/components/ConfirmModal";
 
 // Web Audio API Bell Synthesizer (No external file dependencies needed)
 function playOsceBell(type = "warning") {
@@ -134,6 +135,18 @@ export default function LiveMonitorPage() {
 
   // Live Presence State for Online Users
   const [onlineUsers, setOnlineUsers] = useState([]);
+
+  // Confirm / Alert Modal State
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    confirmText: "Ya, Lanjutkan",
+    cancelText: "Batal",
+    variant: "primary",
+    isAlert: false,
+    onConfirm: null,
+  });
 
   // Real-time Presence Tracking for Admin
   useEffect(() => {
@@ -324,7 +337,15 @@ export default function LiveMonitorPage() {
       await loadLiveMonitorData();
     } catch (err) {
       console.error("Failed to open waiting room:", err);
-      alert("Gagal membuka waiting room: " + err.message);
+      setConfirmModal({
+        isOpen: true,
+        title: "Gagal Membuka Waiting Room",
+        message: err.message,
+        confirmText: "Mengerti",
+        variant: "warning",
+        isAlert: true,
+        onConfirm: () => setConfirmModal((prev) => ({ ...prev, isOpen: false })),
+      });
     }
   }
 
@@ -338,26 +359,40 @@ export default function LiveMonitorPage() {
       await loadLiveMonitorData();
     } catch (err) {
       console.error("Failed to start OSCE session:", err);
-      alert("Gagal memulai sesi OSCE: " + err.message);
+      setConfirmModal({
+        isOpen: true,
+        title: "Gagal Memulai Sesi OSCE",
+        message: err.message,
+        confirmText: "Mengerti",
+        variant: "warning",
+        isAlert: true,
+        onConfirm: () => setConfirmModal((prev) => ({ ...prev, isOpen: false })),
+      });
     }
   }
 
   // Handle Finishing Active Session in Supabase
   async function handleFinishOSCE() {
     if (!activeSession) return;
-    if (
-      confirm(
-        "Apakah Anda yakin ingin mengakhiri sesi OSCE ini? Seluruh pengerjaan stase akan ditutup di Supabase database."
-      )
-    ) {
-      try {
-        await finishSession(activeSession.id);
-        addLog("success", "Sesi OSCE telah diselesaikan di Supabase.");
-        await loadLiveMonitorData();
-      } catch (err) {
-        console.error("Failed to finish session:", err);
-      }
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: "Akhiri Sesi OSCE?",
+      message: "Apakah Anda yakin ingin mengakhiri sesi OSCE ini? Seluruh pengerjaan stase akan ditutup di database.",
+      confirmText: "Ya, Selesaikan Sesi",
+      cancelText: "Batal",
+      variant: "danger",
+      isAlert: false,
+      onConfirm: async () => {
+        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        try {
+          await finishSession(activeSession.id);
+          addLog("success", "Sesi OSCE telah diselesaikan di Supabase.");
+          await loadLiveMonitorData();
+        } catch (err) {
+          console.error("Failed to finish session:", err);
+        }
+      },
+    });
   }
 
   async function handleTogglePause() {
@@ -1177,6 +1212,18 @@ export default function LiveMonitorPage() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        cancelText={confirmModal.cancelText}
+        variant={confirmModal.variant}
+        isAlert={confirmModal.isAlert}
+      />
     </AdminLayout>
   );
 }

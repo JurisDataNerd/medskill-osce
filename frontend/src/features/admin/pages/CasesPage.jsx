@@ -61,17 +61,18 @@ export default function CasesPage() {
     setSelected(null);
   }
 
-  // Delete confirmation state
+  // Delete Confirmation State
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [targetCaseToDelete, setTargetCaseToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [alertModal, setAlertModal] = useState({ isOpen: false, title: "", message: "" });
 
-  function requestDeleteCase(caseItem) {
+  function handleRequestDelete(caseItem) {
     setTargetCaseToDelete(caseItem);
     setDeleteModalOpen(true);
   }
 
-  async function handleConfirmDeleteCase() {
+  async function handleConfirmDelete() {
     if (!targetCaseToDelete) return;
 
     try {
@@ -80,7 +81,11 @@ export default function CasesPage() {
       setCases((prev) => prev.filter((c) => c.id !== targetCaseToDelete.id));
     } catch (e) {
       console.error("Error deleting case:", e);
-      alert("Gagal menghapus kasus medis dari Supabase.");
+      setAlertModal({
+        isOpen: true,
+        title: "Gagal Menghapus Kasus",
+        message: "Terjadi kesalahan saat menghapus kasus medis dari database Supabase.",
+      });
     } finally {
       setDeleting(false);
       setDeleteModalOpen(false);
@@ -269,13 +274,25 @@ export default function CasesPage() {
           setDeleteModalOpen(false);
           setTargetCaseToDelete(null);
         }}
-        onConfirm={handleConfirmDeleteCase}
+        onConfirm={handleConfirmDelete}
         title="Hapus Kasus Medis"
         message={`Apakah Anda yakin ingin menghapus kasus medis "${targetCaseToDelete?.title || ""}" ini dari Bank Soal Supabase? Tindakan ini tidak dapat dibatalkan.`}
         confirmText="Ya, Hapus Kasus"
         cancelText="Batal"
         variant="danger"
         loading={deleting}
+      />
+
+      {/* Alert Modal */}
+      <ConfirmModal
+        isOpen={alertModal.isOpen}
+        onClose={() => setAlertModal((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={() => setAlertModal((prev) => ({ ...prev, isOpen: false }))}
+        title={alertModal.title}
+        message={alertModal.message}
+        confirmText="Mengerti"
+        variant="warning"
+        isAlert={true}
       />
     </AdminLayout>
   );

@@ -14,6 +14,7 @@ import { login, signUp, signIn } from "@/services/auth.service";
 import { getCurrentRole } from "@/services/role.service";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthProvider";
+import ConfirmModal from "@/components/ConfirmModal";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -25,6 +26,16 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    confirmText: "Mengerti",
+    variant: "warning",
+    isAlert: true,
+    onConfirm: null,
+  });
 
   // Auto redirect active session users (including Google OAuth return)
   useEffect(() => {
@@ -47,15 +58,31 @@ export default function LoginPage() {
         const { data, error } = await signUp(email, password, fullName);
 
         if (error) {
-          alert("Gagal Registrasi Supabase: " + error.message);
+          setConfirmModal({
+            isOpen: true,
+            title: "Gagal Registrasi",
+            message: "Gagal Registrasi Supabase: " + error.message,
+            confirmText: "Mengerti",
+            variant: "danger",
+            isAlert: true,
+            onConfirm: () => setConfirmModal((prev) => ({ ...prev, isOpen: false })),
+          });
           setLoading(false);
           return;
         }
 
-        alert(
-          `Akun ${fullName || email} berhasil terdaftar sebagai Peserta (User)!`
-        );
-        // Switch to login tab
+        setConfirmModal({
+          isOpen: true,
+          title: "Registrasi Berhasil",
+          message: `Akun ${fullName || email} berhasil terdaftar sebagai Peserta! Silakan lakukan login.`,
+          confirmText: "Masuk ke Akun",
+          variant: "success",
+          isAlert: true,
+          onConfirm: () => {
+            setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+            setMode("login");
+          },
+        });
         setMode("login");
         setLoading(false);
         return;
@@ -65,7 +92,15 @@ export default function LoginPage() {
       const { data, error } = await login(email, password);
 
       if (error) {
-        alert("Gagal Login: " + error.message);
+        setConfirmModal({
+          isOpen: true,
+          title: "Gagal Autentikasi Login",
+          message: "Gagal Login: " + error.message,
+          confirmText: "Mengerti",
+          variant: "danger",
+          isAlert: true,
+          onConfirm: () => setConfirmModal((prev) => ({ ...prev, isOpen: false })),
+        });
         setLoading(false);
         return;
       }
@@ -76,7 +111,15 @@ export default function LoginPage() {
       redirectByRole(detectedRole);
     } catch (err) {
       console.error(err);
-      alert("Terjadi kesalahan saat terhubung ke Supabase.");
+      setConfirmModal({
+        isOpen: true,
+        title: "Kesalahan Koneksi",
+        message: "Terjadi kesalahan saat terhubung ke Supabase database.",
+        confirmText: "Mengerti",
+        variant: "warning",
+        isAlert: true,
+        onConfirm: () => setConfirmModal((prev) => ({ ...prev, isOpen: false })),
+      });
     } finally {
       setLoading(false);
     }
@@ -238,6 +281,18 @@ export default function LoginPage() {
           </button>
         </div>
       </div>
+
+      {/* Confirm & Alert Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        variant={confirmModal.variant}
+        isAlert={confirmModal.isAlert}
+      />
     </div>
   );
 }

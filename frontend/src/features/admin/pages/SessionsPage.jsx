@@ -24,6 +24,7 @@ import {
 
 import AdminLayout from "@/layouts/AdminLayout";
 import SessionModal from "@/features/admin/components/SessionModal";
+import ConfirmModal from "@/components/ConfirmModal";
 import { fetchSessions, deleteSession, updateSessionStatus } from "@/services/sessionService";
 
 export default function SessionsPage() {
@@ -34,6 +35,18 @@ export default function SessionsPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+
+  // Modal State for Confirm & Alert
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    confirmText: "Ya, Lanjutkan",
+    cancelText: "Batal",
+    variant: "primary",
+    isAlert: false,
+    onConfirm: null,
+  });
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -128,17 +141,24 @@ export default function SessionsPage() {
   }
 
   async function handleDelete(id) {
-    const ok = confirm(
-      "Apakah Anda yakin ingin menghapus riwayat sesi ini?\n\nSemua stase, peserta, dan hasil nilai terkait juga akan dihapus."
-    );
-    if (!ok) return;
-
-    try {
-      await deleteSession(id);
-    } catch (err) {
-      console.warn("Deleted locally:", err);
-    }
-    setSessions((prev) => prev.filter((s) => s.id !== id));
+    setConfirmModal({
+      isOpen: true,
+      title: "Hapus Riwayat Sesi OSCE?",
+      message: "Apakah Anda yakin ingin menghapus riwayat sesi ini?\n\nSemua stase, peserta, dan hasil nilai terkait juga akan dihapus secara permanen.",
+      confirmText: "Ya, Hapus Sesi",
+      cancelText: "Batal",
+      variant: "danger",
+      isAlert: false,
+      onConfirm: async () => {
+        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        try {
+          await deleteSession(id);
+        } catch (err) {
+          console.warn("Deleted locally:", err);
+        }
+        setSessions((prev) => prev.filter((s) => s.id !== id));
+      },
+    });
   }
 
   async function handleStatusChange(id, newStatus) {
@@ -147,9 +167,15 @@ export default function SessionsPage() {
         (s) => getNormalizedStatus(s.status) === "running" && s.id !== id
       );
       if (active) {
-        alert(
-          `PERINGATAN: Sesi OSCE tidak dapat dijalankan secara paralel!\n\nSesi "${active.title}" saat ini sedang berlangsung. Harap selesaikan sesi tersebut terlebih dahulu.`
-        );
+        setConfirmModal({
+          isOpen: true,
+          title: "Sesi OSCE Sedang Berlangsung",
+          message: `PERINGATAN: Sesi OSCE tidak dapat dijalankan secara paralel!\n\nSesi "${active.title}" saat ini sedang berlangsung. Harap selesaikan sesi tersebut terlebih dahulu.`,
+          confirmText: "Mengerti",
+          variant: "warning",
+          isAlert: true,
+          onConfirm: () => setConfirmModal((prev) => ({ ...prev, isOpen: false })),
+        });
         return;
       }
     }
@@ -636,6 +662,18 @@ export default function SessionsPage() {
           )}
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        cancelText={confirmModal.cancelText}
+        variant={confirmModal.variant}
+        isAlert={confirmModal.isAlert}
+      />
     </AdminLayout>
   );
 }
