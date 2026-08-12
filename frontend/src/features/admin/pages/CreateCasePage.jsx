@@ -16,6 +16,7 @@ import {
   FlaskConical,
   Activity,
   HelpCircle,
+  RotateCw,
 } from "lucide-react";
 
 import AdminLayout from "@/layouts/AdminLayout";
@@ -84,6 +85,122 @@ export default function CreateCasePage() {
 
   // Tab 4: Auxiliary Exam Configs
   const [auxiliaryConfigs, setAuxiliaryConfigs] = useState([]);
+
+  // Draft Auto-save & Exit Confirmation State
+  const [showRestoreDraftBanner, setShowRestoreDraftBanner] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+
+  // Check for saved draft on mount
+  useEffect(() => {
+    if (!isEdit) {
+      try {
+        const savedDraft = localStorage.getItem("medskill_create_case_draft");
+        if (savedDraft) {
+          const parsed = JSON.parse(savedDraft);
+          if (parsed && parsed.title) {
+            setShowRestoreDraftBanner(true);
+          }
+        }
+      } catch (err) {
+        console.error("Error reading draft from localStorage:", err);
+      }
+    }
+  }, [isEdit]);
+
+  // Auto-save form state to localStorage
+  useEffect(() => {
+    if (isEdit || isSubmitted) return;
+    if (!title && !scenario && (!rubricItems || rubricItems.length === 0)) return;
+
+    const draftData = {
+      title,
+      systemOrgan,
+      skdiLevel,
+      scenario,
+      participantInstructions,
+      examinerInstructions,
+      answerKeyDiagnosis,
+      answerKeyPrescription,
+      rubricItems,
+      auxiliaryConfigs,
+      updatedAt: new Date().toISOString(),
+    };
+
+    try {
+      localStorage.setItem("medskill_create_case_draft", JSON.stringify(draftData));
+    } catch (err) {
+      console.error("Error saving case draft to localStorage:", err);
+    }
+  }, [
+    isEdit,
+    isSubmitted,
+    title,
+    systemOrgan,
+    skdiLevel,
+    scenario,
+    participantInstructions,
+    examinerInstructions,
+    answerKeyDiagnosis,
+    answerKeyPrescription,
+    rubricItems,
+    auxiliaryConfigs,
+  ]);
+
+  // Prevent accidental tab close or page refresh
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (!isSubmitted && !isEdit && title.trim() !== "") {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isSubmitted, isEdit, title]);
+
+  function handleRestoreDraft() {
+    try {
+      const savedDraft = localStorage.getItem("medskill_create_case_draft");
+      if (!savedDraft) return;
+      const data = JSON.parse(savedDraft);
+      if (data.title !== undefined) setTitle(data.title);
+      if (data.systemOrgan) setSystemOrgan(data.systemOrgan);
+      if (data.skdiLevel) setSkdiLevel(data.skdiLevel);
+      if (data.scenario !== undefined) setScenario(data.scenario);
+      if (data.participantInstructions !== undefined) setParticipantInstructions(data.participantInstructions);
+      if (data.examinerInstructions !== undefined) setExaminerInstructions(data.examinerInstructions);
+      if (data.answerKeyDiagnosis !== undefined) setAnswerKeyDiagnosis(data.answerKeyDiagnosis);
+      if (data.answerKeyPrescription !== undefined) setAnswerKeyPrescription(data.answerKeyPrescription);
+      if (data.rubricItems && data.rubricItems.length > 0) setRubricItems(data.rubricItems);
+      if (data.auxiliaryConfigs) setAuxiliaryConfigs(data.auxiliaryConfigs);
+
+      setShowRestoreDraftBanner(false);
+      setAlertModal({
+        isOpen: true,
+        title: "Draf Kasus Berhasil Dipulihkan!",
+        message: "Data formulir kasus medis berhasil dipulihkan dari memori lokal browser.",
+      });
+    } catch (err) {
+      console.error("Error restoring case draft:", err);
+    }
+  }
+
+  function handleDiscardDraft() {
+    localStorage.removeItem("medskill_create_case_draft");
+    setShowRestoreDraftBanner(false);
+  }
+
+  function handleNavigateAway(targetPath) {
+    if (!isSubmitted && !isEdit && title.trim() !== "") {
+      setAlertModal({
+        isOpen: true,
+        title: "Tinggalkan Halaman Buat Kasus?",
+        message: "Perubahan formulir kasus medis Anda yang belum disimpan akan hilang (namun draf otomatis tersimpan di memori browser Anda).",
+      });
+    } else {
+      navigate(targetPath);
+    }
+  }
 
   // Load existing case if editing
   useEffect(() => {
@@ -281,11 +398,15 @@ export default function CreateCasePage() {
         await supabase.schema("osce").from("question_bank_auxiliary_configs").insert(formattedAux);
       }
 
+      localStorage.removeItem("medskill_create_case_draft");
+      setIsSubmitted(true);
       setSuccessModalTitle("Kasus Medis Disimpan");
       setSuccessModalMessage(`Kasus Medis "${title}" telah berhasil disimpan ke Bank Soal Supabase.`);
       setShowSuccessModal(true);
     } catch (err) {
       console.error("Error saving question bank case:", err);
+      localStorage.removeItem("medskill_create_case_draft");
+      setIsSubmitted(true);
       setSuccessModalTitle("Kasus Medis Disimpan");
       setSuccessModalMessage(`Kasus Medis "${title}" berhasil disimpan.`);
       setShowSuccessModal(true);
@@ -306,11 +427,48 @@ export default function CreateCasePage() {
 
   return (
     <AdminLayout>
+      {/* Auto-saved Draft Restore Notification Banner */}
+      {showRestoreDraftBanner && (
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50/90 p-4 shadow-sm animate-in slide-in-from-top duration-300">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white shadow-sm">
+              <RotateCw size={20} className="animate-spin" />
+            </div>
+            <div>
+              <h4 className="text-xs font-black text-amber-950 uppercase tracking-wider">
+                Draf Kasus Medis Ditemukan!
+              </h4>
+              <p className="text-xs font-semibold text-amber-900 mt-0.5">
+                Draf kasus medis tersimpan otomatis di memori browser dari pembuatan sebelumnya. Apakah Anda ingin memulihkannya?
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleRestoreDraft}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-amber-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-amber-700 active:scale-95 transition"
+            >
+              <RotateCw size={14} />
+              Pulihkan Draf Kasus
+            </button>
+            <button
+              type="button"
+              onClick={handleDiscardDraft}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-amber-300 bg-white px-3 py-2 text-xs font-bold text-amber-900 hover:bg-amber-100 transition"
+            >
+              Buang Draf
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-5">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate("/admin/cases")}
+            onClick={() => handleNavigateAway("/admin/cases")}
             className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-2xs transition hover:bg-slate-50"
           >
             <ArrowLeft size={18} />
