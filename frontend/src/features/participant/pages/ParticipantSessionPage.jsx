@@ -42,6 +42,7 @@ import {
   getAllAuxiliaryExamItems,
 } from "@/features/participant/data/auxiliaryExamsCatalog";
 import AuxiliaryExamResultModal from "@/components/AuxiliaryExamResultModal";
+import ConfirmModal from "@/components/ConfirmModal";
 
 import { supabase } from "@/lib/supabaseClient";
 import { fetchSessionById } from "@/services/sessionService";
@@ -942,6 +943,18 @@ export default function ParticipantSessionPage() {
             </div>
           </div>
         </main>
+
+        <ConfirmModal
+          isOpen={confirmModal.isOpen}
+          onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+          onConfirm={confirmModal.onConfirm}
+          title={confirmModal.title}
+          message={confirmModal.message}
+          confirmText={confirmModal.confirmText}
+          cancelText={confirmModal.cancelText}
+          variant={confirmModal.variant}
+          isAlert={confirmModal.isAlert}
+        />
       </div>
     );
   }
@@ -1100,6 +1113,18 @@ export default function ParticipantSessionPage() {
             </div>
           </div>
         </main>
+
+        <ConfirmModal
+          isOpen={confirmModal.isOpen}
+          onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+          onConfirm={confirmModal.onConfirm}
+          title={confirmModal.title}
+          message={confirmModal.message}
+          confirmText={confirmModal.confirmText}
+          cancelText={confirmModal.cancelText}
+          variant={confirmModal.variant}
+          isAlert={confirmModal.isAlert}
+        />
       </div>
     );
   }
@@ -1154,6 +1179,18 @@ export default function ParticipantSessionPage() {
             </div>
           </div>
         </main>
+
+        <ConfirmModal
+          isOpen={confirmModal.isOpen}
+          onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+          onConfirm={confirmModal.onConfirm}
+          title={confirmModal.title}
+          message={confirmModal.message}
+          confirmText={confirmModal.confirmText}
+          cancelText={confirmModal.cancelText}
+          variant={confirmModal.variant}
+          isAlert={confirmModal.isAlert}
+        />
       </div>
     );
   }
