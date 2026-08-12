@@ -319,6 +319,14 @@ export const router = createBrowserRouter([
         element: <ExaminerLiveMonitorPage />,
       },
       {
+        path: "session/:sessionId",
+        element: <ExaminerStagePage />,
+      },
+      {
+        path: "session/:sessionId/stage/:stageId",
+        element: <ExaminerStagePage />,
+      },
+      {
         path: "stage",
         element: <ExaminerStagePage />,
       },

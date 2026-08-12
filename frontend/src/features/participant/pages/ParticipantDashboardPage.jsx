@@ -113,8 +113,8 @@ export default function ParticipantDashboardPage() {
     }
   }
 
-  const ongoingSession = sessions.find((s) => s.status === "ongoing" || s.status === "running");
-  const availableSessions = sessions.filter((s) => s.status === "published" || s.status === "scheduled" || s.status === "ongoing" || s.status === "running");
+  const ongoingSession = sessions.find((s) => s.status === "ongoing" || s.status === "running" || s.status === "waiting_room");
+  const availableSessions = sessions.filter((s) => s.status === "published" || s.status === "scheduled" || s.status === "waiting_room" || s.status === "ongoing" || s.status === "running");
 
   const filteredSessions = availableSessions.filter(
     (s) =>

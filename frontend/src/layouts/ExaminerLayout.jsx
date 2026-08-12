@@ -44,11 +44,11 @@ export default function ExaminerLayout({ children }) {
           .schema("osce")
           .from("sessions")
           .select("id, title, status")
-          .in("status", ["ongoing", "running", "published", "scheduled"])
+          .in("status", ["ongoing", "waiting_room", "scheduled", "paused"])
           .order("created_at", { ascending: false });
 
         if (data && data.length > 0) {
-          const ongoing = data.find((s) => s.status === "ongoing" || s.status === "running");
+          const ongoing = data.find((s) => s.status === "ongoing" || s.status === "waiting_room");
           setActiveSession(ongoing || data[0]);
         } else {
           setActiveSession(null);

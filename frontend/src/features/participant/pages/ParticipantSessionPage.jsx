@@ -9,6 +9,7 @@ import {
   Send,
   Stethoscope,
   User,
+  Users,
   AlertCircle,
   HelpCircle,
   Sparkles,
@@ -33,6 +34,7 @@ import {
   Coffee,
   RotateCw,
   Award,
+  Megaphone,
 } from "lucide-react";
 import {
   AUXILIARY_EXAM_CATALOG,
@@ -40,8 +42,15 @@ import {
 } from "@/features/participant/data/auxiliaryExamsCatalog";
 import AuxiliaryExamResultModal from "@/components/AuxiliaryExamResultModal";
 
+import { supabase } from "@/lib/supabaseClient";
 import { fetchSessionById } from "@/services/sessionService";
 import { getSessionParticipants } from "@/services/session.service";
+import { getSessionTimerState } from "@/services/live.service";
+import {
+  subscribeToSession,
+  joinPresence,
+  calcRemaining,
+} from "@/services/realtimeTimerService";
 
 export default function ParticipantSessionPage() {
   const { sessionId } = useParams();
@@ -56,9 +65,96 @@ export default function ParticipantSessionPage() {
   // Approval Guard State: 'approved' | 'pending' | 'rejected'
   const [candidateApprovalStatus, setCandidateApprovalStatus] = useState("approved");
 
+  // Live Presence State for Waiting Room Users
+  const [onlineUsers, setOnlineUsers] = useState([]);
+  const [activeBroadcast, setActiveBroadcast] = useState(null);
+
+  useEffect(() => {
+    if (!sessionId) return;
+
+    const unsubscribe = subscribeToSession(sessionId, {
+      onSessionUpdate: (sess) => {
+        if (sess && (sess.status === "ongoing" || sess.status === "running")) {
+          setViewMode("live_round");
+        }
+      },
+      onBroadcast: (msg) => {
+        if (!msg) return;
+        if (msg.target_role === "all" || msg.target_role === "participants") {
+          setActiveBroadcast({
+            id: msg.id || Date.now(),
+            message: msg.message,
+            priority: msg.priority || "info",
+            time: new Date(msg.created_at || Date.now()).toLocaleTimeString("id-ID"),
+          });
+        }
+      },
+    });
+
+    return () => unsubscribe();
+  }, [sessionId]);
+
   // Anti-Cheating Security State
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
   const [showCheatingWarning, setShowCheatingWarning] = useState(false);
+
+  // Real-time Presence Tracking for Waiting Room
+  useEffect(() => {
+    if (!sessionId) return;
+
+    let cleanupPresence = null;
+    async function initPresence() {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        let full_name = user?.user_metadata?.full_name || user?.email || "Peserta Mahasiswa";
+        let nim = user?.user_metadata?.nim || "";
+
+        if (user?.id) {
+          const { data: prof } = await supabase
+            .schema("public")
+            .from("profiles")
+            .select("full_name")
+            .eq("id", user.id)
+            .maybeSingle();
+
+          if (prof?.full_name) full_name = prof.full_name;
+
+          const { data: partData } = await supabase
+            .schema("osce")
+            .from("session_participants")
+            .select("nim")
+            .eq("session_id", sessionId)
+            .or(`user_id.eq.${user.id},email.eq.${user.email}`)
+            .maybeSingle();
+
+          if (partData?.nim) nim = partData.nim;
+        }
+
+        const userState = {
+          user_id: user?.id || user?.email || `participant-${Date.now()}`,
+          full_name,
+          role: "participant",
+          nim,
+          email: user?.email,
+        };
+
+        cleanupPresence = joinPresence(sessionId, userState, (users) => {
+          setOnlineUsers(users || []);
+        });
+      } catch (err) {
+        console.error("Presence tracking error:", err);
+      }
+    }
+
+    initPresence();
+
+    return () => {
+      if (cleanupPresence) cleanupPresence();
+    };
+  }, [sessionId]);
 
   useEffect(() => {
     async function checkApprovalGuard() {
@@ -103,31 +199,71 @@ export default function ParticipantSessionPage() {
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [viewMode]);
 
+  const [dbStations, setDbStations] = useState([]);
+  const [dbExaminers, setDbExaminers] = useState([]);
+  const [myStartingStation, setMyStartingStation] = useState(1);
+
   useEffect(() => {
-    async function loadSession() {
-      if (sessionId) {
-        try {
-          const data = await fetchSessionById(sessionId);
-          if (data) {
-            setSessionDetail(data);
-            if (data.station_duration_minutes) {
-              const dur = data.station_duration_minutes * 60;
-              setStationDurationSeconds(dur);
-              setRoundSecondsLeft(dur);
-            }
-            if (data.break_duration_minutes) {
-              setBreakDurationSeconds(data.break_duration_minutes * 60);
-            }
-            if (data.transition_duration_minutes) {
-              setTransitDurationSeconds(data.transition_duration_minutes * 60);
-            }
+    async function loadSessionData() {
+      if (!sessionId) return;
+      try {
+        const data = await fetchSessionById(sessionId);
+        if (data) {
+          setSessionDetail(data);
+          if (data.station_duration_minutes) {
+            const dur = data.station_duration_minutes * 60;
+            setStationDurationSeconds(dur);
+            setRoundSecondsLeft(dur);
           }
-        } catch (err) {
-          console.warn("Using default candidate schedule data:", err);
+          if (data.break_duration_minutes) {
+            setBreakDurationSeconds(data.break_duration_minutes * 60);
+          }
+          if (data.transition_duration_minutes) {
+            setTransitDurationSeconds(data.transition_duration_minutes * 60);
+          }
         }
+
+        // Fetch stations & examiners for session
+        const [
+          { data: stData },
+          { data: exData },
+          { data: { user } },
+        ] = await Promise.all([
+          supabase
+            .schema("osce")
+            .from("stations")
+            .select("*")
+            .eq("session_id", sessionId)
+            .order("station_number", { ascending: true }),
+          supabase
+            .schema("osce")
+            .from("session_examiners")
+            .select("*")
+            .eq("session_id", sessionId),
+          supabase.auth.getUser(),
+        ]);
+
+        if (stData) setDbStations(stData);
+        if (exData) setDbExaminers(exData);
+
+        if (user) {
+          const { data: partData } = await supabase
+            .schema("osce")
+            .from("session_participants")
+            .select("starting_station_number")
+            .eq("session_id", sessionId)
+            .or(`user_id.eq.${user.id},email.eq.${user.email}`)
+            .maybeSingle();
+
+          if (partData?.starting_station_number) {
+            setMyStartingStation(Number(partData.starting_station_number));
+          }
+        }
+      } catch (err) {
+        console.warn("Using default candidate schedule data:", err);
       }
     }
-    loadSession();
+    loadSessionData();
   }, [sessionId]);
 
   // Current Active Round for candidate (Round 1 to 6)
@@ -162,6 +298,37 @@ export default function ParticipantSessionPage() {
       age: 54
     }
   });
+
+  const totalStations = sessionDetail?.total_stations || dbStations?.length || 6;
+
+  const currentStationNum = useMemo(() => {
+    return ((myStartingStation - 1 + (currentRound - 1)) % totalStations) + 1;
+  }, [myStartingStation, currentRound, totalStations]);
+
+  const activeStationInfo = useMemo(() => {
+    const st = dbStations.find((s) => Number(s.station_number) === currentStationNum);
+    const ex = dbExaminers.find((e) => Number(e.assigned_station_number) === currentStationNum);
+
+    const title = st?.title || `Stase ${currentStationNum}: Klinis Terpadu`;
+    const case_title = st?.case_title || st?.title || "Evaluasi Skenario SKDI";
+    const scenario = st?.scenario || liveStageData.scenario;
+    const instructions = st?.participant_instructions || liveStageData.participant_instructions;
+    const examiner_name = ex?.full_name
+      ? ex.specialty
+        ? `${ex.full_name}, ${ex.specialty}`
+        : ex.full_name
+      : "dr. Penguji Medis";
+
+    return {
+      station_number: currentStationNum,
+      title,
+      case_title,
+      scenario,
+      participant_instructions: Array.isArray(instructions) ? instructions : [instructions],
+      examiner_name,
+      location: sessionDetail?.location_building || `Gedung Skill Lab Ruang 10${currentStationNum}`,
+    };
+  }, [dbStations, dbExaminers, currentStationNum, sessionDetail, liveStageData]);
 
   // Customisable Durations (in seconds)
   const [stationDurationSeconds, setStationDurationSeconds] = useState(15 * 60); // Default 15 Menit Stase
@@ -218,93 +385,90 @@ export default function ParticipantSessionPage() {
 
   const currentStationInfo = candidateStationSchedule[currentRound] || candidateStationSchedule[1];
 
+  const [globalTimerState, setGlobalTimerState] = useState(null);
+
   const isSessionLive =
     sessionDetail &&
     (sessionDetail.status === "running" || sessionDetail.status === "ongoing");
 
-  // Real-time Status Polling Effect (3-second interval)
+  // Real-time Timer & Session Status Subscription (WebSocket + Future Timestamp Sync)
   useEffect(() => {
     if (!sessionId) return;
 
-    const interval = setInterval(async () => {
-      try {
-        const data = await fetchSessionById(sessionId);
-        if (data) {
-          setSessionDetail(data);
-        }
-      } catch (err) {}
-    }, 3000);
+    async function initTimer() {
+      const stateData = await getSessionTimerState(sessionId);
+      if (stateData) {
+        setGlobalTimerState(stateData);
+        if (stateData.round_number) setCurrentRound(stateData.round_number);
+        const rem = calcRemaining(
+          stateData.target_end_time,
+          stateData.paused_remaining_ms,
+          stateData.phase === "paused"
+        );
+        setRoundSecondsLeft(rem);
+      }
+    }
 
-    return () => clearInterval(interval);
+    initTimer();
+
+    const unsubscribe = subscribeToSession(sessionId, {
+      onTimerUpdate: (newTimerState) => {
+        if (!newTimerState) return;
+        setGlobalTimerState(newTimerState);
+        if (newTimerState.round_number) setCurrentRound(newTimerState.round_number);
+
+        const rem = calcRemaining(
+          newTimerState.target_end_time,
+          newTimerState.paused_remaining_ms,
+          newTimerState.phase === "paused"
+        );
+        setRoundSecondsLeft(rem);
+
+        if (newTimerState.phase === "action" || newTimerState.phase === "reading") {
+          setViewMode("live_round");
+        } else if (newTimerState.phase === "transition") {
+          setViewMode("transit");
+          setTransitSecondsLeft(rem);
+        } else if (newTimerState.phase === "break") {
+          setViewMode("round_break");
+          setBreakSecondsLeft(rem);
+        }
+      },
+      onSessionUpdate: (sess) => {
+        if (sess && sess.id === sessionId) {
+          setSessionDetail((prev) => (prev ? { ...prev, status: sess.status } : sess));
+          if (sess.status === "ongoing" || sess.status === "running") {
+            setViewMode((prev) => (prev === "waiting_room" ? "live_round" : prev));
+          }
+        }
+      },
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, [sessionId]);
 
-  // Waiting Room Timer Effect - ONLY count down if Admin has started the live session!
+  // Live Timer 1-second Tick derived from global target_end_time
   useEffect(() => {
-    if (viewMode !== "waiting_room" || !isSessionLive) return;
+    if (!sessionId || !globalTimerState) return;
 
-    const timer = setInterval(() => {
-      setWaitingCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          handleStartSimulationFromWaiting();
-          return 0;
-        }
-        return prev - 1;
-      });
+    const interval = setInterval(() => {
+      const isPaused = globalTimerState.phase === "paused" || sessionDetail?.status === "paused";
+      const rem = calcRemaining(
+        globalTimerState.target_end_time,
+        globalTimerState.paused_remaining_ms,
+        isPaused
+      );
+
+      if (viewMode === "live_round") setRoundSecondsLeft(rem);
+      else if (viewMode === "transit") setTransitSecondsLeft(rem);
+      else if (viewMode === "round_break") setBreakSecondsLeft(rem);
+      else if (viewMode === "waiting_room") setWaitingCountdown(rem);
     }, 1000);
-    return () => clearInterval(timer);
-  }, [viewMode, isSessionLive]);
 
-  // Live Round Exam Countdown Timer
-  useEffect(() => {
-    if (viewMode !== "live_round") return;
-
-    const timer = setInterval(() => {
-      setRoundSecondsLeft((prev) => {
-        if (prev <= 1) {
-          // Timer Ronde Selesai -> Otomatis Pindah ke Transisi atau Break
-          handleFinishActiveRound();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [viewMode]);
-
-  // Transit Countdown Timer (2 Mins)
-  useEffect(() => {
-    if (viewMode !== "transit") return;
-
-    const timer = setInterval(() => {
-      setTransitSecondsLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          handleStartNextRoundFromTransit();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [viewMode]);
-
-  // Round Break Countdown Timer (10 Mins)
-  useEffect(() => {
-    if (viewMode !== "round_break") return;
-
-    const timer = setInterval(() => {
-      setBreakSecondsLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          handleStartNextRoundFromBreak();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [viewMode]);
+    return () => clearInterval(interval);
+  }, [sessionId, globalTimerState, viewMode, sessionDetail?.status]);
 
   function formatTime(secs) {
     const m = Math.floor(secs / 60);
@@ -404,126 +568,6 @@ export default function ParticipantSessionPage() {
   }
 
   /* ============================================================
-     RENDER VIEW 1: RUANG TUNGGU PESERTA (PRE-EXAM WAITING ROOM)
-  ============================================================ */
-  if (viewMode === "waiting_room") {
-    return (
-      <div className="min-h-screen bg-slate-100 font-sans text-slate-800 flex flex-col">
-        {/* Top Header */}
-        <header className="border-b border-slate-200 bg-white px-6 py-4 shadow-2xs">
-          <div className="mx-auto flex max-w-5xl items-center justify-between">
-            <button
-              onClick={() => navigate("/participant")}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition"
-            >
-              <ArrowLeft size={16} />
-              Kembali ke Dashboard
-            </button>
-
-            <span className="rounded-full bg-amber-100 border border-amber-300 px-3 py-1 text-xs font-bold text-amber-900 flex items-center gap-1.5">
-              <Hourglass size={14} className="text-amber-700" />
-              Ruang Tunggu & Briefing Peserta
-            </span>
-          </div>
-        </header>
-
-        {/* Waiting Room Body */}
-        <main className="flex-1 max-w-4xl w-full mx-auto p-6 my-auto space-y-6">
-          <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-xl space-y-6 text-center sm:text-left">
-            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-5">
-              <div>
-                <span className="rounded-md bg-blue-600 px-3 py-1 text-xs font-black text-white">
-                  STASE {liveStageData.station_number}
-                </span>
-                <h1 className="text-xl font-bold text-slate-900 mt-2">
-                  {liveStageData.title}
-                </h1>
-                <p className="text-xs text-slate-500 mt-0.5 flex items-center justify-center sm:justify-start gap-1">
-                  <MapPin size={14} className="text-slate-400" />
-                  {liveStageData.waiting_room_info.location}
-                </p>
-              </div>
-
-              {/* Countdown Briefing Badge */}
-              <div className="mx-auto sm:mx-0 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-center min-w-[160px]">
-                <p className="text-[10px] font-bold text-amber-800 uppercase tracking-wider">
-                  Persiapan Memulai Stase:
-                </p>
-                <p className="text-2xl font-black font-mono text-amber-900 mt-0.5">
-                  {formatTime(waitingCountdown)}
-                </p>
-              </div>
-            </div>
-
-            {/* Rotation & Examiner Details Grid */}
-            <div className="grid gap-4 sm:grid-cols-3 text-xs">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Gelombang & Rotasi</span>
-                <p className="font-bold text-slate-900 text-sm mt-0.5">
-                  Gelombang #{liveStageData.waiting_room_info.wave_number} • Ronde #{liveStageData.waiting_room_info.rotation_round}
-                </p>
-                <p className="text-[11px] text-slate-500 mt-0.5">Ronde 2 dari {liveStageData.waiting_room_info.total_rounds} Rotasi</p>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Dokter Penguji Penanggung Jawab</span>
-                <p className="font-bold text-slate-900 text-sm mt-0.5">
-                  {liveStageData.examiner_name}
-                </p>
-                <p className="text-[11px] text-emerald-700 font-semibold mt-0.5 inline-flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                  Standby di Ruang Ujian
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Pasien Standar AI</span>
-                <p className="font-bold text-slate-900 text-sm mt-0.5">
-                  {liveStageData.patient_profile.name} ({liveStageData.patient_profile.age} Th)
-                </p>
-                <p className="text-[11px] text-blue-700 font-semibold mt-0.5">Simulasi Pasien Aktif</p>
-              </div>
-            </div>
-
-            {/* Aturan & Tata Tertib Ujian */}
-            <div className="space-y-3 pt-2">
-              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                <ShieldCheck size={16} className="text-blue-600" />
-                Tata Tertib & Petunjuk Briefing Peserta
-              </h3>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-2 text-xs text-slate-700 font-medium">
-                {liveStageData.waiting_room_info.rules.map((rule, idx) => (
-                  <div key={idx} className="flex items-start gap-2">
-                    <CheckCircle2 size={15} className="text-blue-600 shrink-0 mt-0.5" />
-                    <span>{rule}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Action CTA to Enter Live Session */}
-            <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-2 text-xs text-slate-500 font-semibold">
-                <Volume2 size={16} className="text-blue-600 animate-pulse" />
-                <span>Bel bell penanda masuk stase akan berbunyi otomatis saat waktu briefing habis.</span>
-              </div>
-
-              <button
-                onClick={handleEnterLiveSession}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-8 py-3.5 text-xs font-bold text-white shadow-lg shadow-blue-600/30 hover:bg-blue-700 active:scale-95 transition"
-              >
-                <Play size={16} />
-                Masuk ke Ruang Stase Ujian Live (Stase 1)
-                <ChevronRight size={16} />
-              </button>
-            </div>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  /* ============================================================
      GUARD CHECK: PESERTA HANYA BISA MASUK KIOSK JIKA STATUS APPROVAL === 'approved'
   ============================================================ */
   if (candidateApprovalStatus === "pending" || candidateApprovalStatus === "rejected") {
@@ -605,6 +649,84 @@ export default function ParticipantSessionPage() {
 
         {/* Waiting Room Body */}
         <main className="flex-1 max-w-4xl w-full mx-auto p-6 my-auto space-y-6">
+          {/* Realtime Broadcast Toast Notification Banner */}
+          {activeBroadcast && (
+            <div className="flex items-center justify-between rounded-2xl border border-amber-400 bg-amber-500 p-4 text-slate-950 shadow-lg animate-in slide-in-from-top duration-300">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-amber-400">
+                  <Megaphone size={20} className="animate-bounce" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-950/80">
+                    <span>PENGUMUMAN DARI ADMIN CONTROL ROOM</span>
+                    <span>•</span>
+                    <span>{activeBroadcast.time}</span>
+                  </div>
+                  <p className="font-extrabold text-sm text-slate-950 mt-0.5">
+                    "{activeBroadcast.message}"
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setActiveBroadcast(null)}
+                className="rounded-lg bg-slate-950/10 p-1.5 text-slate-950 hover:bg-slate-950/20"
+              >
+                <X size={18} />
+              </button>
+            </div>
+          )}
+
+          {/* OSCE Session Master Overview Card */}
+          <div className="rounded-3xl border border-blue-200 bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 p-6 text-white shadow-xl space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-blue-800/80 pb-4">
+              <div>
+                <div className="flex items-center gap-2.5">
+                  <span className="rounded-md bg-blue-500/30 border border-blue-400/40 px-2.5 py-0.5 text-[10px] font-black uppercase text-blue-200 tracking-wider">
+                    INFORMASI SESI UJIAN OSCE
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-400">
+                    <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
+                    Supabase Realtime Live
+                  </span>
+                </div>
+                <h1 className="text-xl font-extrabold tracking-tight text-white mt-1.5 sm:text-2xl">
+                  {sessionDetail?.title || "Ujian OSCE Terpadu Klinik - Sirkuit Terstandar"}
+                </h1>
+                <p className="text-xs text-blue-200/90 font-medium leading-relaxed mt-1">
+                  {sessionDetail?.description || "Simulasi ujian sirkuit rotasi stase medis terpadu sesuai standar kompetensi SKDI."}
+                </p>
+              </div>
+            </div>
+
+            {/* Quick Session Details Pill Grid */}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 text-xs">
+              <div className="rounded-2xl bg-white/10 p-3 border border-white/10">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-300 block">Lokasi & Gedung</span>
+                <span className="font-extrabold text-white text-xs mt-0.5 block truncate">
+                  {sessionDetail?.location_building || "Gedung Skill Lab Kedokteran"}
+                </span>
+              </div>
+              <div className="rounded-2xl bg-white/10 p-3 border border-white/10">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-300 block">Tanggal Ujian</span>
+                <span className="font-extrabold text-white text-xs mt-0.5 block">
+                  {sessionDetail?.session_date || "15 Agustus 2026"}
+                </span>
+              </div>
+              <div className="rounded-2xl bg-white/10 p-3 border border-white/10">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-300 block">Jumlah Stase Pos</span>
+                <span className="font-extrabold text-white text-xs mt-0.5 block">
+                  {sessionDetail?.total_stations || 6} Stase Rotasi
+                </span>
+              </div>
+              <div className="rounded-2xl bg-white/10 p-3 border border-white/10">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-300 block">Durasi Stase</span>
+                <span className="font-extrabold text-white text-xs mt-0.5 block">
+                  {sessionDetail?.station_duration_minutes || 12} Menit / Rotasi
+                </span>
+              </div>
+            </div>
+          </div>
+
           <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-xl space-y-6 text-center sm:text-left">
             <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-5">
               <div>
@@ -674,6 +796,67 @@ export default function ParticipantSessionPage() {
                 </p>
                 <p className="text-[11px] text-blue-700 font-semibold mt-0.5">Termasuk Transisi & Istirahat</p>
               </div>
+            </div>
+
+            {/* Live Online Users List Widget */}
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5 space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-200/60 pb-3">
+                <div className="flex items-center gap-2">
+                  <Users size={18} className="text-blue-600" />
+                  <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                    Pengguna & Peserta Terhubung (Live Online)
+                  </h3>
+                </div>
+                <span className="rounded-full bg-emerald-100 border border-emerald-300 px-3 py-0.5 text-xs font-bold text-emerald-900 flex items-center gap-1.5 animate-pulse">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                  {onlineUsers.length} Online
+                </span>
+              </div>
+
+              {onlineUsers.length > 0 ? (
+                <div className="grid gap-2.5 sm:grid-cols-2">
+                  {onlineUsers.map((u, idx) => (
+                    <div
+                      key={u.user_id || idx}
+                      className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-2xs"
+                    >
+                      <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700 font-extrabold text-xs border border-blue-200">
+                        {u.full_name ? u.full_name.charAt(0).toUpperCase() : "U"}
+                        <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 border-2 border-white" />
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-xs font-bold text-slate-900 truncate">{u.full_name}</p>
+                        </div>
+                        <p className="text-[10px] text-slate-500 truncate">
+                          {u.role === "examiner"
+                            ? `Dokter Penguji ${u.specialty ? `• ${u.specialty}` : ""}`
+                            : u.role === "admin"
+                            ? "Admin Control Room"
+                            : `Peserta ${u.nim ? `(NIM: ${u.nim})` : ""}`}
+                        </p>
+                      </div>
+
+                      <span
+                        className={`rounded-md px-2 py-0.5 text-[9px] font-black uppercase shrink-0 ${
+                          u.role === "examiner"
+                            ? "bg-purple-100 text-purple-900 border border-purple-300"
+                            : u.role === "admin"
+                            ? "bg-amber-100 text-amber-900 border border-amber-300"
+                            : "bg-blue-100 text-blue-900 border border-blue-300"
+                        }`}
+                      >
+                        {u.role === "examiner" ? "Penguji" : u.role === "admin" ? "Admin" : "Peserta"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500 font-medium italic">
+                  Memuat peserta & penguji terhubung di ruang tunggu...
+                </p>
+              )}
             </div>
 
             {/* Action CTA to Enter Live Session */}
@@ -933,7 +1116,7 @@ export default function ParticipantSessionPage() {
               RONDE {currentRound} / 6
             </span>
             <span className="text-xs font-bold text-slate-900 hidden sm:inline">
-              {currentStationInfo.title}
+              {activeStationInfo.title}
             </span>
           </div>
 
@@ -977,12 +1160,12 @@ export default function ParticipantSessionPage() {
                 Stase Ujian Live
               </span>
               <span className="text-[11px] font-semibold text-slate-500">
-                Penguji: <strong>{liveStageData.examiner_name}</strong>
+                Penguji: <strong>{activeStationInfo.examiner_name}</strong>
               </span>
             </div>
 
             <h1 className="text-sm font-extrabold text-slate-900 leading-snug">
-              {liveStageData.title}
+              {activeStationInfo.title}
             </h1>
           </div>
 
@@ -992,7 +1175,7 @@ export default function ParticipantSessionPage() {
               Skenario Kasus Medis
             </h2>
             <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3.5 text-xs text-slate-800 font-medium leading-relaxed whitespace-pre-line">
-              {liveStageData.scenario}
+              {activeStationInfo.scenario}
             </div>
           </div>
 
@@ -1002,7 +1185,7 @@ export default function ParticipantSessionPage() {
               Instruksi Peserta Ujian
             </h2>
             <div className="space-y-2 text-xs text-slate-700 font-medium">
-              {liveStageData.participant_instructions.map((inst, idx) => (
+              {activeStationInfo.participant_instructions.map((inst, idx) => (
                 <div key={idx} className="rounded-lg bg-slate-50 border border-slate-100 p-2.5 flex items-start gap-2">
                   <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-extrabold mt-0.5">
                     {idx + 1}
