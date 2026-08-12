@@ -389,8 +389,14 @@ export default function LiveMonitorPage() {
     if (!activeSession) return;
     try {
       const duration = activeSession.station_duration_minutes || 12;
-      await startOsceSession(activeSession.id, duration);
+      const res = await startOsceSession(activeSession.id, duration);
       addLog("success", "Admin memulai Sesi Ujian OSCE! Timer global berjalan.");
+      if (res?.timer) {
+        setTimerState(res.timer);
+        const rem = calcRemaining(res.timer.target_end_time, null, false);
+        setRemainingSeconds(rem);
+      }
+      setIsTimerRunning(true);
       await loadLiveMonitorData();
     } catch (err) {
       console.error("Failed to start OSCE session:", err);
@@ -434,11 +440,17 @@ export default function LiveMonitorPage() {
     if (!activeSession) return;
     try {
       if (isTimerRunning) {
-        await pauseTimer(activeSession.id, remainingSeconds);
+        const res = await pauseTimer(activeSession.id, remainingSeconds);
+        if (res) setTimerState(res);
         setIsTimerRunning(false);
         addLog("warning", "Admin menghentikan sementara (Pause) timer global OSCE.");
       } else {
-        await resumeTimer(activeSession.id, remainingSeconds);
+        const res = await resumeTimer(activeSession.id, remainingSeconds);
+        if (res) {
+          setTimerState(res);
+          const rem = calcRemaining(res.target_end_time, null, false);
+          setRemainingSeconds(rem);
+        }
         setIsTimerRunning(true);
         addLog("info", "Admin melanjutkan timer global OSCE.");
       }
@@ -844,6 +856,28 @@ export default function LiveMonitorPage() {
                     </div>
                   )}
                 </div>
+
+                {/* Pause / Play Global Timer Button */}
+                <button
+                  onClick={handleTogglePause}
+                  className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold text-white shadow-md active:scale-95 transition ${
+                    isTimerRunning
+                      ? "bg-amber-600 hover:bg-amber-700 shadow-amber-600/30"
+                      : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/30 animate-pulse"
+                  }`}
+                >
+                  {isTimerRunning ? (
+                    <>
+                      <Pause size={16} />
+                      Pause Timer Global
+                    </>
+                  ) : (
+                    <>
+                      <Play size={16} />
+                      Lanjutkan (Resume) Timer
+                    </>
+                  )}
+                </button>
 
                 <button
                   onClick={() => setIsBroadcastModalOpen(true)}

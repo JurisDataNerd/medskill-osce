@@ -1233,9 +1233,21 @@ export default function ParticipantSessionPage() {
 
           {/* Continuous Action Timer Banner */}
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-slate-800">
-              <span className="text-[11px] font-bold text-slate-500 uppercase hidden sm:inline">Sisa Waktu Ronde:</span>
-              <span className="text-sm font-black font-mono text-slate-900">{formatTime(roundSecondsLeft)}</span>
+            <div className={`flex items-center gap-2 rounded-xl border px-3.5 py-1.5 ${
+              globalTimerState?.phase === "paused" || sessionDetail?.status === "paused"
+                ? "border-amber-300 bg-amber-50 text-amber-900"
+                : "border-emerald-200 bg-emerald-50 text-emerald-950"
+            }`}>
+              <Clock size={16} className={globalTimerState?.phase === "paused" || sessionDetail?.status === "paused" ? "text-amber-600" : "text-emerald-600 animate-pulse"} />
+              <span className="text-[11px] font-bold uppercase hidden sm:inline">
+                {globalTimerState?.phase === "paused" || sessionDetail?.status === "paused" ? "Timer Paused Admin:" : "Timer Ronde Live:"}
+              </span>
+              <span className="text-sm font-black font-mono">{formatTime(roundSecondsLeft)}</span>
+              {(globalTimerState?.phase === "paused" || sessionDetail?.status === "paused") && (
+                <span className="rounded bg-amber-600 px-1.5 py-0.5 text-[9px] font-black text-white uppercase ml-1 animate-pulse">
+                  PAUSED
+                </span>
+              )}
             </div>
           </div>
         </div>
