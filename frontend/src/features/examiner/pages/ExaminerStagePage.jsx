@@ -33,6 +33,8 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { fetchSessions } from "@/services/sessionService";
+import { submitExaminerEvaluation } from "@/services/examinerService";
+import { toast } from "sonner";
 import { getSessionTimerState } from "@/services/live.service";
 import {
   subscribeToSession,
@@ -589,59 +591,27 @@ export default function ExaminerStagePage() {
         return;
       }
 
-      const earnedWeighted = rubricItems.reduce(
-        (acc, r) => acc + Number(rubricScores[r.id] || 0) * Number(r.weight || 1),
-        0
-      );
-      const maxWeighted = rubricItems.reduce(
-        (acc, r) => acc + 3 * Number(r.weight || 1),
-        0
-      );
-      const finalScorePercent = maxWeighted > 0 ? (earnedWeighted / maxWeighted) * 100 : 0;
-
-      const evalPayload = {
+      await submitExaminerEvaluation({
         session_id: activeSession.id,
         station_id: stationData.id,
-        examiner_user_id: user.id,
-        participant_user_id: examineeId,
-        total_earned_score: earnedWeighted,
-        max_possible_score: maxWeighted,
-        final_score_percentage: Number(finalScorePercent.toFixed(2)),
-        grs_rating: globalRating,
-        feedback: feedback || null,
-        is_locked: true,
-        locked_at: new Date().toISOString(),
-      };
-
-      const { data: evalRes, error: evalErr } = await supabase
-        .schema("osce")
-        .from("examiner_evaluations")
-        .upsert([evalPayload], { onConflict: "session_id,station_id,participant_user_id" })
-        .select()
-        .single();
-
-      if (evalErr) throw evalErr;
-
-      // Upsert detail rubric scores
-      if (evalRes?.id) {
-        const scoresPayload = rubricItems.map((r) => ({
-          evaluation_id: evalRes.id,
+        participant_id: examineeId,
+        examiner_id: user.id,
+        rotation_round: activeRotationIndex + 1,
+        grs_rating: globalRating || "SATISFACTORY",
+        examiner_notes: feedback || null,
+        rubric_scores: rubricItems.map((r) => ({
           rubric_item_id: r.id,
           score_given: Number(rubricScores[r.id] || 0),
-        }));
+        })),
+        is_locked: true,
+      });
 
-        const { error: scoresErr } = await supabase
-          .schema("osce")
-          .from("rubric_scores")
-          .upsert(scoresPayload, { onConflict: "evaluation_id,rubric_item_id" });
-
-        if (scoresErr) console.warn("Error saving detail rubric scores:", scoresErr);
-      }
-
+      toast.success("Penilaian berhasil disimpan & dikunci ke database Supabase!");
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
       console.error("Error saving examiner evaluation to Supabase:", err);
+      toast.error(`Gagal menyimpan penilaian: ${err.message}`);
       setConfirmModal({
         isOpen: true,
         title: "Gagal Menyimpan Penilaian",
