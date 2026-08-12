@@ -33,6 +33,7 @@ import {
   Filter,
   Coffee,
   RotateCw,
+  LogOut,
   Award,
   Megaphone,
 } from "lucide-react";
@@ -596,6 +597,22 @@ export default function ParticipantSessionPage() {
     });
   }
 
+  function handleExitWaitingRoom() {
+    setConfirmModal({
+      isOpen: true,
+      title: "Keluar dari Waiting Room?",
+      message: "Apakah Anda yakin ingin keluar dari Waiting Room sesi ujian ini dan kembali ke Dashboard Peserta?",
+      confirmText: "Ya, Keluar Waiting Room",
+      cancelText: "Batal",
+      variant: "danger",
+      isAlert: false,
+      onConfirm: () => {
+        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        navigate("/participant");
+      },
+    });
+  }
+
   /* ============================================================
      GUARD CHECK: PESERTA HANYA BISA MASUK KIOSK JIKA STATUS APPROVAL === 'approved'
   ============================================================ */
@@ -655,11 +672,11 @@ export default function ParticipantSessionPage() {
         <header className="border-b border-slate-200 bg-white px-6 py-4 shadow-2xs">
           <div className="mx-auto flex max-w-5xl items-center justify-between">
             <button
-              onClick={() => navigate("/participant")}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition"
+              onClick={handleExitWaitingRoom}
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-rose-700 hover:text-rose-900 bg-rose-50 border border-rose-200 px-3 py-1.5 rounded-xl transition shadow-2xs"
             >
-              <ArrowLeft size={16} />
-              Kembali ke Dashboard
+              <LogOut size={15} />
+              Keluar Waiting Room
             </button>
 
             {isSessionLive ? (
@@ -899,20 +916,29 @@ export default function ParticipantSessionPage() {
                 </span>
               </div>
 
-              <button
-                onClick={handleStartSimulationFromWaiting}
-                className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl px-8 py-3.5 text-xs font-bold text-white shadow-lg transition active:scale-95 ${
-                  isSessionLive
-                    ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/30 animate-pulse"
-                    : "bg-blue-600 hover:bg-blue-700 shadow-blue-600/30"
-                }`}
-              >
-                <Play size={16} />
-                {isSessionLive
-                  ? `Masuk ke Ruang Ujian Live (${currentStationInfo.title})`
-                  : `Masuk Kiosk Briefing Stase 1 (Simulasi Standby)`}
-                <ChevronRight size={16} />
-              </button>
+              <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                <button
+                  onClick={handleExitWaitingRoom}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-rose-50 border border-rose-200 hover:bg-rose-100 px-6 py-3.5 text-xs font-bold text-rose-700 transition active:scale-95 shadow-2xs"
+                >
+                  <LogOut size={16} />
+                  Keluar dari Waiting Room
+                </button>
+                <button
+                  onClick={handleStartSimulationFromWaiting}
+                  className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl px-8 py-3.5 text-xs font-bold text-white shadow-lg transition active:scale-95 ${
+                    isSessionLive
+                      ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/30 animate-pulse"
+                      : "bg-blue-600 hover:bg-blue-700 shadow-blue-600/30"
+                  }`}
+                >
+                  <Play size={16} />
+                  {isSessionLive
+                    ? `Masuk ke Ruang Ujian Live (${currentStationInfo.title})`
+                    : `Masuk Kiosk Briefing Stase 1 (Simulasi Standby)`}
+                  <ChevronRight size={16} />
+                </button>
+              </div>
             </div>
           </div>
         </main>
