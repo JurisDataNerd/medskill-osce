@@ -1,5 +1,5 @@
 -- =================================================================
--- 023: FIX RLS POLICIES FOR EXAMINER EVALUATIONS & PARTICIPANT ANSWERS
+-- 023: FIX RLS POLICIES FOR EXAMINER EVALUATIONS, PARTICIPANT ANSWERS, & BROADCASTS
 -- Solusi komprehensif untuk RLS error "new row violates row-level security policy"
 -- Memberikan izin SELECT, INSERT, UPDATE, DELETE yang fleksibel pada osce schema.
 -- =================================================================
@@ -27,7 +27,13 @@ DROP POLICY IF EXISTS "examiner_rubric_scores_all" ON osce.rubric_scores;
 DROP POLICY IF EXISTS "allow_all_rubric_scores_authenticated" ON osce.rubric_scores;
 DROP POLICY IF EXISTS "allow_all_rubric_scores_anon" ON osce.rubric_scores;
 
--- 4. Buat policy ALL (SELECT, INSERT, UPDATE, DELETE) untuk authenticated & anon pada osce.examiner_evaluations
+-- 4. Drop existing policies pada osce.broadcast_messages & session_timer_state
+DROP POLICY IF EXISTS "allow_all_broadcast_authenticated" ON osce.broadcast_messages;
+DROP POLICY IF EXISTS "allow_all_broadcast_anon" ON osce.broadcast_messages;
+DROP POLICY IF EXISTS "allow_all_timer_state_authenticated" ON osce.session_timer_state;
+DROP POLICY IF EXISTS "allow_all_timer_state_anon" ON osce.session_timer_state;
+
+-- 5. Buat policy ALL (SELECT, INSERT, UPDATE, DELETE) untuk authenticated & anon pada osce.examiner_evaluations
 CREATE POLICY "allow_all_evaluations_authenticated" ON osce.examiner_evaluations
     FOR ALL TO authenticated
     USING (true)
@@ -38,7 +44,7 @@ CREATE POLICY "allow_all_evaluations_anon" ON osce.examiner_evaluations
     USING (true)
     WITH CHECK (true);
 
--- 5. Buat policy ALL untuk authenticated & anon pada osce.participant_answers
+-- 6. Buat policy ALL untuk authenticated & anon pada osce.participant_answers
 CREATE POLICY "allow_all_answers_authenticated" ON osce.participant_answers
     FOR ALL TO authenticated
     USING (true)
@@ -49,7 +55,7 @@ CREATE POLICY "allow_all_answers_anon" ON osce.participant_answers
     USING (true)
     WITH CHECK (true);
 
--- 6. Buat policy ALL untuk authenticated & anon pada osce.rubric_scores
+-- 7. Buat policy ALL untuk authenticated & anon pada osce.rubric_scores
 CREATE POLICY "allow_all_rubric_scores_authenticated" ON osce.rubric_scores
     FOR ALL TO authenticated
     USING (true)
@@ -60,7 +66,28 @@ CREATE POLICY "allow_all_rubric_scores_anon" ON osce.rubric_scores
     USING (true)
     WITH CHECK (true);
 
--- 7. Pastikan GRANT PERMISSION pada schema osce
+-- 8. Buat policy ALL untuk broadcast_messages & session_timer_state
+CREATE POLICY "allow_all_broadcast_authenticated" ON osce.broadcast_messages
+    FOR ALL TO authenticated
+    USING (true)
+    WITH CHECK (true);
+
+CREATE POLICY "allow_all_broadcast_anon" ON osce.broadcast_messages
+    FOR ALL TO anon
+    USING (true)
+    WITH CHECK (true);
+
+CREATE POLICY "allow_all_timer_state_authenticated" ON osce.session_timer_state
+    FOR ALL TO authenticated
+    USING (true)
+    WITH CHECK (true);
+
+CREATE POLICY "allow_all_timer_state_anon" ON osce.session_timer_state
+    FOR ALL TO anon
+    USING (true)
+    WITH CHECK (true);
+
+-- 9. Pastikan GRANT PERMISSION pada schema osce
 GRANT USAGE ON SCHEMA osce TO anon, authenticated, service_role;
 GRANT ALL ON ALL TABLES IN SCHEMA osce TO anon, authenticated, service_role;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA osce TO anon, authenticated, service_role;

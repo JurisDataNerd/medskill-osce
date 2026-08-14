@@ -500,6 +500,66 @@ export default function LiveMonitorPage() {
     }
   }
 
+  async function handleSkipPhase() {
+    if (!activeSession) return;
+    const totalRounds = activeSession.total_rounds || 3;
+
+    const currentPhase = timerState?.phase || "running";
+    const currentRoundNum = timerState?.round_number || currentRound || 1;
+
+    try {
+      if (currentPhase === "running" || currentPhase === "action") {
+        const transitionDur = activeSession.transition_duration_minutes || 2;
+        const res = await updateTimerPhase(activeSession.id, "transition", transitionDur, {
+          roundNumber: currentRoundNum,
+        });
+        if (res) setTimerState(res);
+        addLog("warning", `Admin melompati (skip) stase ke Fase Transisi 2 Menit (Ronde ${currentRoundNum}).`);
+      } else if (currentPhase === "transition" || currentPhase === "break") {
+        if (currentRoundNum >= totalRounds) {
+          setConfirmModal({
+            isOpen: true,
+            title: "Semua Ronde Selesai! Akhiri Sesi OSCE?",
+            message: `Seluruh ${totalRounds} ronde ujian sirkuit telah selesai dilaksanakan. Apakah Anda ingin mengakhiri sesi OSCE ini sekarang?`,
+            confirmText: "Ya, Selesaikan & Akhiri Sesi OSCE",
+            cancelText: "Batal",
+            variant: "success",
+            isAlert: false,
+            onConfirm: async () => {
+              setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+              await finishSession(activeSession.id);
+              addLog("success", `Seluruh ${totalRounds} ronde selesai! Sesi OSCE resmi diakhiri oleh Admin.`);
+              await loadLiveMonitorData();
+            },
+          });
+        } else {
+          const nextR = currentRoundNum + 1;
+          const stationDur = activeSession.station_duration_minutes || 15;
+          const res = await updateTimerPhase(activeSession.id, "running", stationDur, {
+            roundNumber: nextR,
+          });
+          if (res) setTimerState(res);
+          setCurrentRound(nextR);
+          addLog("success", `Admin melompati ke Stase Ujian Ronde ${nextR} / ${totalRounds}.`);
+        }
+      } else {
+        if (currentRoundNum < totalRounds) {
+          const nextR = currentRoundNum + 1;
+          const stationDur = activeSession.station_duration_minutes || 15;
+          const res = await updateTimerPhase(activeSession.id, "running", stationDur, {
+            roundNumber: nextR,
+          });
+          if (res) setTimerState(res);
+          setCurrentRound(nextR);
+        } else {
+          await handleFinishOSCE();
+        }
+      }
+    } catch (err) {
+      console.error("Error skipping phase:", err);
+    }
+  }
+
   function handleTriggerBell(bellType) {
     playOsceBell(bellType);
     const bellNames = {
@@ -1105,17 +1165,25 @@ export default function LiveMonitorPage() {
                     Fase Selanjutnya
                   </span>
                   <span className="text-xs font-bold text-slate-200 mt-1 block">
-                    {timerState?.phase === "action"
+                    {currentRound >= (activeSession.total_rounds || 3) && (timerState?.phase === "transition" || timerState?.phase === "break")
+                      ? "Akhiri Sesi OSCE (Seluruh Ronde Selesai)"
+                      : timerState?.phase === "running" || timerState?.phase === "action"
                       ? `Transisi Pos (${activeSession.transition_duration_minutes || 2} Menit)`
-                      : `Stase Ujian Ronde ${currentRound < (activeSession.total_rounds || 6) ? currentRound + 1 : 1}`}
+                      : `Stase Ujian Ronde ${currentRound + 1}`}
                   </span>
                 </div>
                 <button
                   onClick={handleSkipPhase}
-                  className="mt-2 text-left text-[11px] font-extrabold text-blue-400 hover:text-blue-300 underline flex items-center gap-1"
+                  className={`mt-2 text-left text-[11px] font-extrabold underline flex items-center gap-1 transition ${
+                    currentRound >= (activeSession.total_rounds || 3) && (timerState?.phase === "transition" || timerState?.phase === "break")
+                      ? "text-emerald-400 hover:text-emerald-300"
+                      : "text-blue-400 hover:text-blue-300"
+                  }`}
                 >
                   <ChevronRight size={14} />
-                  Skip Manual ke Fase Berikutnya
+                  {currentRound >= (activeSession.total_rounds || 3) && (timerState?.phase === "transition" || timerState?.phase === "break")
+                    ? `Akhiri Sesi OSCE (Selesai ${currentRound}/${activeSession.total_rounds || 3})`
+                    : "Skip Manual ke Fase Berikutnya"}
                 </button>
               </div>
             </div>
