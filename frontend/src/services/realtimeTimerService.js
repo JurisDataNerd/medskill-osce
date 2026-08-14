@@ -135,6 +135,11 @@ export function subscribeToSession(sessionId, {
     }
   );
 
+  // Direct WebSocket Broadcast Event (Instant 0ms latency)
+  channel.on("broadcast", { event: "announcement" }, (payload) => {
+    if (onBroadcast) onBroadcast(payload.payload || payload);
+  });
+
   // broadcast_messages table (INSERT only)
   channel.on(
     "postgres_changes",
@@ -418,21 +423,56 @@ export const resumeSessionTimer = resumeTimer;
  * Send a broadcast message to all / specific roles.
  */
 export async function sendBroadcast(sessionId, message, priority = "info", targetRole = "all", userId = null) {
-  const { data, error } = await supabase
-    .schema("osce")
-    .from("broadcast_messages")
-    .insert([{
-      session_id: sessionId,
-      message,
-      priority,
-      target_role: targetRole,
-      sent_by: userId,
-    }])
-    .select()
-    .single();
+  const isUuid = typeof userId === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
+  const sentByUuid = isUuid ? userId : null;
 
-  if (error) throw error;
-  return data;
+  const payload = {
+    id: `bcast_${Date.now()}`,
+    session_id: sessionId,
+    message,
+    priority,
+    target_role: targetRole,
+    sent_by: sentByUuid,
+    created_at: new Date().toISOString(),
+  };
+
+  // 1. Send via Supabase Realtime WebSocket Channel (Instant 0ms latency)
+  try {
+    const channelName = `osce-session:${sessionId}`;
+    let channel = supabase.getChannels().find((c) => c.topic === channelName || c.topic === `realtime:${channelName}`);
+    if (!channel) {
+      channel = supabase.channel(channelName);
+      await channel.subscribe();
+    }
+    await channel.send({
+      type: "broadcast",
+      event: "announcement",
+      payload,
+    });
+  } catch (err) {
+    console.warn("Direct WebSocket broadcast notice:", err);
+  }
+
+  // 2. Persist to DB osce.broadcast_messages table
+  try {
+    const { data } = await supabase
+      .schema("osce")
+      .from("broadcast_messages")
+      .insert([{
+        session_id: sessionId,
+        message,
+        priority,
+        target_role: targetRole,
+        sent_by: sentByUuid,
+      }])
+      .select()
+      .maybeSingle();
+
+    return data || payload;
+  } catch (err) {
+    console.warn("Broadcast DB fallback notice:", err.message);
+    return payload;
+  }
 }
 
 // Backward-compat alias

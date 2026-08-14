@@ -733,12 +733,28 @@ export default function ParticipantSessionPage() {
     setExamStep(1);
   }
 
-  // Safety Guard: Reset viewMode back to waiting_room ONLY if session detail exists and is explicitly idle/not live
+  // Auto-sync candidate view & active round with Admin Global Timer State
   useEffect(() => {
-    if (viewMode === "live_round" && sessionDetail && !isSessionLive && !globalTimerState) {
-      setViewMode("waiting_room");
+    if (!globalTimerState) return;
+
+    if (globalTimerState.current_round && Number(globalTimerState.current_round) >= 1) {
+      setCurrentRound(Number(globalTimerState.current_round));
     }
-  }, [viewMode, isSessionLive, sessionDetail, globalTimerState]);
+
+    if (globalTimerState.phase === "transition") {
+      setViewMode("transit");
+    } else if (globalTimerState.phase === "break") {
+      setViewMode("round_break");
+    } else if (globalTimerState.phase === "finished" || globalTimerState.phase === "completed") {
+      setViewMode("completed");
+    } else if (
+      (globalTimerState.phase === "running" || globalTimerState.phase === "paused") &&
+      sessionDetail?.status !== "draft" &&
+      sessionDetail?.status !== "published"
+    ) {
+      setViewMode((prev) => (prev === "waiting_room" ? "live_round" : prev));
+    }
+  }, [globalTimerState, sessionDetail?.status]);
 
   function handleEnterLiveSession() {
     handleStartSimulationFromWaiting();
@@ -1533,6 +1549,41 @@ export default function ParticipantSessionPage() {
   ============================================================ */
   return (
     <div className="min-h-screen bg-slate-100 font-sans text-slate-800 flex flex-col">
+      {/* Floating Broadcast Toast Overlay Component (Auto 5s & X Close Button) */}
+      {activeBroadcast && (
+        <div className="fixed top-5 right-5 z-[9999] max-w-md w-full animate-in slide-in-from-top-4 fade-in duration-200">
+          <div className="flex items-start justify-between gap-3 rounded-2xl border-2 border-indigo-500 bg-slate-900 p-4 text-white shadow-2xl backdrop-blur-md">
+            <div className="flex items-start gap-3 min-w-0">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md">
+                <Megaphone size={20} className="animate-bounce text-white" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-indigo-300">
+                  <BellRing size={12} className="text-amber-400" />
+                  <span>Pengumuman Broadcast Admin</span>
+                  <span>•</span>
+                  <span>{activeBroadcast.time}</span>
+                </div>
+                <p className="font-bold text-xs text-slate-100 mt-1 leading-snug break-words">
+                  "{activeBroadcast.message}"
+                </p>
+                <span className="text-[10px] text-slate-400 font-bold block mt-1">
+                  Target: Peserta Ujian
+                </span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setActiveBroadcast(null)}
+              title="Tutup Pesan (Close)"
+              className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-white transition"
+            >
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Top Header Bar */}
       <header className="border-b border-slate-200 bg-white px-6 py-3.5 shadow-2xs">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
