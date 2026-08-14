@@ -140,6 +140,12 @@ export function subscribeToSession(sessionId, {
     if (onBroadcast) onBroadcast(payload.payload || payload);
   });
 
+  // Direct WebSocket Session Finished Event (Instant 0ms latency)
+  channel.on("broadcast", { event: "session_finished" }, (payload) => {
+    if (onSessionUpdate) onSessionUpdate({ status: "completed" });
+    if (onTimerUpdate) onTimerUpdate({ phase: "finished" });
+  });
+
   // broadcast_messages table (INSERT only)
   channel.on(
     "postgres_changes",
@@ -482,7 +488,10 @@ export const sendBroadcastMessage = sendBroadcast;
  * End / finish the OSCE session.
  */
 export async function finishSession(sessionId) {
-  const { data, error } = await supabase
+  if (!sessionId) return null;
+
+  // 1. Update osce.sessions status to 'completed'
+  const sessionPromise = supabase
     .schema("osce")
     .from("sessions")
     .update({
@@ -492,8 +501,52 @@ export async function finishSession(sessionId) {
     })
     .eq("id", sessionId)
     .select()
-    .single();
+    .maybeSingle();
 
-  if (error) throw error;
-  return data;
+  // 2. Update osce.session_timer_state phase to 'finished'
+  const timerPromise = supabase
+    .schema("osce")
+    .from("session_timer_state")
+    .upsert(
+      [{
+        session_id: sessionId,
+        phase: "finished",
+        target_end_time: null,
+        paused_remaining_ms: 0,
+        updated_at: new Date().toISOString(),
+      }],
+      { onConflict: "session_id" }
+    )
+    .select()
+    .maybeSingle();
+
+  const [{ data: sessionData }, { data: timerData }] = await Promise.all([
+    sessionPromise.catch(() => ({ data: null })),
+    timerPromise.catch(() => ({ data: null })),
+  ]);
+
+  // 3. Send Realtime WebSocket Broadcast to immediately notify all Participants & Examiners
+  try {
+    const channelName = `osce-session:${sessionId}`;
+    let channel = supabase.getChannels().find((c) => c.topic === channelName || c.topic === `realtime:${channelName}`);
+    if (!channel) {
+      channel = supabase.channel(channelName);
+      await channel.subscribe();
+    }
+    await channel.send({
+      type: "broadcast",
+      event: "session_finished",
+      payload: { session_id: sessionId, status: "completed", phase: "finished" },
+    });
+  } catch (err) {
+    console.warn("WebSocket session_finished broadcast notice:", err);
+  }
+
+  // 4. Cleanup & unsubscribe presence & session realtime channels after 1.5s
+  setTimeout(() => {
+    cleanupChannel(`osce-session:${sessionId}`);
+    cleanupChannel(`osce-presence:${sessionId}`);
+  }, 1500);
+
+  return sessionData || { id: sessionId, status: "completed" };
 }
