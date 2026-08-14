@@ -50,6 +50,9 @@ import ExaminerFeedbackPage from "@/features/examiner/pages/FeedbackPage";
 import ExaminerStagePage from "@/features/examiner/pages/ExaminerStagePage";
 import ExaminerHistoryPage from "@/features/examiner/pages/ExaminerHistoryPage";
 import ExaminerHistoryDetailPage from "@/features/examiner/pages/ExaminerHistoryDetailPage";
+import ExaminerProfilePage from "@/features/examiner/pages/ExaminerProfilePage";
+import ParticipantProfilePage from "@/features/participant/pages/ParticipantProfilePage";
+import AdminProfilePage from "@/features/admin/pages/AdminProfilePage";
 
 
 
@@ -253,6 +256,15 @@ export const router = createBrowserRouter([
     ),
   },
 
+  {
+    path: "/admin/profile",
+    element: (
+      <ProtectedRoute allow={["admin"]}>
+        <AdminProfilePage />
+      </ProtectedRoute>
+    ),
+  },
+
   // ==================================================
   // PARTICIPANT
   // ==================================================
@@ -289,6 +301,15 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute allow={["participant"]}>
         <ParticipantResultDetailPage />
+      </ProtectedRoute>
+    ),
+  },
+
+  {
+    path: "/participant/profile",
+    element: (
+      <ProtectedRoute allow={["participant"]}>
+        <ParticipantProfilePage />
       </ProtectedRoute>
     ),
   },
@@ -341,6 +362,10 @@ export const router = createBrowserRouter([
       {
         path: "history/:historyId",
         element: <ExaminerHistoryDetailPage />,
+      },
+      {
+        path: "profile",
+        element: <ExaminerProfilePage />,
       },
 
       {

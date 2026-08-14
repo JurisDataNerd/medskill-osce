@@ -23,6 +23,7 @@ import { supabase } from "@/lib/supabaseClient";
 import AuxiliaryExamResultModal from "@/components/AuxiliaryExamResultModal";
 
 import { useAuth } from "@/context/AuthProvider";
+import { ExaminerHistoryDetailSkeleton } from "@/components/ui/Skeleton";
 
 export default function ExaminerHistoryDetailPage() {
   const navigate = useNavigate();
@@ -140,6 +141,10 @@ export default function ExaminerHistoryDetailPage() {
 
     loadHistoryDetail();
   }, [historyId]);
+
+  if (loading) {
+    return <ExaminerHistoryDetailSkeleton />;
+  }
 
   if (!historyItem) {
     return (

@@ -50,9 +50,7 @@ export default function ParticipantNavbar() {
           onClick={() => navigate("/participant")}
           className="flex items-center gap-3 cursor-pointer group"
         >
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white shadow-md shadow-blue-600/30 group-hover:scale-105 transition transform">
-            <GraduationCap size={22} />
-          </div>
+          <img src="/favicon.svg" alt="Praxis Logo" className="h-10 w-10 object-contain rounded-xl shadow-md group-hover:scale-105 transition transform" />
           <div>
             <h1 className="text-base font-black text-slate-900 leading-tight group-hover:text-blue-600 transition">
               Portal Peserta OSCE MedSkill
@@ -144,6 +142,21 @@ export default function ParticipantNavbar() {
                   >
                     <FileCheck2 size={16} className="text-blue-600" />
                     <span>Riwayat & Transkrip Ujian</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setIsOpen(false);
+                      navigate("/participant/profile");
+                    }}
+                    className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-bold transition ${
+                      location.pathname === "/participant/profile"
+                        ? "bg-blue-50 text-blue-700"
+                        : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                    }`}
+                  >
+                    <User size={16} className="text-blue-600" />
+                    <span>Edit Profil Saya</span>
                   </button>
                 </div>
 

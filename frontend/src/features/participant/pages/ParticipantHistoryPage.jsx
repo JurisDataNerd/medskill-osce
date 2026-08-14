@@ -22,6 +22,7 @@ import { useAuth } from "@/context/AuthProvider";
 import { fetchParticipantHistory } from "@/services/participantService";
 
 import ParticipantNavbar from "@/features/participant/components/ParticipantNavbar";
+import { ParticipantHistorySkeleton } from "@/components/ui/Skeleton";
 
 export default function ParticipantHistoryPage() {
   const navigate = useNavigate();
@@ -37,7 +38,7 @@ export default function ParticipantHistoryPage() {
     async function loadHistory() {
       try {
         setLoading(true);
-        const data = await fetchParticipantHistory(user?.id);
+        const data = await fetchParticipantHistory(user);
         setHistoryList(data || []);
       } catch (err) {
         console.error("Error loading participant history:", err);
@@ -47,7 +48,7 @@ export default function ParticipantHistoryPage() {
     }
 
     loadHistory();
-  }, [user?.id]);
+  }, [user]);
 
   const filteredHistory = historyList.filter(
     (item) =>
@@ -56,12 +57,7 @@ export default function ParticipantHistoryPage() {
   );
 
   if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-slate-100 text-xs font-semibold text-slate-500">
-        <Loader2 size={24} className="animate-spin text-blue-600 mr-2" />
-        Memuat Transkrip Ujian Peserta Supabase...
-      </div>
-    );
+    return <ParticipantHistorySkeleton />;
   }
 
   return (

@@ -91,9 +91,7 @@ export default function AuthCallbackPage() {
 
       <div className="relative z-10 w-full max-w-md rounded-3xl border border-white/10 bg-white/5 p-8 text-center shadow-2xl backdrop-blur-xl">
         {/* Brand Header */}
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/30">
-          <Activity className="h-7 w-7 animate-pulse" />
-        </div>
+        <img src="/favicon.svg" alt="Praxis Logo" className="mx-auto mb-4 h-14 w-14 object-contain rounded-2xl shadow-lg" />
 
         <h1 className="text-xl font-extrabold tracking-tight text-white">
           Praxis <span className="text-blue-400">OSCE</span>

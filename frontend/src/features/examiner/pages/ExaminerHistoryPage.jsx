@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { fetchSessions } from "@/services/sessionService";
 import { supabase } from "@/lib/supabaseClient";
+import { ExaminerHistorySkeleton } from "@/components/ui/Skeleton";
 
 export default function ExaminerHistoryPage() {
   const navigate = useNavigate();
@@ -54,12 +55,7 @@ export default function ExaminerHistoryPage() {
   });
 
   if (loading) {
-    return (
-      <div className="flex h-[400px] items-center justify-center text-xs font-semibold text-slate-500">
-        <Loader2 size={24} className="animate-spin text-blue-600 mr-2" />
-        Memuat Riwayat Pengujian Supabase...
-      </div>
-    );
+    return <ExaminerHistorySkeleton />;
   }
 
   return (

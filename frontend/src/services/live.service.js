@@ -102,7 +102,7 @@ export async function getLiveStations(targetSessionId = null) {
         .schema("osce")
         .from("sessions")
         .select("id, total_stations, started_at, status, current_round, current_wave")
-        .in("status", ["ongoing", "waiting_room"])
+        .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
       if (!error && data) session = data;
@@ -139,21 +139,21 @@ export async function getLiveStations(targetSessionId = null) {
 
     const formattedStations = (stationsData || []).map((st) => {
       const examiner = (examinersData || []).find(
-        (e) => e.assigned_station_number === st.station_number
+        (e) => Number(e.assigned_station_number || e.station_number) === Number(st.station_number)
       );
       const participant = (participantsData || []).find(
-        (p) => p.starting_station_number === st.station_number
+        (p) => Number(p.starting_station_number || p.station_number) === Number(st.station_number)
       );
 
       return {
         id: st.id,
         station_number: st.station_number,
-        title: st.title,
+        title: st.title || `Stase ${st.station_number}`,
         is_break: st.is_break,
-        case_title: st.case_title,
-        examiner: examiner ? { full_name: examiner.full_name, specialty: examiner.specialty } : null,
-        participant: participant ? { full_name: participant.full_name, nim: participant.nim } : null,
-        status: st.is_break ? "break" : "running",
+        case_title: st.case_title || "Kasus Medis Terstandar",
+        examiner: examiner ? { full_name: examiner.full_name || examiner.name, specialty: examiner.specialty } : null,
+        participant: participant ? { full_name: participant.full_name || participant.name, nim: participant.nim } : null,
+        status: st.is_break ? "break" : session.status === "ongoing" || session.status === "running" ? "running" : "standby",
       };
     });
 

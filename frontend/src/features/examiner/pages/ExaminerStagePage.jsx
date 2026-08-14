@@ -28,6 +28,7 @@ import {
   Play,
   PlayCircle,
   Megaphone,
+  BellRing,
   X,
   LogOut,
 } from "lucide-react";
@@ -40,6 +41,7 @@ import {
   subscribeToSession,
   joinPresence,
   calcRemaining,
+  playBroadcastNotificationSound,
 } from "@/services/realtimeTimerService";
 import AuxiliaryExamResultModal from "@/components/AuxiliaryExamResultModal";
 import ConfirmModal from "@/components/ConfirmModal";
@@ -199,30 +201,18 @@ export default function ExaminerStagePage() {
 
         setAssignedSessionsList(assignedList);
 
-        // Pick target session & target station based on targetParamId parameter or ongoing session
+        // Pick target session & target station ONLY if targetParamId parameter is explicitly provided
         let targetSess = null;
         if (targetParamId && targetParamId !== "stage-101" && targetParamId !== "stg-101") {
           targetSess = sessList.find((s) => s.id === targetParamId);
         }
 
-        if (!targetSess) {
-          const ongoingAssign = assignedList.find(
-            (a) => a.session.status === "ongoing" || a.session.status === "running" || a.session.status === "waiting_room"
-          );
-          if (ongoingAssign) {
-            targetSess = ongoingAssign.session;
-            matchedStationNum = ongoingAssign.assignment.assigned_station_number;
-          } else if (assignedList.length > 0) {
-            targetSess = assignedList[0].session;
-            matchedStationNum = assignedList[0].assignment.assigned_station_number;
-          } else {
-            targetSess = sessList.find(
-              (s) => s.status === "ongoing" || s.status === "running" || s.status === "waiting_room"
-            ) || sessList[0];
-          }
+        // If targetParamId is not passed or valid, show session selection cards list instead of auto-selecting
+        if (!targetParamId || targetParamId === "stage-101" || targetParamId === "stg-101") {
+          setActiveSession(null);
+          setStationData(null);
+          return;
         }
-
-        setActiveSession(targetSess);
 
         let st = null;
 
@@ -237,6 +227,9 @@ export default function ExaminerStagePage() {
 
           if (directSt) {
             st = directSt;
+            if (!targetSess) {
+              targetSess = sessList.find((s) => s.id === directSt.session_id);
+            }
           } else {
             // 2. Fallback: targetParamId might be a session_id
             const { data: sessSts } = await supabase
@@ -247,29 +240,30 @@ export default function ExaminerStagePage() {
               .order("station_number");
 
             if (sessSts && sessSts.length > 0) {
-              st = matchedStationNum
-                ? sessSts.find((s) => Number(s.station_number) === Number(matchedStationNum)) || sessSts.find((s) => !s.is_break) || sessSts[0]
+              const assignedItem = assignedList.find((a) => a.session.id === targetParamId);
+              const assignedStNum = assignedItem?.assignment?.assigned_station_number;
+
+              st = assignedStNum
+                ? sessSts.find((s) => Number(s.station_number) === Number(assignedStNum)) || sessSts.find((s) => !s.is_break) || sessSts[0]
                 : sessSts.find((s) => !s.is_break) || sessSts[0];
             }
           }
         }
 
-        if (!st) {
-          let stationQuery = supabase
+        if (!targetSess && st) {
+          targetSess = sessList.find((s) => s.id === st.session_id);
+        }
+
+        setActiveSession(targetSess || null);
+
+        if (!st && targetSess) {
+          const { data: stData } = await supabase
             .schema("osce")
             .from("stations")
-            .select(`*, rubric_items (*), station_auxiliary_configs (*)`);
+            .select(`*, rubric_items (*), station_auxiliary_configs (*)`)
+            .eq("session_id", targetSess.id)
+            .order("station_number", { ascending: true });
 
-          if (matchedStationNum) {
-            stationQuery = stationQuery
-              .eq("session_id", targetSess.id)
-              .eq("station_number", matchedStationNum);
-          } else {
-            stationQuery = stationQuery
-              .eq("session_id", targetSess.id)
-              .order("station_number", { ascending: true });
-          }
-          const { data: stData } = await stationQuery;
           st = Array.isArray(stData) ? stData[0] : stData;
         }
 
@@ -356,6 +350,7 @@ export default function ExaminerStagePage() {
       onBroadcast: (msg) => {
         if (!msg) return;
         if (msg.target_role === "all" || msg.target_role === "examiners") {
+          playBroadcastNotificationSound();
           setActiveBroadcast({
             id: msg.id || Date.now(),
             message: msg.message,
@@ -370,6 +365,15 @@ export default function ExaminerStagePage() {
       unsubscribe();
     };
   }, [activeSession?.id]);
+
+  // Broadcast Auto-dismiss Timer (5 Seconds)
+  useEffect(() => {
+    if (!activeBroadcast) return;
+    const timer = setTimeout(() => {
+      setActiveBroadcast(null);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [activeBroadcast]);
 
   // Real-time Presence Tracking for Examiner
   useEffect(() => {
@@ -456,6 +460,10 @@ export default function ExaminerStagePage() {
   const currentParticipant = useMemo(() => {
     if (!participants || participants.length === 0) return null;
 
+    if (activeRotationIndex !== undefined && activeRotationIndex !== null && participants[activeRotationIndex]) {
+      return participants[activeRotationIndex];
+    }
+
     const matched = participants.find(
       (p) => Number(p.starting_station_number) === targetStartingStation
     );
@@ -463,7 +471,7 @@ export default function ExaminerStagePage() {
 
     const rotIdx = (stationNum - 1 + (currentRoundNum - 1)) % participants.length;
     return participants[rotIdx] || participants[0];
-  }, [participants, targetStartingStation, stationNum, currentRoundNum]);
+  }, [participants, activeRotationIndex, targetStartingStation, stationNum, currentRoundNum]);
 
   // Realtime subscription for participant live answers
   useEffect(() => {
@@ -508,11 +516,12 @@ export default function ExaminerStagePage() {
     };
   }, [stationData?.id, currentParticipant?.id, currentParticipant?.user_id]);
 
-  // Fetch saved evaluation from Supabase whenever active examinee / station changes
+  // Fetch saved evaluation from Supabase whenever active examinee / station / rotation changes
   useEffect(() => {
     if (!activeSession?.id || !stationData?.id || !currentParticipant) return;
 
     const examineeId = currentParticipant.user_id || currentParticipant.id;
+    const rotRound = activeRotationIndex + 1;
 
     async function loadSavedEvaluation() {
       try {
@@ -523,6 +532,7 @@ export default function ExaminerStagePage() {
           .eq("session_id", activeSession.id)
           .eq("station_id", stationData.id)
           .eq("participant_id", examineeId)
+          .eq("rotation_round", rotRound)
           .maybeSingle();
 
         if (evalRecord) {
@@ -538,7 +548,7 @@ export default function ExaminerStagePage() {
           setFeedback("");
           const defaultScores = {};
           rubricItems.forEach((r) => {
-            defaultScores[r.id] = 0;
+            defaultScores[r.id] = 3;
           });
           setRubricScores(defaultScores);
         }
@@ -548,7 +558,7 @@ export default function ExaminerStagePage() {
     }
 
     loadSavedEvaluation();
-  }, [activeSession?.id, stationData?.id, currentParticipant?.id, currentParticipant?.user_id, rubricItems]);
+  }, [activeSession?.id, stationData?.id, currentParticipant?.id, currentParticipant?.user_id, activeRotationIndex, rubricItems]);
 
   function handleScoreChange(itemId, val) {
     setRubricScores((prev) => ({
@@ -761,147 +771,80 @@ export default function ExaminerStagePage() {
   if (!isOngoing) {
     return (
       <div className="space-y-6 max-w-6xl mx-auto py-2">
-        {/* Realtime Broadcast Toast Notification Banner */}
+        {/* Realtime Broadcast Toast Overlay Component (Auto 5s & X Close Button) */}
         {activeBroadcast && (
-          <div className="flex items-center justify-between rounded-2xl border border-amber-400 bg-amber-500 p-4 text-slate-950 shadow-lg animate-in slide-in-from-top duration-300">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-amber-400">
-                <Megaphone size={20} className="animate-bounce" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-950/80">
-                  <span>PENGUMUMAN DARI ADMIN CONTROL ROOM</span>
-                  <span>•</span>
-                  <span>{activeBroadcast.time}</span>
+          <div className="fixed top-5 right-5 z-[9999] max-w-md w-full animate-in slide-in-from-top-4 fade-in duration-200">
+            <div className="flex items-start justify-between gap-3 rounded-2xl border-2 border-indigo-500 bg-slate-900 p-4 text-white shadow-2xl backdrop-blur-md">
+              <div className="flex items-start gap-3 min-w-0">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md">
+                  <Megaphone size={20} className="animate-bounce text-white" />
                 </div>
-                <p className="font-extrabold text-sm text-slate-950 mt-0.5">
-                  "{activeBroadcast.message}"
-                </p>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-indigo-300">
+                    <BellRing size={12} className="text-amber-400" />
+                    <span>Broadcast Admin Control Room</span>
+                    <span>•</span>
+                    <span>{activeBroadcast.time}</span>
+                  </div>
+                  <p className="font-bold text-xs text-slate-100 mt-1 leading-snug break-words">
+                    "{activeBroadcast.message}"
+                  </p>
+                </div>
               </div>
-            </div>
-            <button
-              onClick={() => setActiveBroadcast(null)}
-              className="rounded-lg bg-slate-950/10 p-1.5 text-slate-950 hover:bg-slate-950/20"
-            >
-              <X size={18} />
-            </button>
-          </div>
-        )}
-        {/* Session Selector Bar */}
-        {allActiveSessions.length > 1 && (
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
-            <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
-              <Layers size={16} className="text-blue-600" />
-              Pilih Sesi Ujian Aktif ({allActiveSessions.length} Sesi Terdaftar - Klik untuk Pindah Sesi):
-            </h4>
-            <div className="flex flex-wrap items-center gap-3">
-              {allActiveSessions.map((s) => {
-                const isSelected = activeSession && s.id === activeSession.id;
-                const assignedItem = assignedSessionsList.find((a) => a.session.id === s.id);
-                const stNum = assignedItem?.station?.station_number || 1;
 
-                return (
-                  <button
-                    key={s.id}
-                    onClick={() => {
-                      setActiveSession(s);
-                      setForceLiveView(false);
-                      if (assignedItem?.station) {
-                        setStationData(assignedItem.station);
-                      }
-                    }}
-                    className={`rounded-2xl px-4 py-2.5 text-xs font-bold transition flex items-center gap-2 border ${
-                      isSelected
-                        ? "bg-blue-600 text-white border-blue-600 shadow-md"
-                        : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-blue-50 hover:border-blue-300"
-                    }`}
-                  >
-                    <span>{s.title} ({s.location_building || s.id.slice(0, 8)})</span>
-                    <span
-                      className={`text-[10px] px-2 py-0.5 rounded-md ${
-                        isSelected ? "bg-blue-500 text-white" : "bg-slate-200 text-slate-800"
-                      }`}
-                    >
-                      {s.status === "ongoing" || s.status === "running" ? "🔴 Live" : "Standby"} • Pos #{stNum}
-                    </span>
-                  </button>
-                );
-              })}
+              <button
+                onClick={() => setActiveBroadcast(null)}
+                title="Tutup Pesan (Close)"
+                className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-white transition"
+              >
+                <X size={18} />
+              </button>
             </div>
           </div>
         )}
 
-        {/* Waiting Room Top Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 bg-white p-5 rounded-3xl shadow-2xs">
-          <div className="flex items-center gap-3">
-            <span className="flex h-3.5 w-3.5 rounded-full bg-amber-500 animate-ping" />
-            <div>
-              <span className="text-[10px] font-black uppercase tracking-wider text-amber-900 bg-amber-100 border border-amber-300 px-2.5 py-0.5 rounded-md inline-flex items-center gap-1.5">
-                <Clock size={12} className="text-amber-700" />
-                WAITING ROOM PENGUJI • STANDBY STASE
-              </span>
-              <h2 className="text-base font-extrabold text-slate-900 mt-1">
-                Menunggu Admin Control Room Memulai Sesi Ujian Live
-              </h2>
-            </div>
-          </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setForceLiveView(true)}
-              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-black text-white shadow-md hover:bg-emerald-700 active:scale-95 transition"
-            >
-              <PlayCircle size={16} />
-              Masuk Lembar Penilaian Live
-            </button>
-            <button
-              onClick={handleExitExaminerWaitingRoom}
-              className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 transition shadow-2xs"
-            >
-              <LogOut size={15} />
-              Keluar Waiting Room
-            </button>
-          </div>
-        </div>
-
-        {/* Master Session & Station Assignment Hero Card */}
-        <div className="rounded-3xl border border-slate-700 bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 p-7 text-white shadow-xl space-y-6">
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-700/80 pb-5">
-            <div className="space-y-2">
+        {/* Clean Unified Waiting Room Header */}
+        <div className="rounded-3xl border border-slate-700 bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 p-6 text-white shadow-xl space-y-5">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-700/80 pb-4">
+            <div className="space-y-1.5">
               <div className="flex items-center gap-2">
-                <span className="rounded-md bg-blue-500/20 border border-blue-400/30 px-2.5 py-0.5 text-[10px] font-black uppercase text-blue-300 tracking-wider">
-                  SESI UJIAN OSCE TERDAFTAR
+                <span className="text-[10px] font-black uppercase tracking-wider text-amber-900 bg-amber-100 border border-amber-300 px-2.5 py-0.5 rounded-md inline-flex items-center gap-1.5">
+                  <Clock size={12} className="text-amber-700" />
+                  WAITING ROOM PENGUJI • STANDBY STASE
                 </span>
-                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-400">
-                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
-                  Supabase Realtime Live
+                <span className="text-xs font-bold text-blue-300">
+                  {activeSession.title}
                 </span>
               </div>
-              <h1 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
-                {activeSession.title}
+              <h1 className="text-xl sm:text-2xl font-black text-white">
+                Pos Penugasan #{stationData.station_number}: {stationData.case_title || stationData.title || "Kasus Medis SKDI"}
               </h1>
-              <div className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3.5 py-1 text-xs font-black uppercase tracking-wide text-white shadow-sm">
-                Pos Stase Penugasan Anda: Pos #{stationData.station_number} - {stationData.case_title || stationData.title}
-              </div>
+              <p className="text-xs text-slate-300 font-medium">
+                Menunggu Admin Control Room memulai sesi ujian live. Layar akan otomatis beralih saat sesi dimulai.
+              </p>
             </div>
 
-            <div className="rounded-2xl border border-slate-700 bg-slate-800/80 p-4 text-center min-w-[190px]">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Sirkuit Rotation</span>
-              <span className="text-lg font-black text-amber-400 mt-0.5 block">
-                Pos Stase #{stationData.station_number}
-              </span>
-              <span className="text-[10px] text-slate-400 block mt-0.5">
-                {stationData.system_organ || "Klinis SKDI"}
-              </span>
+            <div className="flex items-center gap-3 shrink-0">
+              <button
+                onClick={() => setForceLiveView(true)}
+                className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 text-xs font-black text-white shadow-lg hover:bg-emerald-700 active:scale-95 transition"
+              >
+                <PlayCircle size={18} />
+                Masuk Lembar Penilaian Live
+              </button>
+              <button
+                onClick={handleExitExaminerWaitingRoom}
+                className="inline-flex items-center gap-2 rounded-2xl border border-rose-400/30 bg-rose-500/20 px-4 py-3 text-xs font-bold text-rose-200 hover:bg-rose-500/30 transition shadow-2xs"
+              >
+                <LogOut size={16} />
+                Keluar Waiting Room
+              </button>
             </div>
           </div>
-
-          <p className="text-xs text-slate-300 font-medium leading-relaxed">
-            Anda telah terhubung ke <strong>Waiting Room Pos Stase #{stationData.station_number}</strong>. Silakan periksa skenario kasus medis dan elemen rubrik penilaian SKDI di bawah untuk persiapan. Layar ini akan <strong>otomatis beralih ke Lembar Penilaian Live</strong> ketika Admin memulai sesi.
-          </p>
 
           {/* Quick Info Grid */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 text-xs pt-1">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 text-xs">
             <div className="rounded-2xl bg-white/10 p-3.5 border border-white/10">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Lokasi & Gedung</span>
               <span className="font-extrabold text-white text-xs mt-0.5 block truncate">
@@ -925,28 +868,6 @@ export default function ExaminerStagePage() {
               <span className="font-extrabold text-emerald-400 text-xs mt-0.5 block">
                 {participants.length} Peserta Rotasi
               </span>
-            </div>
-          </div>
-
-          <div className="pt-2 border-t border-slate-700/60 flex flex-wrap items-center justify-between gap-4">
-            <p className="text-xs text-slate-300">
-              Layar akan otomatis beralih saat Admin memulai ujian, atau Anda dapat mengklik tombol di samping untuk langsung membuka Lembar Penilaian.
-            </p>
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                onClick={handleExitExaminerWaitingRoom}
-                className="inline-flex items-center gap-2 rounded-2xl bg-rose-50 border border-rose-200 hover:bg-rose-100 px-5 py-3 text-xs font-bold text-rose-700 shadow-2xs active:scale-95 transition"
-              >
-                <LogOut size={16} />
-                Keluar dari Waiting Room
-              </button>
-              <button
-                onClick={() => setForceLiveView(true)}
-                className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-6 py-3 text-xs font-black text-white shadow-lg hover:bg-emerald-700 active:scale-95 transition"
-              >
-                <PlayCircle size={18} />
-                Masuk ke Lembar Penilaian Live (Pos #{stationData?.station_number || 1})
-              </button>
             </div>
           </div>
         </div>
@@ -1166,7 +1087,39 @@ export default function ExaminerStagePage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
+      {/* Realtime Broadcast Toast Overlay Component (Auto 5s & X Close Button) */}
+      {activeBroadcast && (
+        <div className="fixed top-5 right-5 z-[9999] max-w-md w-full animate-in slide-in-from-top-4 fade-in duration-200">
+          <div className="flex items-start justify-between gap-3 rounded-2xl border-2 border-indigo-500 bg-slate-900 p-4 text-white shadow-2xl backdrop-blur-md">
+            <div className="flex items-start gap-3 min-w-0">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md">
+                <Megaphone size={20} className="animate-bounce text-white" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-indigo-300">
+                  <BellRing size={12} className="text-amber-400" />
+                  <span>Broadcast Admin Control Room</span>
+                  <span>•</span>
+                  <span>{activeBroadcast.time}</span>
+                </div>
+                <p className="font-bold text-xs text-slate-100 mt-1 leading-snug break-words">
+                  "{activeBroadcast.message}"
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setActiveBroadcast(null)}
+              title="Tutup Pesan (Close)"
+              className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-white transition"
+            >
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Top Navbar */}
       <header className="border-b border-slate-200 bg-white px-6 py-3.5 shadow-2xs sticky top-0 z-40">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
@@ -1463,7 +1416,7 @@ export default function ExaminerStagePage() {
               <div className="grid gap-3 sm:grid-cols-2 text-xs">
                 <div className="rounded-2xl bg-white/10 p-3.5 border border-white/10 space-y-1">
                   <span className="text-[10px] font-extrabold text-emerald-300 uppercase block">Kunci Diagnosis (WDx & DDx):</span>
-                  <p className="font-semibold text-slate-100 leading-relaxed">
+                  <p className="font-semibold text-slate-100 leading-relaxed whitespace-pre-line">
                     {stationData?.answer_key_diagnosis || "WDx: STEMI Inferior Onset < 12 Jam (Killip I)\nDDx: UAP, Diseksi Aorta, Perikarditis Akut"}
                   </p>
                 </div>
@@ -1474,6 +1427,15 @@ export default function ExaminerStagePage() {
                     {stationData?.answer_key_prescription || "R/ Aspirin 80mg tab No. IV (Dosis Awal 320mg Kunyah)\nR/ Clopidogrel 75mg tab No. IV (Dosis Awal 300mg)"}
                   </p>
                 </div>
+
+                {stationData?.answer_key_physical_exam && (
+                  <div className="rounded-2xl bg-white/10 p-3.5 border border-white/10 space-y-1 sm:col-span-2">
+                    <span className="text-[10px] font-extrabold text-emerald-300 uppercase block">Kunci Pemeriksaan Fisik Baku:</span>
+                    <p className="font-semibold text-slate-100 leading-relaxed whitespace-pre-line">
+                      {stationData.answer_key_physical_exam}
+                    </p>
+                  </div>
+                )}
               </div>
 
               {showScenario && (
@@ -1493,52 +1455,69 @@ export default function ExaminerStagePage() {
 
               <div className="space-y-4">
                 {(rubricItems.length > 0 ? rubricItems : [
-                  { id: "r1", question: "Anamnesis terarah nyeri dada (PQRST, Onset, Faktor Risiko)", max_points: 3, weight: 4 },
-                  { id: "r2", question: "Pemeriksaan fisik tanda vital & auskultasi 4 katup jantung", max_points: 3, weight: 3 },
-                  { id: "r3", question: "Pemeriksaan penunjang EKG 12 Lead & Enzim Jantung", max_points: 3, weight: 3 },
-                  { id: "r4", question: "Formulasi Diagnosis Kerja (STEMI Inferior) & DDx", max_points: 3, weight: 3 },
-                  { id: "r5", question: "Penulisan Resep Dual Antiplatelet Therapy (DAPT)", max_points: 3, weight: 3 },
-                ]).map((rub, rIdx) => (
-                  <div key={rub.id || rIdx} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className="rounded-md bg-blue-100 text-blue-900 px-2 py-0.5 text-[10px] font-extrabold uppercase mr-2">
-                          Bobot x{rub.weight || 1}
-                        </span>
-                        <h3 className="text-xs font-extrabold text-slate-900 inline">
-                          {rIdx + 1}. {rub.question}
-                        </h3>
-                      </div>
-                      <span className="text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-md">
-                        Skor: {rubricScores[rub.id] ?? 3} / 3 Pts
-                      </span>
-                    </div>
+                  { id: "r1", title: "Anamnesis terarah nyeri dada (PQRST, Onset, Faktor Risiko)", max_points: 3, weight: 4 },
+                  { id: "r2", title: "Pemeriksaan fisik tanda vital & auskultasi 4 katup jantung", max_points: 3, weight: 3 },
+                  { id: "r3", title: "Pemeriksaan penunjang EKG 12 Lead & Enzim Jantung", max_points: 3, weight: 3 },
+                  { id: "r4", title: "Formulasi Diagnosis Kerja (STEMI Inferior) & DDx", max_points: 3, weight: 3 },
+                  { id: "r5", title: "Penulisan Resep Dual Antiplatelet Therapy (DAPT)", max_points: 3, weight: 3 },
+                ]).map((rub, rIdx) => {
+                  const scoreVal = rubricScores[rub.id] ?? 3;
+                  const itemTitle = rub.title || rub.name || rub.question || `Item Rubrik #${rIdx + 1}`;
+                  const itemDesc = rub.description || "";
+                  const desc0 = rub.description_score_0 || "0: Tidak Dilakukan / Salah Total";
+                  const desc1 = rub.description_score_1 || "1: Minimal / Sebagian Salah";
+                  const desc2 = rub.description_score_2 || "2: Cukup / Memadai";
+                  const desc3 = rub.description_score_3 || "3: Sempurna & Lengkap";
 
-                    <div className="grid grid-cols-4 gap-2 pt-1">
-                      {[
-                        { val: 0, desc: "0: Tidak Dilakukan / Salah Total" },
-                        { val: 1, desc: "1: Minimal / Sebagian Salah" },
-                        { val: 2, desc: "2: Cukup / Memadai" },
-                        { val: 3, desc: "3: Sempurna & Lengkap" },
-                      ].map((opt) => (
-                        <button
-                          key={opt.val}
-                          type="button"
-                          onClick={() => handleScoreChange(rub.id, opt.val)}
-                          title={opt.desc}
-                          className={`rounded-xl border p-2.5 text-center text-xs font-bold transition flex flex-col items-center justify-center gap-0.5 ${
-                            (rubricScores[rub.id] ?? 3) === opt.val
-                              ? "bg-blue-600 text-white border-blue-600 shadow-md"
-                              : "bg-white text-slate-700 border-slate-200 hover:border-blue-300"
-                          }`}
-                        >
-                          <span>Poin {opt.val}</span>
-                          <span className="text-[9px] font-medium opacity-80 line-clamp-1">{opt.val === 0 ? "Salah" : opt.val === 1 ? "Minimal" : opt.val === 2 ? "Memadai" : "Sempurna"}</span>
-                        </button>
-                      ))}
+                  const opts = [
+                    { val: 0, label: "Poin 0", desc: desc0, short: "Salah Total" },
+                    { val: 1, label: "Poin 1", desc: desc1, short: "Minimal" },
+                    { val: 2, label: "Poin 2", desc: desc2, short: "Memadai" },
+                    { val: 3, label: "Poin 3", desc: desc3, short: "Sempurna" },
+                  ];
+
+                  return (
+                    <div key={rub.id || rIdx} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="rounded-md bg-blue-100 text-blue-900 px-2 py-0.5 text-[10px] font-extrabold uppercase mr-2">
+                            Bobot x{rub.weight || 1}
+                          </span>
+                          <h3 className="text-xs font-extrabold text-slate-900 inline">
+                            {rIdx + 1}. {itemTitle}
+                          </h3>
+                          {itemDesc && (
+                            <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                              {itemDesc}
+                            </p>
+                          )}
+                        </div>
+                        <span className="text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-md shrink-0">
+                          Skor: {scoreVal} / {rub.max_points || 3} Pts
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-4 gap-2 pt-1">
+                        {opts.map((opt) => (
+                          <button
+                            key={opt.val}
+                            type="button"
+                            onClick={() => handleScoreChange(rub.id, opt.val)}
+                            title={opt.desc}
+                            className={`rounded-xl border p-2.5 text-center text-xs font-bold transition flex flex-col items-center justify-center gap-0.5 ${
+                              scoreVal === opt.val
+                                ? "bg-blue-600 text-white border-blue-600 shadow-md"
+                                : "bg-white text-slate-700 border-slate-200 hover:border-blue-300"
+                            }`}
+                          >
+                            <span>{opt.label}</span>
+                            <span className="text-[9px] font-medium opacity-80 line-clamp-1">{opt.desc || opt.short}</span>
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 

@@ -33,9 +33,7 @@ export default function Footer() {
           {/* Column 1: Brand & Tagline */}
           <div className="md:col-span-5 flex flex-col items-start">
             <Link to="/" className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white p-[1px] shadow-lg">
-                <Activity className="h-6 w-6 text-[#1E3A8A]" />
-              </div>
+              <img src="/favicon.svg" alt="Praxis Logo" className="h-10 w-10 object-contain rounded-xl shadow-lg" />
               <div className="flex flex-col">
                 <span className="text-2xl font-black tracking-tight text-white flex items-center gap-1.5">
                   Praxis

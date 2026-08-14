@@ -48,6 +48,7 @@ import {
   sendBroadcast,
   finishSession,
   calcRemaining,
+  playBroadcastNotificationSound,
 } from "@/services/realtimeTimerService";
 import {
   getLiveStations,
@@ -132,6 +133,15 @@ export default function LiveMonitorPage() {
   const [broadcastTarget, setBroadcastTarget] = useState("all");
   const [activeNotification, setActiveNotification] = useState(null);
 
+  // Auto-dismiss Admin Broadcast Toast (5 Seconds)
+  useEffect(() => {
+    if (!activeNotification) return;
+    const timer = setTimeout(() => {
+      setActiveNotification(null);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [activeNotification]);
+
   // Bell Menu State
   const [isBellMenuOpen, setIsBellMenuOpen] = useState(false);
 
@@ -192,32 +202,28 @@ export default function LiveMonitorPage() {
       const liveAndPublished = (rawSessions || []).filter((s) => relevantStatuses.includes(s.status));
       setDbSessions(liveAndPublished);
 
-      // Find the active session: ongoing/paused first, then waiting_room
-      const active = liveAndPublished.find(
+      // Find the active session: ongoing/paused first, then waiting_room, or most recent
+      const active = (rawSessions || []).find(
         (s) => s.status === "ongoing" || s.status === "running" || s.status === "paused"
-      ) || liveAndPublished.find((s) => s.status === "waiting_room");
+      ) || (rawSessions || []).find((s) => s.status === "waiting_room") || (rawSessions || [])[0];
 
       if (active) {
         const fullDetail = await fetchSessionById(active.id);
         setActiveSession(fullDetail);
 
-        if (active.status === "ongoing" || active.status === "running" || active.status === "paused") {
-          const { stations: fetchedStations } = await getLiveStations();
-          setLiveStations(fetchedStations || fullDetail.stations || []);
+        const { stations: fetchedStations } = await getLiveStations(active.id);
+        setLiveStations(fetchedStations && fetchedStations.length > 0 ? fetchedStations : fullDetail.stations || []);
 
-          const stateData = await getSessionTimerState(active.id);
-          if (stateData) {
-            setTimerState(stateData);
-            setCurrentRound(stateData.round_number || 1);
-            setViewRound(stateData.round_number || 1);
-            setIsBreak(stateData.phase === "break");
-            setIsTimerRunning(stateData.phase !== "paused" && active.status !== "paused");
-            const rem = calcRemaining(stateData.target_end_time, stateData.paused_remaining_ms, stateData.phase === "paused");
-            setRemainingSeconds(rem);
-          }
+        const stateData = await getSessionTimerState(active.id);
+        if (stateData) {
+          setTimerState(stateData);
+          setCurrentRound(stateData.round_number || 1);
+          setViewRound(stateData.round_number || 1);
+          setIsBreak(stateData.phase === "break");
+          setIsTimerRunning(stateData.phase !== "paused" && active.status !== "paused");
+          const rem = calcRemaining(stateData.target_end_time, stateData.paused_remaining_ms, stateData.phase === "paused");
+          setRemainingSeconds(rem);
         } else {
-          // waiting_room: no timer yet
-          setLiveStations(fullDetail.stations || []);
           setIsTimerRunning(false);
           setRemainingSeconds(0);
         }
@@ -527,6 +533,7 @@ export default function LiveMonitorPage() {
     }
 
     addLog("warning", `BROADCAST ADMIN [${targetLabel}]: "${broadcastMessage}"`);
+    playBroadcastNotificationSound();
     setActiveNotification({
       id: Date.now(),
       message: broadcastMessage,
@@ -561,32 +568,38 @@ export default function LiveMonitorPage() {
 
   return (
     <AdminLayout>
-      {/* Toast Notification for Admin Broadcast */}
+      {/* Realtime Broadcast Toast Overlay Component for Admin (Auto 5s & X Close Button) */}
       {activeNotification && (
-        <div className="mb-6 flex items-center justify-between rounded-2xl border border-amber-400 bg-amber-500 p-4 text-slate-950 shadow-lg animate-in slide-in-from-top duration-300">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-amber-400">
-              <Megaphone size={20} className="animate-bounce" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-950/80">
-                <span>Pengumuman Broadcast Terkirim</span>
-                <span>•</span>
-                <span>{activeNotification.time}</span>
-                <span>•</span>
-                <span className="underline">{activeNotification.target}</span>
+        <div className="fixed top-5 right-5 z-[9999] max-w-md w-full animate-in slide-in-from-top-4 fade-in duration-200">
+          <div className="flex items-start justify-between gap-3 rounded-2xl border-2 border-indigo-500 bg-slate-900 p-4 text-white shadow-2xl backdrop-blur-md">
+            <div className="flex items-start gap-3 min-w-0">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md">
+                <Megaphone size={20} className="animate-bounce text-white" />
               </div>
-              <p className="font-bold text-sm text-slate-950 mt-0.5">
-                "{activeNotification.message}"
-              </p>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-indigo-300">
+                  <BellRing size={12} className="text-amber-400" />
+                  <span>Broadcast Admin Terkirim</span>
+                  <span>•</span>
+                  <span>{activeNotification.time}</span>
+                </div>
+                <p className="font-bold text-xs text-slate-100 mt-1 leading-snug break-words">
+                  "{activeNotification.message}"
+                </p>
+                <span className="text-[10px] text-slate-400 font-bold block mt-1">
+                  Target: {activeNotification.target}
+                </span>
+              </div>
             </div>
+
+            <button
+              onClick={() => setActiveNotification(null)}
+              title="Tutup Pesan (Close)"
+              className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-white transition"
+            >
+              <X size={18} />
+            </button>
           </div>
-          <button
-            onClick={() => setActiveNotification(null)}
-            className="rounded-lg bg-slate-950/10 p-1.5 text-slate-950 hover:bg-slate-950/20"
-          >
-            <X size={18} />
-          </button>
         </div>
       )}
 
@@ -822,6 +835,73 @@ export default function LiveMonitorPage() {
                 </button>
               </div>
             </div>
+          </div>
+
+          {/* Matriks Live Station Pos Cards Grid (Always Visible) */}
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
+                <Grid size={18} className="text-blue-600" />
+                Matriks Live Station Pos ({liveStations.length} Pos)
+              </h2>
+              <span className="text-xs text-slate-500 font-medium">Klik "Inspect Stase" untuk memantau detail stase</span>
+            </div>
+
+            {liveStations.length > 0 ? (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {liveStations.map((stg) => (
+                  <div
+                    key={stg.id}
+                    className={`rounded-2xl border p-4 space-y-3 shadow-2xs transition ${
+                      stg.is_break
+                        ? "border-amber-300 bg-amber-50/70"
+                        : "border-slate-200 bg-slate-50/70 hover:border-blue-400 hover:bg-white"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span
+                        className={`rounded-md px-2.5 py-0.5 text-[10px] font-black uppercase ${
+                          stg.is_break
+                            ? "bg-amber-200 text-amber-950"
+                            : "bg-blue-600 text-white"
+                        }`}
+                      >
+                        {stg.title || `Stase ${stg.station_number}`}
+                      </span>
+                      <span className="text-[10px] font-extrabold text-slate-400">
+                        Pos #{stg.station_number}
+                      </span>
+                    </div>
+
+                    <div>
+                      <h3 className="text-xs font-extrabold text-slate-900 line-clamp-1">
+                        {stg.case_title || "Kasus Medis Terstandar"}
+                      </h3>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Penguji: <span className="font-bold text-slate-700">{stg.examiner?.full_name || "Belum ditugaskan"}</span>
+                      </p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Peserta Awal: <span className="font-bold text-slate-700">{stg.participant?.full_name || "Peserta Ujian"}</span>
+                      </p>
+                    </div>
+
+                    {!stg.is_break && (
+                      <button
+                        onClick={() => navigate(`/admin/live/station/${stg.id}`)}
+                        className="w-full flex items-center justify-center gap-1 rounded-xl bg-blue-50 border border-blue-200 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100 transition"
+                      >
+                        Inspect Stase
+                        <ChevronRight size={14} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-500 font-medium italic text-center py-4">
+                Tidak ada data stase pos untuk sesi ini.
+              </p>
+            )}
           </div>
         </div>
       ) : (

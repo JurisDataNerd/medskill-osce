@@ -19,6 +19,57 @@ export function calcRemaining(targetEndTime, pausedMs = null, isPaused = false) 
 // Keep backward-compat alias
 export const calcRemainingSeconds = calcRemaining;
 
+/**
+ * Play a broadcast notification sound chime.
+ * Checks for /sounds/broadcast.mp3 in public folder, with Web Audio API synthesizer as zero-latency fallback.
+ */
+export function playBroadcastNotificationSound() {
+  try {
+    const audio = new Audio("/sounds/broadcast.mp3");
+    audio.volume = 0.8;
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(() => {
+        synthesizeChimeSound();
+      });
+    }
+  } catch (e) {
+    synthesizeChimeSound();
+  }
+}
+
+function synthesizeChimeSound() {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+
+    const tones = [
+      { freq: 880, start: 0, duration: 0.2 },
+      { freq: 1174.66, start: 0.15, duration: 0.4 },
+    ];
+
+    tones.forEach(({ freq, start, duration }) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
+
+      gain.gain.setValueAtTime(0.35, ctx.currentTime + start);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + duration);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(ctx.currentTime + start);
+      osc.stop(ctx.currentTime + start + duration);
+    });
+  } catch (err) {
+    console.warn("Audio Context playback warning:", err);
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────
 // CHANNEL 1 — SESSION DB CHANGES  (postgres_changes)
 // ─────────────────────────────────────────────────────────────────

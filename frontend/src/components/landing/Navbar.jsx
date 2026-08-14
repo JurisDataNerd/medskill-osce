@@ -143,11 +143,7 @@ export default function Navbar() {
         <div className="flex h-16 sm:h-20 items-center justify-between px-5 sm:px-8">
           {/* Brand Logo */}
           <Link to="/" className="group flex items-center gap-3">
-            <div className="relative flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-gradient-to-tr from-[#1E3A8A] to-blue-600 p-[1px] shadow-md shadow-blue-900/20 transition-transform duration-300 group-hover:scale-105">
-              <div className="flex h-full w-full items-center justify-center rounded-[11px] bg-white">
-                <Activity className="h-5 w-5 text-[#1E3A8A] transition-transform duration-300 group-hover:rotate-12" />
-              </div>
-            </div>
+            <img src="/favicon.svg" alt="Praxis Logo" className="h-10 w-10 sm:h-11 sm:w-11 object-contain rounded-xl shadow-md transition-transform duration-300 group-hover:scale-105" />
             <div className="flex flex-col">
               <span className="text-xl sm:text-2xl font-black tracking-tight text-[#1E3A8A] flex items-center gap-1.5">
                 Praxis

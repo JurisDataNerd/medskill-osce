@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Clock,
   User,
+  UserCheck,
   ExternalLink,
   Award,
   Eye,
@@ -47,12 +48,56 @@ export default function StationMonitorDetailPage() {
           .maybeSingle();
 
         if (st) {
-          const [examiners, participants] = await Promise.all([
+          const [examiners, participants, evaluations, rList] = await Promise.all([
             fetchSessionExaminers(st.session_id).catch(() => []),
             fetchSessionParticipants(st.session_id).catch(() => []),
+            supabase
+              .schema("osce")
+              .from("examiner_evaluations")
+              .select("*, rubric_scores (*)")
+              .eq("station_id", st.id)
+              .then((res) => res.data || [])
+              .catch(() => []),
+            supabase
+              .schema("osce")
+              .from("rubric_items")
+              .select("*")
+              .eq("station_id", st.id)
+              .order("question_number", { ascending: true })
+              .then((res) => res.data || [])
+              .catch(() => []),
           ]);
 
-          const examiner = examiners.find((e) => e.station_number === st.station_number);
+          const examiner = examiners.find(
+            (e) => Number(e.assigned_station_number || e.station_number) === Number(st.station_number)
+          );
+
+          const stationRubrics =
+            rList && rList.length > 0
+              ? rList
+              : st.rubric_items && st.rubric_items.length > 0
+              ? st.rubric_items
+              : [
+                  { id: "r1", title: "Anamnesis Terarah & Riwayat Nyeri Dada", max_points: 3 },
+                  { id: "r2", title: "Pemeriksaan Fisik Tanda Vital & Katup Jantung", max_points: 3 },
+                  { id: "r3", title: "Pemeriksaan Penunjang EKG 12 Lead & Enzim Jantung", max_points: 3 },
+                  { id: "r4", title: "Formulasi Diagnosis Kerja (STEMI Inferior) & DDx", max_points: 3 },
+                  { id: "r5", title: "Penulisan Resep Dual Antiplatelet (DAPT)", max_points: 3 },
+                ];
+
+          const rawExName = examiner?.full_name || examiner?.name || examiner?.email || "";
+          let doctorName = "Belum ditugaskan";
+          if (rawExName) {
+            let clean = rawExName.trim();
+            if (clean.includes(".") && !clean.toLowerCase().startsWith("dr.") && !clean.toLowerCase().startsWith("prof.")) {
+              clean = clean.split(".").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+              doctorName = `dr. ${clean}`;
+            } else if (!clean.toLowerCase().startsWith("dr.") && !clean.toLowerCase().startsWith("prof.")) {
+              doctorName = `dr. ${clean}`;
+            } else {
+              doctorName = clean;
+            }
+          }
 
           setStationData({
             id: st.id,
@@ -62,31 +107,50 @@ export default function StationMonitorDetailPage() {
             system_organ: st.system_organ || "Kardiovaskular",
             skdi_level: st.skdi_level || "4A (Tuntas Mandiri)",
             examiner: {
-              name: examiner ? (examiner.profiles?.full_name || examiner.full_name) : "Belum ditugaskan",
-              title: examiner ? (examiner.profiles?.specialty || examiner.specialty || "Spesialis Medis") : "-",
+              name: doctorName,
+              title: examiner?.specialty || "Dokter Penguji OSCE",
             },
-            participants: participants.map((p, idx) => ({
-              id: p.id || `p-${idx}`,
-              nim: p.nim || p.profiles?.email?.split("@")[0] || "-",
-              name: p.full_name || p.profiles?.full_name || "Peserta Ujian",
-              round: idx + 1,
-              status: p.status || "upcoming",
-              score: null,
-              grs: "-",
-              step: "Rotasi Ujian",
-              duration: "-",
-              examiner_feedback: null,
-              rubric_scores: (st.rubric_items || []).map((r) => ({
-                item: r.question,
-                score: 0,
-                max_score: r.max_points || 3,
-              })),
-              auxiliary_requested: (st.station_auxiliary_configs || []).map((a) => ({
-                name: a.name,
-                time: "-",
-                status: "Diterima",
-              })),
-            })),
+            participants: participants.map((p, idx) => {
+              const pId = p.user_id || p.id;
+              const ev = (evaluations || []).find((e) => e.participant_id === pId || e.participant_id === p.id);
+
+              let mappedScores = [];
+              if (ev && ev.rubric_scores && ev.rubric_scores.length > 0) {
+                mappedScores = ev.rubric_scores.map((sc) => {
+                  const matchRub = stationRubrics.find((r) => r.id === sc.rubric_item_id);
+                  return {
+                    item: matchRub?.title || matchRub?.name || matchRub?.question || `Item Rubrik #${sc.rubric_item_id}`,
+                    score: sc.score_given,
+                    max_score: matchRub?.max_points || 3,
+                  };
+                });
+              } else {
+                mappedScores = stationRubrics.map((r, rIdx) => ({
+                  item: r.title || r.name || r.question || `Item Rubrik #${rIdx + 1}`,
+                  score: 0,
+                  max_score: r.max_points || 3,
+                }));
+              }
+
+              return {
+                id: p.id || `p-${idx}`,
+                nim: p.nim || p.profiles?.email?.split("@")[0] || "-",
+                name: p.full_name || p.profiles?.full_name || p.name || "Peserta Ujian",
+                round: idx + 1,
+                status: ev ? "completed" : "in_progress",
+                score: ev?.final_score_percentage ?? null,
+                grs: ev?.grs_rating || "-",
+                step: ev ? "Evaluasi Dikunci" : "Rotasi Ujian",
+                duration: "-",
+                examiner_feedback: ev?.examiner_notes || null,
+                rubric_scores: mappedScores,
+                auxiliary_requested: (st.station_auxiliary_configs || []).map((a) => ({
+                  name: a.name,
+                  time: "-",
+                  status: "Diterima",
+                })),
+              };
+            }),
           });
         }
       } catch (err) {
@@ -259,7 +323,7 @@ export default function StationMonitorDetailPage() {
 
                     <div className="flex items-center gap-4">
                       <span
-                        className={`rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase border ${
+                        className={`rounded-full px-3 py-1 text-[10px] font-black uppercase border ${
                           isCompleted
                             ? "bg-emerald-100 text-emerald-900 border-emerald-300"
                             : isInProgress
@@ -267,7 +331,11 @@ export default function StationMonitorDetailPage() {
                             : "bg-slate-200 text-slate-800 border-slate-300"
                         }`}
                       >
-                        {part.status}
+                        {isCompleted
+                          ? "SELESAI & DIKUNCI"
+                          : isInProgress
+                          ? "SEDANG BERLANGSUNG"
+                          : "MENUNGGU ROTASI"}
                       </span>
 
                       {part.score !== null && (
