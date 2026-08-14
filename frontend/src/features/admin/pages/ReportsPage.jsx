@@ -166,26 +166,50 @@ export default function ReportsPage() {
       row.nim.includes(searchQuery)
   );
 
+  // Dynamic NBL Calculation (Borderline Regression Method)
+  useEffect(() => {
+    if (evaluations.length > 0) {
+      const borderlineEvals = evaluations.filter((e) => e.grs_rating === "BORDERLINE");
+      if (borderlineEvals.length > 0) {
+        const sum = borderlineEvals.reduce((acc, curr) => acc + Number(curr.final_score_percentage || 0), 0);
+        const avgBorderline = sum / borderlineEvals.length;
+        setNblCutoff(Math.round(avgBorderline * 10) / 10);
+      }
+    }
+  }, [evaluations]);
+
   function handleExportExcel() {
-    setConfirmModal({
-      isOpen: true,
-      title: "Ekspor Rekapitulasi Excel",
-      message: `Mengunduh Rekapitulasi Nilai Ujian OSCE (${activeSession.title}) (.xlsx)...`,
-      confirmText: "Mengerti",
-      variant: "info",
-      isAlert: true,
+    if (!participantsData || participantsData.length === 0) {
+      setConfirmModal({
+        isOpen: true,
+        title: "Ekspor Gagal",
+        message: "Belum ada data rekapitulasi peserta untuk diekspor.",
+        confirmText: "Mengerti",
+        variant: "warning",
+        isAlert: true,
+        onConfirm: () => setConfirmModal((prev) => ({ ...prev, isOpen: false })),
+      });
+      return;
+    }
+
+    const headers = ["Peringkat", "NIM", "Nama Mahasiswa", ...stations.map((s) => `Stase_${s.station_number}`), "Skor_Akhir", "Status"];
+    const rows = participantsData.map((p) => {
+      const stScores = stations.map((s) => p.scores[`stase_${s.station_number}`]?.toFixed(1) || "-");
+      return [p.rank, p.nim, `"${p.name}"`, ...stScores, p.final_score.toFixed(1), p.status];
     });
+
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `Rekap_OSCE_${(activeSession.title || "Ujian").replace(/\s+/g, "_")}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
 
   function handleExportPdf() {
-    setConfirmModal({
-      isOpen: true,
-      title: "Cetak Berita Acara & Transkrip PDF",
-      message: `Mencetak Berita Acara Resmi & Transkrip Hasil Ujian (${activeSession.title}) (.pdf)...`,
-      confirmText: "Mengerti",
-      variant: "info",
-      isAlert: true,
-    });
+    window.print();
   }
 
   if (loading && sessions.length === 0) {

@@ -35,6 +35,7 @@ import { supabase } from "@/lib/supabaseClient";
 import ParticipantNavbar from "@/features/participant/components/ParticipantNavbar";
 import SessionRegistrationModal from "@/components/landing/SessionRegistrationModal";
 import ConfirmModal from "@/components/ConfirmModal";
+import { ParticipantDashboardSkeleton } from "@/components/ui/Skeleton";
 
 export default function ParticipantDashboardPage() {
   const navigate = useNavigate();
@@ -131,14 +132,49 @@ export default function ParticipantDashboardPage() {
     }
   }
 
-  const ongoingSession = sessions.find((s) => s.status === "ongoing" || s.status === "running" || s.status === "waiting_room");
-  const availableSessions = sessions.filter((s) => s.status === "published" || s.status === "scheduled" || s.status === "waiting_room" || s.status === "ongoing" || s.status === "running");
+  const [filterTab, setFilterTab] = useState("all"); // "all" (Sesi OSCE / belum terdaftar) | "my_sessions" | "completed"
 
-  const filteredSessions = availableSessions.filter(
-    (s) =>
+  const ongoingSession = sessions.find((s) => s.status === "ongoing" || s.status === "running" || s.status === "waiting_room");
+
+  const unregisteredCount = sessions.filter((s) => {
+    const isComp = s.status === "completed" || s.status === "published_results" || s.status === "finished";
+    const st = registrationStatuses[s.id] || "not_registered";
+    return !isComp && st === "not_registered";
+  }).length;
+
+  const mySessionsCount = sessions.filter((s) => {
+    const isComp = s.status === "completed" || s.status === "published_results" || s.status === "finished";
+    const st = registrationStatuses[s.id];
+    return !isComp && (st === "approved" || st === "pending" || st === "rejected");
+  }).length;
+
+  const completedCount = sessions.filter((s) => {
+    const isComp = s.status === "completed" || s.status === "published_results" || s.status === "finished";
+    const st = registrationStatuses[s.id];
+    return isComp || st === "completed";
+  }).length;
+
+  const filteredSessions = sessions.filter((s) => {
+    const matchesSearch =
       s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (s.location_building && s.location_building.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+      (s.location_building && s.location_building.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    if (!matchesSearch) return false;
+
+    const userRegStatus = registrationStatuses[s.id] || "not_registered";
+    const isComp = s.status === "completed" || s.status === "published_results" || s.status === "finished" || userRegStatus === "completed";
+
+    if (filterTab === "all") {
+      return !isComp && userRegStatus === "not_registered";
+    }
+    if (filterTab === "my_sessions") {
+      return !isComp && (userRegStatus === "approved" || userRegStatus === "pending" || userRegStatus === "rejected");
+    }
+    if (filterTab === "completed") {
+      return isComp;
+    }
+    return true;
+  });
 
   if (loading) {
     return (
@@ -215,13 +251,18 @@ export default function ParticipantDashboardPage() {
           </div>
         )}
 
-        {/* Registered Sessions List */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
-            <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
-              <CalendarDays size={18} className="text-blue-600" />
-              Daftar Sesi Ujian Sirkuit ({filteredSessions.length} Sesi)
-            </h3>
+        {/* Registered Sessions List Header with Filter Tabs */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-5">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
+            <div>
+              <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                <CalendarDays size={18} className="text-blue-600" />
+                Daftar Sesi Ujian Sirkuit
+              </h3>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                Filter dan pilih sesi ujian sesuai status pendaftaran Anda.
+              </p>
+            </div>
 
             <div className="relative">
               <Search size={15} className="absolute left-3 top-2.5 text-slate-400" />
@@ -230,15 +271,78 @@ export default function ParticipantDashboardPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Cari sesi ujian..."
-                className="rounded-xl border border-slate-200 pl-9 pr-3 py-1.5 text-xs font-semibold text-slate-900 focus:border-blue-500 focus:outline-none"
+                className="rounded-xl border border-slate-200 pl-9 pr-3 py-1.5 text-xs font-semibold text-slate-900 focus:border-blue-500 focus:outline-none transition min-w-[200px]"
               />
             </div>
+          </div>
+
+          {/* Filter Tabs Navigation */}
+          <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 pb-3">
+            <button
+              type="button"
+              onClick={() => setFilterTab("all")}
+              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-extrabold transition cursor-pointer active:scale-95 ${
+                filterTab === "all"
+                  ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
+              }`}
+            >
+              <Layers size={14} />
+              <span>Sesi OSCE</span>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
+                filterTab === "all" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-700"
+              }`}>
+                {unregisteredCount}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setFilterTab("my_sessions")}
+              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-extrabold transition cursor-pointer active:scale-95 ${
+                filterTab === "my_sessions"
+                  ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/30"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
+              }`}
+            >
+              <CheckCircle2 size={14} />
+              <span>Sesi Saya</span>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
+                filterTab === "my_sessions" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-700"
+              }`}>
+                {mySessionsCount}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setFilterTab("completed")}
+              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-extrabold transition cursor-pointer active:scale-95 ${
+                filterTab === "completed"
+                  ? "bg-purple-600 text-white shadow-md shadow-purple-600/30"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
+              }`}
+            >
+              <Award size={14} />
+              <span>Telah Selesai</span>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
+                filterTab === "completed" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-700"
+              }`}>
+                {completedCount}
+              </span>
+            </button>
           </div>
 
           {filteredSessions.length > 0 ? (
             <div className="grid gap-4 sm:grid-cols-2">
               {filteredSessions.map((sess) => {
                 const userRegStatus = registrationStatuses[sess.id] || "not_registered";
+                const isCompleted =
+                  sess.status === "completed" ||
+                  sess.status === "published" ||
+                  sess.status === "published_results" ||
+                  sess.status === "finished" ||
+                  userRegStatus === "completed";
 
                 return (
                   <div
@@ -249,12 +353,19 @@ export default function ParticipantDashboardPage() {
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span
                           className={`rounded-md px-2.5 py-0.5 text-[10px] font-black uppercase inline-flex items-center gap-1 ${
-                            sess.status === "ongoing" || sess.status === "running"
+                            isCompleted
+                              ? "bg-purple-100 text-purple-900 border border-purple-300"
+                              : sess.status === "ongoing" || sess.status === "running"
                               ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
                               : "bg-indigo-100 text-indigo-900 border border-indigo-300"
                           }`}
                         >
-                          {sess.status === "ongoing" || sess.status === "running" ? (
+                          {isCompleted ? (
+                            <>
+                              <CheckCircle2 size={11} className="text-purple-700" />
+                              Sesi Ujian Selesai
+                            </>
+                          ) : sess.status === "ongoing" || sess.status === "running" ? (
                             <>
                               <Zap size={11} className="text-emerald-700 animate-pulse fill-emerald-500" />
                               Live Berlangsung
@@ -265,7 +376,12 @@ export default function ParticipantDashboardPage() {
                         </span>
 
                         {/* Status Approval Pendaftaran Peserta Saya */}
-                        {userRegStatus === "approved" ? (
+                        {isCompleted ? (
+                          <span className="rounded-md bg-purple-100 border border-purple-300 px-2 py-0.5 text-[10px] font-black text-purple-900 inline-flex items-center gap-1 uppercase">
+                            <Award size={11} className="text-purple-700" />
+                            Hasil Nilai Terbit
+                          </span>
+                        ) : userRegStatus === "approved" ? (
                           <span className="rounded-md bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-[10px] font-black text-emerald-900 inline-flex items-center gap-1 uppercase">
                             <CheckCircle2 size={11} className="text-emerald-700" />
                             Disetujui Admin
@@ -307,7 +423,15 @@ export default function ParticipantDashboardPage() {
                     </div>
 
                     <div className="pt-3 border-t border-slate-200/60">
-                      {userRegStatus === "approved" ? (
+                      {isCompleted ? (
+                        <button
+                          onClick={() => navigate(`/participant/results/${sess.id}`)}
+                          className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-purple-600 hover:bg-purple-700 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-purple-600/30 transition active:scale-95"
+                        >
+                          <Award size={16} />
+                          Lihat Hasil & Transkrip Nilai
+                        </button>
+                      ) : userRegStatus === "approved" ? (
                         <button
                           onClick={() => navigate(`/participant/session/${sess.id}`)}
                           className={`w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold text-white shadow-md transition active:scale-95 ${

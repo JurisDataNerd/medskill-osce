@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Activity,
@@ -8,6 +8,7 @@ import {
   UserCheck,
   Stethoscope,
   Award,
+  User,
 } from "lucide-react";
 
 import { useAuth } from "@/context/AuthProvider";
@@ -29,11 +30,17 @@ const menus = [
     icon: History,
     path: "/examiner/history",
   },
+  {
+    title: "Profil Saya",
+    icon: User,
+    path: "/examiner/profile",
+  },
 ];
 
 export default function ExaminerLayout({ children }) {
   const { user, logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const [activeSession, setActiveSession] = useState(null);
 
@@ -71,15 +78,15 @@ export default function ExaminerLayout({ children }) {
     async function loadProfile() {
       if (!user) return;
       try {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from("profiles")
-          .select("full_name, specialty, email")
+          .select("full_name, email, avatar_url, university")
           .eq("id", user.id)
           .maybeSingle();
 
-        if (data) setProfile(data);
+        if (!error && data) setProfile(data);
       } catch (err) {
-        console.error("Error loading examiner profile in layout:", err);
+        // Silently handle - fallback to user_metadata
       }
     }
     loadProfile();
@@ -103,9 +110,7 @@ export default function ExaminerLayout({ children }) {
         {/* Brand Header */}
         <div className="border-b border-slate-200 p-6">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white shadow-md shadow-blue-600/30">
-              <span className="text-xl font-black text-white leading-none">P</span>
-            </div>
+            <img src="/favicon.svg" alt="Praxis Logo" className="h-10 w-10 object-contain rounded-xl shadow-md" />
             <div>
               <h1 className="text-xl font-black text-slate-900 tracking-tight">
                 Praxis <span className="text-blue-600">OSCE</span>
