@@ -1,22 +1,43 @@
 import Navbar from "@/components/landing/Navbar";
 import HeroSection from "@/components/landing/HeroSection";
+import WhyPraxisSection from "@/components/landing/WhyPraxisSection";
+import PhilosophySection from "@/components/landing/PhilosophySection";
+import AiProofSection from "@/components/landing/AiProofSection";
 import SessionSection from "@/components/landing/SessionSection";
-import FeaturesSection from "@/components/landing/FeaturesSection";
+import TestimonialsSection from "@/components/landing/TestimonialsSection";
+import FaqSection from "@/components/landing/FaqSection";
 import Footer from "@/components/landing/Footer";
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-white text-slate-900 font-sans selection:bg-[#1E3A8A] selection:text-white antialiased">
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-[#0D3A68] selection:text-white antialiased overflow-x-hidden">
+      {/* Pill Navigation Header */}
       <Navbar />
 
       <main>
+        {/* Hero Section: Motto SplitText + Social Proof Counter Bar + Mascot */}
         <HeroSection />
 
+        {/* Section 1: Kenapa Praxis (Deep Navy Background) */}
+        <WhyPraxisSection />
+
+        {/* Section 2: Filosofi Logo & Anatomi Girus Frontalis Superior (Deep Navy Showcase) */}
+        <PhilosophySection />
+
+        {/* Section 3: Screenshot Anamnesis AI di praxis.png */}
+        <AiProofSection />
+
+        {/* Section 4: Jadwal Simulasi */}
         <SessionSection />
 
-        <FeaturesSection />
+        {/* Section 5: Testimoni & Kisah Sukses Koas */}
+        <TestimonialsSection />
+
+        {/* Section 6: FAQ (Deep Navy Background) */}
+        <FaqSection />
       </main>
 
+      {/* Footer */}
       <Footer />
     </div>
   );
