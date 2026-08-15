@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+@theme {
+  --color-praxis-navy: #0D3A68;
+  --color-praxis-darknavy: #0A2B4E;
+  --color-praxis-gold: #C9A227;
+  --color-praxis-goldlight: #E5BA30;
+  --color-praxis-cream: #FAF9F6;
+}
+
 html {
   scroll-behavior: smooth;
 }
