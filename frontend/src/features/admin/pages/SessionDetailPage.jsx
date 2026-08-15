@@ -373,12 +373,37 @@ export default function SessionDetailPage() {
                       </div>
                     </div>
 
-                    {/* Checklist & Answer Keys */}
+                    {/* Berkas Penunjang (Auxiliary Exam Configs) */}
                     <div>
                       <h4 className="font-bold text-slate-900 text-xs uppercase mb-1 flex items-center justify-between">
-                        <span>Checklist Penilaian & Kunci Jawaban Rubrik</span>
+                        <span>Berkas Penunjang Tambahan (Radiologi / EKG / Lab)</span>
                         <span className="text-blue-600 text-[11px] font-semibold">
-                          {stage.total_questions || 15} Item Terdaftar
+                          {(stage.station_auxiliary_configs || []).length} Berkas Terdaftar
+                        </span>
+                      </h4>
+                      {stage.station_auxiliary_configs && stage.station_auxiliary_configs.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {stage.station_auxiliary_configs.map((aux, aIdx) => (
+                            <div key={aIdx} className="rounded-lg bg-blue-50 border border-blue-200 px-3 py-1.5 text-xs">
+                              <span className="font-bold text-blue-900">{aux.title || aux.name || "Berkas Penunjang"}</span>
+                              <span className="ml-2 text-[10px] bg-blue-200 text-blue-800 px-1.5 py-0.5 rounded font-extrabold">{aux.category || "Radiologi"}</span>
+                              {aux.report_text && (
+                                <p className="text-[11px] text-slate-600 mt-0.5">{aux.report_text}</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-slate-400 italic">Belum ada berkas penunjang yang dikonfigurasi untuk stase ini.</p>
+                      )}
+                    </div>
+
+                    {/* Checklist Penilaian & Rubrik */}
+                    <div>
+                      <h4 className="font-bold text-slate-900 text-xs uppercase mb-1 flex items-center justify-between">
+                        <span>Checklist Penilaian & Rubrik SKDI</span>
+                        <span className="text-blue-600 text-[11px] font-semibold">
+                          {(stage.rubric_items || []).length} Item Rubrik Terdaftar
                         </span>
                       </h4>
 
@@ -388,20 +413,21 @@ export default function SessionDetailPage() {
                           <span>Bobot Skor</span>
                         </div>
 
-                        <div className="bg-white p-2.5 rounded-lg border border-slate-200 space-y-0.5">
-                          <p className="font-bold text-slate-900">1. Menyapa pasien & membina sambung rasa</p>
-                          <p className="text-emerald-800 text-[11px] font-medium">Kunci: Menyapa salam, perkenalan diri, & konfirmasi identitas pasien (1 Poin)</p>
-                        </div>
-
-                        <div className="bg-white p-2.5 rounded-lg border border-slate-200 space-y-0.5">
-                          <p className="font-bold text-slate-900">2. Anamnesis terarah & keluhan utama</p>
-                          <p className="text-emerald-800 text-[11px] font-medium">Kunci: Menanyakan onset, lokasi, kualitas, dan riwayat penyakit terarah (3 Poin)</p>
-                        </div>
-
-                        <div className="bg-white p-2.5 rounded-lg border border-slate-200 space-y-0.5">
-                          <p className="font-bold text-slate-900">3. Prosedur pemeriksaan fisik medis</p>
-                          <p className="text-emerald-800 text-[11px] font-medium">Kunci: Melakukan pemeriksaan fisik dengan posisi & alat yang tepat sesuai SOP (3 Poin)</p>
-                        </div>
+                        {stage.rubric_items && stage.rubric_items.length > 0 ? (
+                          stage.rubric_items.map((rub, rIdx) => (
+                            <div key={rub.id || rIdx} className="bg-white p-2.5 rounded-lg border border-slate-200 space-y-0.5">
+                              <div className="flex items-center justify-between">
+                                <p className="font-bold text-slate-900 text-xs">{rIdx + 1}. {rub.title || rub.question || `Item #${rIdx + 1}`}</p>
+                                <span className="text-[10px] font-extrabold bg-blue-100 text-blue-900 px-2 py-0.5 rounded">Bobot x{rub.weight || 1}</span>
+                              </div>
+                              {(rub.description || rub.answer_key) && (
+                                <p className="text-emerald-800 text-[11px] font-medium">Kunci: {rub.description || rub.answer_key} ({rub.max_points || 3} Pts Max)</p>
+                              )}
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-[11px] text-slate-400 italic p-2 text-center">Belum ada item rubrik penilaian yang tersimpan untuk stase ini.</p>
+                        )}
                       </div>
                     </div>
                   </div>

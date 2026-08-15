@@ -68,16 +68,19 @@ export default function ExaminerPage() {
         const currentName = (userProf?.full_name || user?.user_metadata?.full_name || user?.email || "").toLowerCase();
         const username = user?.email ? user.email.split("@")[0].toLowerCase() : "";
 
-        // 1. Fetch sessions
+        // 1. Fetch active sessions only (published & ongoing; completed sessions belong in history)
         const rawSessions = await fetchSessions();
-        const activeSessions = (rawSessions || []).filter(
-          (s) =>
-            s.status === "published" ||
-            s.status === "scheduled" ||
-            s.status === "waiting_room" ||
-            s.status === "ongoing" ||
-            s.status === "running"
-        );
+        const activeOnlySessions = (rawSessions || []).filter((s) => {
+          const status = String(s.status || "").toLowerCase();
+          return (
+            status === "published" ||
+            status === "scheduled" ||
+            status === "ongoing" ||
+            status === "running" ||
+            status === "waiting_room" ||
+            status === "paused"
+          );
+        });
 
         // 2. Fetch session examiners
         const { data: allExaminers } = await supabase
@@ -94,7 +97,7 @@ export default function ExaminerPage() {
 
         const assignedList = [];
 
-        for (const s of activeSessions) {
+        for (const s of activeOnlySessions) {
           const sessionExs = (allExaminers || []).filter((e) => e.session_id === s.id);
           const sessionSts = (allStations || []).filter((st) => st.session_id === s.id);
 
@@ -123,9 +126,9 @@ export default function ExaminerPage() {
           }
         }
 
-        // Fallback: If no explicit match in session_examiners, show all active sessions for examiner preview
-        if (assignedList.length === 0 && activeSessions.length > 0) {
-          for (const s of activeSessions) {
+        // Fallback: If no explicit match in session_examiners, show active sessions for preview
+        if (assignedList.length === 0 && activeOnlySessions.length > 0) {
+          for (const s of activeOnlySessions) {
             const sessionSts = (allStations || []).filter((st) => st.session_id === s.id);
             assignedList.push({
               session: s,
@@ -325,7 +328,11 @@ export default function ExaminerPage() {
             {assignedSessions.length > 0 ? (
               <div className="grid gap-4 sm:grid-cols-2">
                 {assignedSessions.map(({ session: s, assignment: a, station: st }) => {
-                  const isOngoing = s.status === "ongoing" || s.status === "running";
+                  const sStatus = String(s.status || "").toLowerCase();
+                  const isOngoing = ["ongoing", "running", "waiting_room", "paused"].includes(sStatus);
+                  const isCompleted = ["completed", "finished", "selesai"].includes(sStatus);
+                  const isPublished = ["published", "scheduled"].includes(sStatus);
+                  const isDraft = sStatus === "draft";
 
                   return (
                     <div
@@ -334,15 +341,28 @@ export default function ExaminerPage() {
                     >
                       <div className="space-y-3">
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <span
-                            className={`rounded-md px-2.5 py-0.5 text-[10px] font-black uppercase inline-flex items-center gap-1 ${
-                              isOngoing
-                                ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
-                                : "bg-indigo-100 text-indigo-900 border border-indigo-300"
-                            }`}
-                          >
-                            {isOngoing ? "Live Berlangsung" : "Dipublikasikan (Terjadwal)"}
-                          </span>
+                          {isOngoing && (
+                            <span className="rounded-md bg-emerald-100 text-emerald-900 border border-emerald-300 px-2.5 py-0.5 text-[10px] font-black uppercase inline-flex items-center gap-1">
+                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-ping" />
+                              Live Berlangsung
+                            </span>
+                          )}
+                          {isPublished && (
+                            <span className="rounded-md bg-blue-100 text-blue-900 border border-blue-300 px-2.5 py-0.5 text-[10px] font-black uppercase inline-flex items-center gap-1">
+                              Dipublikasikan (Terjadwal)
+                            </span>
+                          )}
+                          {isCompleted && (
+                            <span className="rounded-md bg-slate-200 text-slate-700 border border-slate-300 px-2.5 py-0.5 text-[10px] font-black uppercase inline-flex items-center gap-1">
+                              <CheckCircle2 size={11} className="text-slate-600" />
+                              Selesai (Completed)
+                            </span>
+                          )}
+                          {isDraft && (
+                            <span className="rounded-md bg-amber-100 text-amber-900 border border-amber-300 px-2.5 py-0.5 text-[10px] font-black uppercase inline-flex items-center gap-1">
+                              Draft (Belum Dipublikasikan)
+                            </span>
+                          )}
 
                           <span className="rounded-md bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-[10px] font-black text-emerald-900 inline-flex items-center gap-1 uppercase">
                             <CheckCircle2 size={11} className="text-emerald-700" />
@@ -372,26 +392,43 @@ export default function ExaminerPage() {
                       </div>
 
                       <div className="pt-3 border-t border-slate-200/60">
-                        <button
-                          onClick={() => navigate(`/examiner/session/${s.id}`)}
-                          className={`w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold text-white shadow-md transition active:scale-95 ${
-                            isOngoing
-                              ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/30 animate-pulse"
-                              : "bg-blue-600 hover:bg-blue-700 shadow-blue-600/30"
-                          }`}
-                        >
-                          {isOngoing ? (
-                            <>
-                              <PlayCircle size={16} />
-                              Masuk Sesi Live Ujian
-                            </>
-                          ) : (
-                            <>
-                              <Play size={15} />
-                              Buka Kiosk Standby Sesi
-                            </>
-                          )}
-                        </button>
+                        {isCompleted ? (
+                          <button
+                            onClick={() => navigate("/examiner/history")}
+                            className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 bg-slate-200 hover:bg-slate-300 transition active:scale-95 shadow-sm"
+                          >
+                            <History size={16} />
+                            Lihat Riwayat & Rekap Evaluasi
+                          </button>
+                        ) : isDraft ? (
+                          <button
+                            disabled
+                            className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-400 bg-slate-100 cursor-not-allowed border border-slate-200"
+                          >
+                            Belum Dipublikasikan oleh Admin
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => navigate(`/examiner/session/${s.id}`)}
+                            className={`w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold text-white shadow-md transition active:scale-95 ${
+                              isOngoing
+                                ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/30 animate-pulse"
+                                : "bg-blue-600 hover:bg-blue-700 shadow-blue-600/30"
+                            }`}
+                          >
+                            {isOngoing ? (
+                              <>
+                                <PlayCircle size={16} />
+                                Masuk Sesi Live Ujian
+                              </>
+                            ) : (
+                              <>
+                                <Play size={15} />
+                                Buka Kiosk Standby Sesi
+                              </>
+                            )}
+                          </button>
+                        )}
                       </div>
                     </div>
                   );
