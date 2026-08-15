@@ -97,12 +97,11 @@ export async function createSession(sessionPayload, stationsPayload = []) {
       case_title: st.case_title || null,
       system_organ: st.system_organ || null,
       skdi_level: st.skdi_level || st.competency_level || null,
-      scenario: st.scenario || null,
-      participant_instructions: st.participant_instructions || st.participant_instruction || null,
-      examiner_instructions: st.examiner_instructions || st.examiner_instruction || null,
+      scenario: st.scenario ?? null,
+      participant_instructions: st.participant_instructions ?? st.participant_instruction ?? null,
+      examiner_instructions: st.examiner_instructions ?? st.examiner_instruction ?? null,
       answer_key_diagnosis: st.answer_key_diagnosis || null,
       answer_key_prescription: st.answer_key_prescription || null,
-      answer_key_physical_exam: st.answer_key_physical_exam || st.auxiliary_answer_key || null,
       question_bank_id: st.question_bank_id || st.case_id || null,
       assigned_examiner: st.assigned_examiner || st.examiner_name || null,
       examiner_name: st.assigned_examiner || st.examiner_name || null,
@@ -110,6 +109,13 @@ export async function createSession(sessionPayload, stationsPayload = []) {
       examiner_user_id: st.examiner_user_id || null,
       sort_order: idx,
     }));
+
+    console.log("[sessionService] createSession stations payload:", JSON.stringify(formattedStations.map(s => ({
+      title: s.title,
+      participant_instructions: s.participant_instructions?.substring(0, 50),
+      examiner_instructions: s.examiner_instructions?.substring(0, 50),
+      scenario: s.scenario?.substring(0, 50),
+    })), null, 2));
 
     const { data: createdStations, error: stationsErr } = await supabase
       .schema("osce")
@@ -175,28 +181,55 @@ export async function createSession(sessionPayload, stationsPayload = []) {
 export async function saveStationChildren(stationId, st) {
   if (!stationId) return;
 
-  // 1. Handle Rubric Items
+  // Valid osce.competency_area enum values
+  const VALID_COMPETENCY = [
+    "ANAMNESIS", "PHYSICAL_EXAM", "AUXILIARY_EXAM", "DIAGNOSIS_DDX",
+    "PHARMACOTHERAPY", "NON_PHARMACOTHERAPY", "COMMUNICATION", "PROFESSIONALISM",
+  ];
+
+  function mapCompetency(raw) {
+    if (!raw) return "ANAMNESIS";
+    const upper = String(raw).toUpperCase().replace(/\s+/g, "_");
+    // Direct match
+    if (VALID_COMPETENCY.includes(upper)) return upper;
+    // Fuzzy match
+    if (upper.includes("ANAMN")) return "ANAMNESIS";
+    if (upper.includes("FISIK") || upper.includes("PHYSICAL")) return "PHYSICAL_EXAM";
+    if (upper.includes("PENUNJANG") || upper.includes("AUXILIARY") || upper.includes("RADIOLOGI") || upper.includes("EKG") || upper.includes("LAB")) return "AUXILIARY_EXAM";
+    if (upper.includes("DIAGNOS") || upper.includes("DDX")) return "DIAGNOSIS_DDX";
+    if (upper.includes("RESEP") || upper.includes("PHARMA") || upper.includes("FARMAKO") || upper.includes("OBAT")) return "PHARMACOTHERAPY";
+    if (upper.includes("NON_PHARMA") || upper.includes("EDUKASI") || upper.includes("NON_FARMAKO")) return "NON_PHARMACOTHERAPY";
+    if (upper.includes("KOMUNIKASI") || upper.includes("COMMUNIC")) return "COMMUNICATION";
+    if (upper.includes("PROFES") || upper.includes("ETIK")) return "PROFESSIONALISM";
+    return "ANAMNESIS";
+  }
+
+  // 1. Handle Rubric Items → osce.rubric_items
+  // DB columns: station_id, question_number, question, answer_key, max_points, weight, competency_area, descriptors (JSONB), sort_order
   const rubrics = st.rubric_items || st.checklist_items || st.checklist || [];
   if (Array.isArray(rubrics) && rubrics.length > 0) {
     try {
       await supabase.schema("osce").from("rubric_items").delete().eq("station_id", stationId);
 
       const rubricPayload = rubrics.map((r, idx) => {
-        const descObj = typeof r.descriptors === "object" && r.descriptors ? r.descriptors : {};
+        // Build descriptors JSONB from various input formats
+        const existingDesc = typeof r.descriptors === "object" && r.descriptors ? r.descriptors : {};
+        const descriptors = {
+          score_0: existingDesc.score_0 || existingDesc["0"] || existingDesc[0] || "",
+          score_1: existingDesc.score_1 || existingDesc["1"] || existingDesc[1] || "",
+          score_2: existingDesc.score_2 || existingDesc["2"] || existingDesc[2] || "",
+          score_3: existingDesc.score_3 || existingDesc["3"] || existingDesc[3] || "",
+        };
+
         return {
           station_id: stationId,
           question_number: idx + 1,
-          title: r.title || r.question || r.name || `Item Rubrik #${idx + 1}`,
           question: r.question || r.title || r.name || `Item Rubrik #${idx + 1}`,
-          description: r.description || r.answer_key || "",
           answer_key: r.answer_key || r.description || "",
           max_points: Number(r.max_points) || 3,
           weight: Number(r.weight) || 1.0,
-          competency_area: r.competency_area || r.competency || "KLINIS",
-          description_score_0: r.description_score_0 || descObj?.[0] || descObj?.["0"] || "0: Tidak Dilakukan / Salah Total",
-          description_score_1: r.description_score_1 || descObj?.[1] || descObj?.["1"] || "1: Minimal / Sebagian Salah",
-          description_score_2: r.description_score_2 || descObj?.[2] || descObj?.["2"] || "2: Cukup / Memadai",
-          description_score_3: r.description_score_3 || descObj?.[3] || descObj?.["3"] || "3: Sempurna & Lengkap",
+          competency_area: mapCompetency(r.competency_area || r.competency),
+          descriptors,
           sort_order: idx,
         };
       });
@@ -208,27 +241,28 @@ export async function saveStationChildren(stationId, st) {
     }
   }
 
-  // 2. Handle Station Auxiliary Configs (Berkas Penunjang)
+  // 2. Handle Station Auxiliary Configs (Berkas Penunjang) → osce.station_auxiliary_configs
+  // DB columns: station_id, item_id, name, category, image_url, image_storage_path, report_text
   const auxFiles = st.station_auxiliary_configs || st.auxiliary_exam_configs || st.auxiliary_files || st.auxiliaryFiles || [];
-  if (Array.isArray(auxFiles) && auxFiles.length > 0) {
-    try {
-      await supabase.schema("osce").from("station_auxiliary_configs").delete().eq("station_id", stationId);
+  try {
+    await supabase.schema("osce").from("station_auxiliary_configs").delete().eq("station_id", stationId);
 
+    if (Array.isArray(auxFiles) && auxFiles.length > 0) {
       const auxPayload = auxFiles.map((aux, idx) => ({
         station_id: stationId,
-        title: aux.title || aux.name || `Berkas Penunjang #${idx + 1}`,
-        category: aux.category || "Radiologi",
-        file_url: aux.file_url || aux.imageUrl || "",
+        item_id: aux.item_id || aux.itemId || aux.id || `aux-${idx + 1}`,
+        name: aux.name || aux.title || `Berkas Penunjang #${idx + 1}`,
+        category: aux.category || "RADIOLOGI",
+        image_url: aux.image_url || aux.imageUrl || aux.file_url || null,
+        image_storage_path: aux.image_storage_path || null,
         report_text: aux.report_text || aux.reportText || "",
-        is_unlocked_by_default: Boolean(aux.is_unlocked_by_default ?? aux.matched_key),
-        sort_order: idx,
       }));
 
       const { error: auxErr } = await supabase.schema("osce").from("station_auxiliary_configs").insert(auxPayload);
       if (auxErr) console.warn("Error inserting station_auxiliary_configs to Supabase:", auxErr);
-    } catch (err) {
-      console.warn("Notice saving station_auxiliary_configs:", err);
     }
+  } catch (err) {
+    console.warn("Notice saving station_auxiliary_configs:", err);
   }
 }
 
@@ -265,12 +299,11 @@ export async function updateSession(sessionId, sessionPayload, stationsPayload =
       case_title: st.case_title || null,
       system_organ: st.system_organ || null,
       skdi_level: st.skdi_level || st.competency_level || null,
-      scenario: st.scenario || null,
-      participant_instructions: st.participant_instructions || st.participant_instruction || null,
-      examiner_instructions: st.examiner_instructions || st.examiner_instruction || null,
+      scenario: st.scenario ?? null,
+      participant_instructions: st.participant_instructions ?? st.participant_instruction ?? null,
+      examiner_instructions: st.examiner_instructions ?? st.examiner_instruction ?? null,
       answer_key_diagnosis: st.answer_key_diagnosis || null,
       answer_key_prescription: st.answer_key_prescription || null,
-      answer_key_physical_exam: st.answer_key_physical_exam || st.auxiliary_answer_key || null,
       question_bank_id: st.question_bank_id || st.case_id || null,
       assigned_examiner: st.assigned_examiner || st.examiner_name || null,
       examiner_name: st.assigned_examiner || st.examiner_name || null,
@@ -278,6 +311,13 @@ export async function updateSession(sessionId, sessionPayload, stationsPayload =
       examiner_user_id: st.examiner_user_id || null,
       sort_order: idx,
     }));
+
+    console.log("[sessionService] updateSession stations payload:", JSON.stringify(formattedStations.map(s => ({
+      title: s.title,
+      participant_instructions: s.participant_instructions?.substring(0, 50),
+      examiner_instructions: s.examiner_instructions?.substring(0, 50),
+      scenario: s.scenario?.substring(0, 50),
+    })), null, 2));
 
     const { data: createdStations, error: stationsErr } = await supabase
       .schema("osce")

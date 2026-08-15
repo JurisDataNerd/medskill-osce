@@ -43,7 +43,7 @@ export async function getStageById(stageId) {
       ...st,
       participant_instruction: st.participant_instructions || st.participant_instruction || "",
       examiner_instruction: st.examiner_instructions || st.examiner_instruction || "",
-      auxiliary_answer_key: st.answer_key_physical_exam || "",
+      auxiliary_answer_key: "",
       auxiliary_files: st.station_auxiliary_configs || [],
       gold_standard_keys: {
         wdx: st.answer_key_diagnosis || "",
@@ -119,15 +119,34 @@ export async function updateStageQuestion(stageId, payload) {
     case_title: payload.case_title || null,
     system_organ: payload.system_organ || null,
     skdi_level: payload.skdi_level || payload.competency_level || null,
-    scenario: payload.scenario || null,
-    participant_instructions: payload.participant_instruction || payload.participant_instructions || null,
-    examiner_instructions: payload.examiner_instruction || payload.examiner_instructions || null,
-    answer_key_diagnosis: payload.gold_standard_keys?.wdx || payload.answer_key_diagnosis || null,
+    scenario: payload.scenario ?? null,
+    participant_instructions: payload.participant_instruction ?? payload.participant_instructions ?? null,
+    examiner_instructions: payload.examiner_instruction ?? payload.examiner_instructions ?? null,
+    answer_key_diagnosis: (() => {
+      const gKeys = payload.gold_standard_keys;
+      if (gKeys && (gKeys.wdx || (Array.isArray(gKeys.ddx) && gKeys.ddx.length > 0))) {
+        const parts = [];
+        if (gKeys.wdx) parts.push(`WDx (Diagnosis Kerja Utama): ${gKeys.wdx}`);
+        if (Array.isArray(gKeys.ddx)) {
+          gKeys.ddx.filter(Boolean).forEach((d, idx) => {
+            parts.push(`DDx ${idx + 1} (Diagnosis Banding ${idx + 1}): ${d}`);
+          });
+        }
+        if (parts.length > 0) return parts.join("\n");
+      }
+      return payload.answer_key_diagnosis || null;
+    })(),
     answer_key_prescription: payload.gold_standard_keys?.recipe || payload.answer_key_prescription || null,
-    answer_key_physical_exam: payload.auxiliary_answer_key || payload.answer_key_physical_exam || null,
     assigned_examiner: payload.assigned_examiner || null,
     updated_at: new Date().toISOString(),
   };
+
+  console.log("[stage.service] updateStageQuestion payload:", JSON.stringify({
+    stageId,
+    scenario: stationPayload.scenario?.substring(0, 50),
+    participant_instructions: stationPayload.participant_instructions?.substring(0, 50),
+    examiner_instructions: stationPayload.examiner_instructions?.substring(0, 50),
+  }));
 
   const { error: stErr } = await supabase
     .schema("osce")
