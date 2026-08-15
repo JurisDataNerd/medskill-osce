@@ -9,7 +9,7 @@ export default function FaqSection() {
   const faqs = [
     {
       q: "Apa perbedaan antara Skema OSCE Mandiri dan OSCE On-Site di Praxis?",
-      a: "Skema OSCE Mandiri berfokus pada latihan wawancara medis (anamnesis) secara mandiri 24/7 bersama Pasien Standar AI. Sementara Skema OSCE On-Site adalah simulasi sirkuit ujian 6 stase aktif lengkap dengan pengerjaan Diagnosis Kerja (WDx), 3 Diagnosis Banding (DDx), Blangko Resep, dan penilaian langsung oleh Dokter Penguji Spesialis.",
+      a: "Skema OSCE Mandiri berfokus pada latihan anamnesis dan pemeriksaan fisik berbasis AI yang dapat diakses secara mandiri kapan saja. Sedangkan Skema OSCE On-Site diselenggarakan langsung secara tatap muka di Kantor Medskill Indonesia (Yogyakarta) dengan pasien standar dan penilaian langsung oleh Dokter Penguji.",
     },
     {
       q: "Bagaimana cara kerja Pasien Standar AI pada tahap Anamnesis?",
@@ -17,18 +17,18 @@ export default function FaqSection() {
     },
     {
       q: "Bagaimana Dokter Penguji memberikan penilaian di platform Praxis?",
-      a: "Dokter penguji mengisi rubrik kompetensi baku (skor 0, 1, 2) dan impresi GRS rating pada Dashboard Penguji (`/examiner`). Penguji dapat melihat isian WDx + DDx + Resep milik peserta secara side-by-side dengan Kunci Jawaban Baku Admin.",
+      a: "Dokter penguji mengisi rubrik kompetensi baku dan penilaian klinis langsung pada portal penguji saat simulasi berlangsung, dengan Kunci Jawaban Baku terintegrasi.",
     },
     {
-      q: "Apakah peserta menerima transkrip nilai dan umpan balik setelah ujian?",
-      a: "Ya. Setelah seluruh stase selesai, sistem secara otomatis meng-generate rekapitulasi skor & catatan umpan balik klinis dalam bentuk berkas PDF dan mengirimkannya langsung ke alamat email masing-masing peserta.",
+      q: "Apakah peserta menerima hasil dan evaluasi setelah ujian?",
+      a: "Ya. Peserta dapat melihat rekapitulasi penilaian dan catatan evaluasi klinis secara langsung melalui akun portal masing-masing.",
     },
   ];
 
   return (
     <section
       id="faq"
-      className="relative overflow-hidden min-h-screen flex flex-col justify-center py-12 bg-[#0A2B4E] text-white border-t border-blue-900/60"
+      className="relative overflow-hidden py-16 sm:py-20 bg-[#0A2B4E] text-white border-t border-blue-900/60"
     >
       {/* Background Wavy Lines */}
       <Threads />

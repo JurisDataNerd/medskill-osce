@@ -5,7 +5,7 @@ export default function AiProofSection() {
   return (
     <section
       id="proof"
-      className="min-h-screen flex flex-col justify-center py-16 sm:py-24 bg-white text-slate-900 border-t border-slate-200/60"
+      className="py-16 sm:py-20 bg-white text-slate-900 border-t border-slate-200/60"
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">

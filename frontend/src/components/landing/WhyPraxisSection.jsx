@@ -6,34 +6,34 @@ export default function WhyPraxisSection() {
   const benefits = [
     {
       icon: Bot,
-      title: "Latihan Anamnesis Tanpa Panik",
+      title: "Latihan Anamnesis Adaptif",
       description:
-        "Gali Sacred Seven & Fundamental Four langsung dengan Pasien AI. Latih keberanian & kelancaran bicaramu kapan saja sebelum menghadapi pasien asli.",
+        "Gali keluhan utama dan riwayat penyakit bersama Pasien AI. Latih kelancaran komunikasi klinis kapan saja tanpa cemas.",
     },
     {
       icon: Clock,
-      title: "Kuasai Manajemen Waktu 12 Menit",
+      title: "Manajemen Waktu Stase",
       description:
-        "Biasa diri dengan ritme 1 menit reading time & 10 menit tindakan. Jangan lagi kehabisan waktu saat meracik WDx, 3 DDx, dan Blangko Resep.",
+        "Biasakan ritme membaca petunjuk, tindakan pemeriksaan, serta perumusan diagnosis dan terapi secara efisien.",
     },
     {
       icon: Target,
-      title: "Tahu Persis Poin Penilaianmu",
+      title: "Rubrik Penilaian Terstandar",
       description:
-        "Evaluasi hasil ujianmu secara transparan berpatokan pada Kunci Jawaban Baku & Rubrik Penguji, sehingga kamu tahu pasti poin mana yang perlu diperbaiki.",
+        "Evaluasi hasil ujian mengacu pada rubrik baku nasional sehingga evaluasi performa klinis terukur jelas.",
     },
     {
       icon: Award,
-      title: "Bangun Mental & Siap Lulus Sekali Uji",
+      title: "Kesiapan Mental Ujian",
       description:
-        "Rasakan atmosfer ujian yang 100% mirip dengan OSCE asli. Hilangkan rasa cemas dan masuk ke ruang ujian dengan rasa percaya diri tinggi.",
+        "Simulasi realistis yang mempersiapkan mental dan fokus menghadapi ujian OSCE sungguhan dengan tenang.",
     },
   ];
 
   return (
     <section
       id="why-praxis"
-      className="relative overflow-hidden min-h-screen flex flex-col justify-center py-12 bg-[#0D3A68] text-white border-t border-blue-900/60"
+      className="relative overflow-hidden py-16 sm:py-20 bg-[#0D3A68] text-white border-t border-blue-900/60"
     >
       {/* ReactBits Wavy Line Threads */}
       <Threads />

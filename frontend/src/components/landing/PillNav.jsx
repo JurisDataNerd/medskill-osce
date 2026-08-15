@@ -6,11 +6,11 @@ import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/context/AuthProvider";
 
 export default function PillNav({
-  logo = "/praxis_0.png",
-  logoAlt = "Praxis by Medskill Logo",
+  logo = "/favicon.svg",
+  logoAlt = "Praxis by Medskill Indonesia Logo",
   items = [
     { label: "Kenapa Praxis", href: "#why-praxis" },
-    { label: "Tentang Praxis", href: "#about" },
+    { label: "Simulasi OSCE", href: "#about" },
     { label: "Anamnesis AI", href: "#proof" },
     { label: "Jadwal Simulasi", href: "#sessions" },
     { label: "Testimoni", href: "#testimonials" },
@@ -141,15 +141,38 @@ export default function PillNav({
         }}
       >
         <div className="flex items-center justify-between">
-          {/* Prominent Logo Anchor: Deep Navy Background Badge for praxis_0.png */}
-          <Link to="/" className="group flex items-center gap-3">
-            <div className="relative flex items-center justify-center rounded-2xl bg-[#0D3A68] px-3.5 py-2 shadow-md border border-white/20 transition-transform duration-200 group-hover:scale-105">
+          {/* Logo Anchor: (favicon.svg) | Praxis by Medskill Indonesia */}
+          <Link to="/" className="group flex items-center gap-2.5 sm:gap-3 shrink-0">
+            <div className="relative flex items-center justify-center rounded-xl bg-[#0D3A68] p-1.5 sm:p-2 shadow-xs border border-white/20 transition-transform duration-200 group-hover:scale-105">
               <img
                 src={logo}
                 alt={logoAlt}
-                className="h-12 sm:h-14 w-auto object-contain drop-shadow-md"
-                style={{ minWidth: "120px" }}
+                className="h-7 w-7 sm:h-8 sm:w-8 object-contain rounded-md drop-shadow-xs"
               />
+            </div>
+
+            <div
+              className={`h-5 sm:h-6 w-px transition-colors duration-200 ${
+                scrolled ? "bg-white/30" : "bg-slate-300"
+              }`}
+              aria-hidden="true"
+            />
+
+            <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-1.5 text-left">
+              <span
+                className={`text-sm sm:text-base font-black tracking-tight leading-none transition-colors duration-200 ${
+                  scrolled ? "text-white" : "text-[#0D3A68]"
+                }`}
+              >
+                Praxis
+              </span>
+              <span
+                className={`text-[10px] sm:text-xs font-semibold tracking-tight transition-colors duration-200 ${
+                  scrolled ? "text-blue-100" : "text-slate-500"
+                }`}
+              >
+                by Medskill Indonesia
+              </span>
             </div>
           </Link>
 

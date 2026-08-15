@@ -1,7 +1,7 @@
 import Navbar from "@/components/landing/Navbar";
 import HeroSection from "@/components/landing/HeroSection";
 import WhyPraxisSection from "@/components/landing/WhyPraxisSection";
-import PhilosophySection from "@/components/landing/PhilosophySection";
+import IntroductionSimulationSection from "@/components/landing/IntroductionSimulationSection";
 import AiProofSection from "@/components/landing/AiProofSection";
 import SessionSection from "@/components/landing/SessionSection";
 import TestimonialsSection from "@/components/landing/TestimonialsSection";
@@ -21,8 +21,8 @@ export default function LandingPage() {
         {/* Section 1: Kenapa Praxis (Deep Navy Background) */}
         <WhyPraxisSection />
 
-        {/* Section 2: Filosofi Logo & Anatomi Girus Frontalis Superior (Deep Navy Showcase) */}
-        <PhilosophySection />
+        {/* Section 2: Pengenalan 2 Skenario Simulasi OSCE (Praxis Mandiri & Praxis On-Site) */}
+        <IntroductionSimulationSection />
 
         {/* Section 3: Screenshot Anamnesis AI di praxis.png */}
         <AiProofSection />

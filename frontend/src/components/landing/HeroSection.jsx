@@ -50,19 +50,15 @@ export default function HeroSection() {
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4 }}
-              className="inline-flex items-center gap-2.5 rounded-full border border-[#C9A227]/40 bg-amber-50/90 px-4 py-1.5 shadow-xs mb-5"
+              className="inline-flex items-center gap-2 rounded-full border border-[#C9A227]/40 bg-amber-50/90 px-3.5 py-1.5 shadow-xs mb-5"
             >
               <img
-                src="/praxis_0.png"
+                src="/favicon.svg"
                 alt="Praxis Logo"
-                className="h-5 w-auto object-contain"
-                onError={(e) => {
-                  e.target.style.display = "none";
-                }}
+                className="h-4 w-4 object-contain rounded-xs"
               />
-              <span className="flex h-2 w-2 rounded-full bg-[#C9A227] animate-ping" />
               <span className="text-xs font-extrabold uppercase tracking-wider text-[#0D3A68]">
-                #1 Platform Simulasi OSCE Kedokteran
+                Platform Simulasi OSCE Kedokteran
               </span>
             </motion.div>
 
@@ -82,14 +78,14 @@ export default function HeroSection() {
               />
             </div>
 
-            {/* Subtitle Empati untuk Koas */}
+            {/* Subtitle */}
             <motion.p
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.2 }}
               className="mt-4 max-w-2xl text-base sm:text-lg text-slate-600 font-medium leading-relaxed"
             >
-              Persiapkan dirimu menghadapi ujian OSCE tanpa rasa cemas, Dok. Latih kepekaan anamnesismu bersama <strong className="text-[#0D3A68] font-bold">Pasien Standar AI 24/7</strong> dan kuasai ritme pengerjaan diagnosis & resep di <strong className="text-[#C9A227] font-bold">Simulasi Ujian Realistis</strong>.
+              Latih keterampilan anamnesis bersama <strong className="text-[#0D3A68] font-bold">Pasien AI 24/7</strong> dan ikuti simulasi ujian <strong className="text-[#C9A227] font-bold">On-Site</strong> langsung bersama dokter penguji untuk kesiapan maksimal menghadapi OSCE.
             </motion.p>
 
             {/* Primary Buttons */}
@@ -117,27 +113,29 @@ export default function HeroSection() {
               </Link>
             </motion.div>
 
-            {/* High-Impact Social Proof Metrics Bar */}
+            {/* Clean Feature Highlights Bar */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.4 }}
               className="mt-10 grid grid-cols-2 sm:grid-cols-4 gap-4 w-full pt-6 border-t border-slate-200/80"
             >
-              {metrics.map((m, idx) => {
-                const MIcon = m.icon;
-                return (
-                  <div key={idx} className="flex flex-col items-start">
-                    <div className="flex items-center gap-1.5 text-[#0D3A68] mb-0.5">
-                      <MIcon size={15} className="text-[#C9A227]" />
-                      <span className="text-xl sm:text-2xl font-black tracking-tight text-[#0D3A68]">
-                        {m.value}
-                      </span>
-                    </div>
-                    <span className="text-xs text-slate-500 font-semibold">{m.label}</span>
-                  </div>
-                );
-              })}
+              <div className="flex flex-col items-start">
+                <span className="text-sm font-black text-[#0D3A68]">Anamnesis AI</span>
+                <span className="text-xs text-slate-500 font-medium">Pasien Standar Cerdas</span>
+              </div>
+              <div className="flex flex-col items-start">
+                <span className="text-sm font-black text-[#0D3A68]">Pemeriksaan Fisik</span>
+                <span className="text-xs text-slate-500 font-medium">Panduan & Evaluasi</span>
+              </div>
+              <div className="flex flex-col items-start">
+                <span className="text-sm font-black text-[#0D3A68]">Ujian On-Site</span>
+                <span className="text-xs text-slate-500 font-medium">Kantor Yogyakarta</span>
+              </div>
+              <div className="flex flex-col items-start">
+                <span className="text-sm font-black text-[#0D3A68]">Rubrik Standar</span>
+                <span className="text-xs text-slate-500 font-medium">Format Nasional</span>
+              </div>
             </motion.div>
           </div>
 

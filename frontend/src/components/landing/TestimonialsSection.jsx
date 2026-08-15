@@ -20,7 +20,7 @@ export default function TestimonialsSection() {
       avatar: "RR",
       rating: 5,
       comment:
-        "Simulasi sirkuit 12 menitnya sangat realistis. Saya jadi terbiasa membagi 1 menit baca petunjuk dan 10 menit racik WDx + DDx + Resep tanpa kehabisan waktu di stase.",
+        "Simulasi ujiannya sangat realistis. Saya jadi terbiasa membagi waktu membaca petunjuk soal dan merumuskan diagnosis serta resep dengan tenang.",
     },
     {
       name: "dr. Nabila Hapsari, S.Ked",
@@ -29,7 +29,7 @@ export default function TestimonialsSection() {
       avatar: "NH",
       rating: 5,
       comment:
-        "Rubrik penilaian pengujinya detail banget. Umpan balik yang dikirim via PDF setelah ujian buat saya tahu pasti poin mana yang kurang sebelum ujian sungguhan.",
+        "Rubrik penilaian pengujinya detail banget. Umpan balik setelah ujian buat saya tahu pasti poin mana yang kurang sebelum ujian sungguhan.",
     },
   ];
 
@@ -45,7 +45,7 @@ export default function TestimonialsSection() {
   return (
     <section
       id="testimonials"
-      className="relative overflow-hidden min-h-screen flex flex-col justify-center py-16 sm:py-24 bg-gradient-to-b from-white via-slate-50 to-blue-50/40 text-slate-900 border-t border-blue-100/60"
+      className="relative overflow-hidden py-16 sm:py-20 bg-gradient-to-b from-white via-slate-50 to-blue-50/40 text-slate-900 border-t border-blue-100/60"
     >
       {/* Background Wavy Mesh */}
       <Threads />

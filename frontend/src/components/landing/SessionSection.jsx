@@ -195,7 +195,7 @@ export default function SessionSection() {
   return (
     <section
       id="sessions"
-      className="min-h-screen flex flex-col justify-center py-16 sm:py-24 bg-slate-50/70 text-slate-900 border-t border-slate-200/60"
+      className="py-16 sm:py-20 bg-slate-50/70 text-slate-900 border-t border-slate-200/60"
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-8">
         {/* Nusago.id Style Clean Section Header */}
