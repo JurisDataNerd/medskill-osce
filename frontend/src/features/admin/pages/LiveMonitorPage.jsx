@@ -46,6 +46,7 @@ import {
   pauseTimer,
   resumeTimer,
   sendBroadcast,
+  sendBellBroadcast,
   finishSession,
   calcRemaining,
   playBroadcastNotificationSound,
@@ -160,9 +161,72 @@ export default function LiveMonitorPage() {
     onConfirm: null,
   });
 
+  // Total Overall Session Timer Calculations (Synchronized with Sub-Timer and Phase)
+  const totalRoundsCount = activeSession?.total_rounds || activeSession?.total_stations || activeSession?.stations?.length || 6;
+  const stationDurationSec = (activeSession?.station_duration_minutes || 12) * 60;
+  const transitionDurationSec = (activeSession?.transition_duration_minutes || 2) * 60;
+  const breakDurationSec = (activeSession?.break_duration_minutes || 0) * 60;
+  const roundFullSec = stationDurationSec + transitionDurationSec;
+
+  const totalSessionDurationSec = (totalRoundsCount * roundFullSec) - transitionDurationSec + breakDurationSec;
+  const totalSessionMinutes = Math.ceil(totalSessionDurationSec / 60);
+
+  // Synchronized Total Remaining Overall Seconds
+  let currentRoundRemainingSec = remainingSeconds;
+  const currentPhase = timerState?.phase || "action";
+  if (currentPhase === "action" || currentPhase === "running" || currentPhase === "reading") {
+    currentRoundRemainingSec = remainingSeconds + transitionDurationSec;
+  }
+  const futureRoundsCount = Math.max(0, totalRoundsCount - (currentRound || 1));
+  const futureRoundsSec = futureRoundsCount * roundFullSec;
+
+  const totalRemainingSec = Math.max(0, currentRoundRemainingSec + futureRoundsSec);
+  const totalElapsedSec = Math.max(0, totalSessionDurationSec - totalRemainingSec);
+
+  function formatHoursMinutesSeconds(sec) {
+    const hrs = Math.floor(sec / 3600);
+    const mins = Math.floor((sec % 3600) / 60);
+    const secs = sec % 60;
+    if (hrs > 0) {
+      return `${hrs.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    }
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  }
+
+  // Header Top Bar Component replacing the Bell Icon with Total Global Timer
+  const totalTimerHeaderAction = activeSession && ["published", "scheduled", "waiting_room", "ongoing", "running", "paused"].includes(activeSession.status) ? (
+    <div className="flex items-center gap-3 rounded-2xl border border-indigo-200 bg-indigo-50/90 px-4 py-2 text-indigo-950 shadow-sm">
+      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-xs">
+        <Clock size={18} className={isTimerRunning ? "animate-pulse text-white" : "text-amber-300"} />
+      </div>
+      <div className="text-left">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] font-black uppercase tracking-wider text-indigo-700">
+            Total Timer Global Sesi
+          </span>
+          {!isTimerRunning && (
+            <span className="rounded bg-amber-500 px-1.5 py-0.5 text-[9px] font-black text-white uppercase">
+              PAUSED
+            </span>
+          )}
+        </div>
+        <span className="text-sm font-black font-mono text-indigo-950 block leading-tight">
+          {formatHoursMinutesSeconds(totalRemainingSec)} <span className="text-xs text-indigo-600 font-bold">({totalSessionMinutes} Mnt)</span>
+        </span>
+      </div>
+    </div>
+  ) : null;
+
+  // Helper check if session status is connectable to realtime WebSocket
+  const isConnectableStatus = (status) =>
+    ["published", "scheduled", "waiting_room", "ongoing", "running", "paused"].includes(status);
+
   // Real-time Presence Tracking for Admin
   useEffect(() => {
-    if (!activeSession?.id) return;
+    if (!activeSession?.id || !isConnectableStatus(activeSession?.status)) {
+      setOnlineUsers([]);
+      return;
+    }
 
     let cleanupPresence = null;
     async function initPresence() {
@@ -191,7 +255,7 @@ export default function LiveMonitorPage() {
     return () => {
       if (cleanupPresence) cleanupPresence();
     };
-  }, [activeSession?.id]);
+  }, [activeSession?.id, activeSession?.status]);
 
   // Load Real Supabase Data
   async function loadLiveMonitorData() {
@@ -202,10 +266,10 @@ export default function LiveMonitorPage() {
       const liveAndPublished = (rawSessions || []).filter((s) => relevantStatuses.includes(s.status));
       setDbSessions(liveAndPublished);
 
-      // Find the active session: ongoing/paused first, then waiting_room, or most recent
+      // Find active session ONLY from allowed active statuses (Do NOT select completed/draft fallback)
       const active = (rawSessions || []).find(
         (s) => s.status === "ongoing" || s.status === "running" || s.status === "paused"
-      ) || (rawSessions || []).find((s) => s.status === "waiting_room") || (rawSessions || [])[0];
+      ) || (rawSessions || []).find((s) => s.status === "waiting_room") || (rawSessions || []).find((s) => s.status === "published" || s.status === "scheduled");
 
       if (active) {
         const fullDetail = await fetchSessionById(active.id);
@@ -244,7 +308,7 @@ export default function LiveMonitorPage() {
 
   // Realtime Subscription for Active Session (DB changes)
   useEffect(() => {
-    if (!activeSession?.id) return;
+    if (!activeSession?.id || !isConnectableStatus(activeSession?.status)) return;
 
     const unsubscribe = subscribeToSession(activeSession.id, {
       onTimerUpdate: (newTimerState) => {
@@ -264,11 +328,17 @@ export default function LiveMonitorPage() {
       },
       onSessionUpdate: (sess) => {
         if (!sess) return;
+        if (sess.status === "completed" || sess.status === "finished") {
+          setActiveSession(null);
+          setTimerState(null);
+          setOnlineUsers([]);
+          loadLiveMonitorData();
+          return;
+        }
         setActiveSession((prev) => (prev ? { ...prev, ...sess } : sess));
         if (sess.status === "paused") setIsTimerRunning(false);
         if (sess.status === "ongoing" || sess.status === "running") {
           setIsTimerRunning(true);
-          // If transitioning from waiting_room to ongoing, reload full data
           loadLiveMonitorData();
         }
       },
@@ -277,7 +347,7 @@ export default function LiveMonitorPage() {
     return () => {
       unsubscribe();
     };
-  }, [activeSession?.id]);
+  }, [activeSession?.id, activeSession?.status]);
 
   // Live Timer Local 1-second Tick & Multi-Phase Auto-Rolling
   useEffect(() => {
@@ -453,13 +523,13 @@ export default function LiveMonitorPage() {
     }
   }
 
-  // Handle Finishing Active Session in Supabase
+  // Handle Finishing Active Session in Supabase & Disconnecting Realtime Channels
   async function handleFinishOSCE() {
     if (!activeSession) return;
     setConfirmModal({
       isOpen: true,
       title: "Akhiri Sesi OSCE?",
-      message: "Apakah Anda yakin ingin mengakhiri sesi OSCE ini? Seluruh pengerjaan stase akan ditutup di database.",
+      message: "Apakah Anda yakin ingin mengakhiri sesi OSCE ini? Seluruh pengerjaan stase akan ditutup di database dan koneksi realtime akan diputuskan.",
       confirmText: "Ya, Selesaikan Sesi",
       cancelText: "Batal",
       variant: "danger",
@@ -468,7 +538,10 @@ export default function LiveMonitorPage() {
         setConfirmModal((prev) => ({ ...prev, isOpen: false }));
         try {
           await finishSession(activeSession.id);
-          addLog("success", "Sesi OSCE telah diselesaikan di Supabase.");
+          addLog("success", "Sesi OSCE telah diselesaikan di Supabase dan koneksi realtime diputuskan.");
+          setActiveSession(null);
+          setTimerState(null);
+          setOnlineUsers([]);
           await loadLiveMonitorData();
         } catch (err) {
           console.error("Failed to finish session:", err);
@@ -502,12 +575,17 @@ export default function LiveMonitorPage() {
 
   async function handleSkipPhase() {
     if (!activeSession) return;
-    const totalRounds = activeSession.total_rounds || 3;
+    const totalRounds = activeSession.total_rounds || activeSession.stations?.length || 6;
 
     const currentPhase = timerState?.phase || "running";
     const currentRoundNum = timerState?.round_number || currentRound || 1;
 
     try {
+      if (currentRoundNum >= totalRounds && (currentPhase === "transition" || currentPhase === "break")) {
+        await handleFinishOSCE();
+        return;
+      }
+
       if (currentPhase === "running" || currentPhase === "action") {
         const transitionDur = activeSession.transition_duration_minutes || 2;
         const res = await updateTimerPhase(activeSession.id, "transition", transitionDur, {
@@ -517,21 +595,7 @@ export default function LiveMonitorPage() {
         addLog("warning", `Admin melompati (skip) stase ke Fase Transisi 2 Menit (Ronde ${currentRoundNum}).`);
       } else if (currentPhase === "transition" || currentPhase === "break") {
         if (currentRoundNum >= totalRounds) {
-          setConfirmModal({
-            isOpen: true,
-            title: "Semua Ronde Selesai! Akhiri Sesi OSCE?",
-            message: `Seluruh ${totalRounds} ronde ujian sirkuit telah selesai dilaksanakan. Apakah Anda ingin mengakhiri sesi OSCE ini sekarang?`,
-            confirmText: "Ya, Selesaikan & Akhiri Sesi OSCE",
-            cancelText: "Batal",
-            variant: "success",
-            isAlert: false,
-            onConfirm: async () => {
-              setConfirmModal((prev) => ({ ...prev, isOpen: false }));
-              await finishSession(activeSession.id);
-              addLog("success", `Seluruh ${totalRounds} ronde selesai! Sesi OSCE resmi diakhiri oleh Admin.`);
-              await loadLiveMonitorData();
-            },
-          });
+          await handleFinishOSCE();
         } else {
           const nextR = currentRoundNum + 1;
           const stationDur = activeSession.station_duration_minutes || 15;
@@ -560,14 +624,31 @@ export default function LiveMonitorPage() {
     }
   }
 
-  function handleTriggerBell(bellType) {
+  async function handleTriggerBell(bellType) {
     playOsceBell(bellType);
     const bellNames = {
       start: "Bel 1x (Mulai / Reading Time)",
       warning: "Bel 2x (Peringatan 2 Menit Tersisa)",
       rotation: "Bel 3x (Selesai & Rotasi Stase)",
     };
-    addLog("info", `Admin memicu suara manual: ${bellNames[bellType]}`);
+
+    if (activeSession?.id) {
+      try {
+        await sendBellBroadcast(activeSession.id, bellType);
+      } catch (err) {
+        console.warn("Error broadcasting manual bell:", err);
+      }
+    }
+
+    addLog("info", `Admin memicu suara & broadcast manual: ${bellNames[bellType]}`);
+    playBroadcastNotificationSound();
+    setActiveNotification({
+      id: Date.now(),
+      message: `[BEL MANUAL] ${bellNames[bellType]}`,
+      target: "Semua Layar (Peserta & Penguji)",
+      time: new Date().toLocaleTimeString("id-ID"),
+    });
+
     setIsBellMenuOpen(false);
   }
 
@@ -627,7 +708,7 @@ export default function LiveMonitorPage() {
   }
 
   return (
-    <AdminLayout>
+    <AdminLayout headerAction={totalTimerHeaderAction}>
       {/* Realtime Broadcast Toast Overlay Component for Admin (Auto 5s & X Close Button) */}
       {activeNotification && (
         <div className="fixed top-5 right-5 z-[9999] max-w-md w-full animate-in slide-in-from-top-4 fade-in duration-200">
@@ -993,6 +1074,26 @@ export default function LiveMonitorPage() {
 
               {/* Master Control Buttons */}
               <div className="flex flex-wrap items-center gap-2.5">
+                {/* Total Session Overall Timer Badge */}
+                <div className="inline-flex items-center gap-2 rounded-xl border border-cyan-500/40 bg-slate-900/90 px-3.5 py-2 text-white shadow-sm">
+                  <Clock size={16} className={isTimerRunning ? "text-cyan-400 animate-pulse" : "text-amber-400"} />
+                  <div className="text-left">
+                    <div className="flex items-center gap-1">
+                      <span className="text-[9px] font-black uppercase tracking-wider text-cyan-300 block leading-tight">
+                        Total Timer Sesi
+                      </span>
+                      {!isTimerRunning && (
+                        <span className="text-[8px] font-black uppercase text-amber-400 bg-amber-400/20 px-1 rounded">
+                          PAUSED
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-xs font-black font-mono text-white">
+                      {formatHoursMinutesSeconds(totalRemainingSec)} ({totalSessionMinutes} Mnt)
+                    </span>
+                  </div>
+                </div>
+
                 <div className="relative">
                   <button
                     onClick={() => setIsBellMenuOpen(!isBellMenuOpen)}
@@ -1102,7 +1203,7 @@ export default function LiveMonitorPage() {
                   Status Ronde Live
                 </span>
                 <span className="text-xl font-black text-white mt-1 block">
-                  Ronde {currentRound} / {activeSession.total_rounds || 6}
+                  Ronde {currentRound} / {totalRoundsCount}
                 </span>
                 <span className="text-[10px] text-slate-400 font-medium block mt-1">
                   Sirkuit Pos Terjadwal
@@ -1165,26 +1266,30 @@ export default function LiveMonitorPage() {
                     Fase Selanjutnya
                   </span>
                   <span className="text-xs font-bold text-slate-200 mt-1 block">
-                    {currentRound >= (activeSession.total_rounds || 3) && (timerState?.phase === "transition" || timerState?.phase === "break")
+                    {currentRound >= totalRoundsCount && (timerState?.phase === "transition" || timerState?.phase === "break")
                       ? "Akhiri Sesi OSCE (Seluruh Ronde Selesai)"
                       : timerState?.phase === "running" || timerState?.phase === "action"
                       ? `Transisi Pos (${activeSession.transition_duration_minutes || 2} Menit)`
                       : `Stase Ujian Ronde ${currentRound + 1}`}
                   </span>
                 </div>
-                <button
-                  onClick={handleSkipPhase}
-                  className={`mt-2 text-left text-[11px] font-extrabold underline flex items-center gap-1 transition ${
-                    currentRound >= (activeSession.total_rounds || 3) && (timerState?.phase === "transition" || timerState?.phase === "break")
-                      ? "text-emerald-400 hover:text-emerald-300"
-                      : "text-blue-400 hover:text-blue-300"
-                  }`}
-                >
-                  <ChevronRight size={14} />
-                  {currentRound >= (activeSession.total_rounds || 3) && (timerState?.phase === "transition" || timerState?.phase === "break")
-                    ? `Akhiri Sesi OSCE (Selesai ${currentRound}/${activeSession.total_rounds || 3})`
-                    : "Skip Manual ke Fase Berikutnya"}
-                </button>
+                {currentRound >= totalRoundsCount && (timerState?.phase === "transition" || timerState?.phase === "break" || timerState?.phase === "action" || timerState?.phase === "running") ? (
+                  <button
+                    onClick={handleFinishOSCE}
+                    className="mt-2 text-left text-[11px] font-extrabold underline flex items-center gap-1 text-red-400 hover:text-red-300 transition cursor-pointer"
+                  >
+                    <Square size={14} />
+                    Akhiri Sesi OSCE (Selesai {currentRound}/{totalRoundsCount})
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleSkipPhase}
+                    className="mt-2 text-left text-[11px] font-extrabold underline flex items-center gap-1 text-blue-400 hover:text-blue-300 transition cursor-pointer"
+                  >
+                    <ChevronRight size={14} />
+                    Skip Manual ke Fase Berikutnya
+                  </button>
+                )}
               </div>
             </div>
 
@@ -1256,110 +1361,7 @@ export default function LiveMonitorPage() {
             )}
           </div>
 
-          {/* Section 2: Realtime Broadcast & Chat Messenger Console */}
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-md space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
-              <div>
-                <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
-                  <Megaphone size={20} className="text-indigo-600" />
-                  Konsol Broadcast & Chat Peringatan Realtime (Supabase WebSocket)
-                </h2>
-                <p className="text-xs text-slate-500 font-medium mt-0.5">
-                  Kirim pesan broadcast instan yang akan muncul sebagai banner melayang secara real-time di layar Peserta dan Penguji.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="rounded-full bg-indigo-100 text-indigo-900 border border-indigo-300 px-3 py-1 text-xs font-bold flex items-center gap-1.5">
-                  <Send size={13} className="text-indigo-700" />
-                  Supabase Realtime Channel Active
-                </span>
-              </div>
-            </div>
-
-            {/* Quick Broadcast Presets */}
-            <div className="space-y-2">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                Tombol Pengumuman Cepat (Preset Broadcast 1-Klik):
-              </span>
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  onClick={() => {
-                    setBroadcastMessage("⚠️ Sisa waktu stase 2 menit lagi! Persiapkan penyelesaian dan instruksi penunjang.");
-                    setBroadcastTarget("all");
-                  }}
-                  className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100 transition flex items-center gap-1.5"
-                >
-                  <BellRing size={13} className="text-amber-600" />
-                  Peringatan Sisa 2 Menit
-                </button>
-
-                <button
-                  onClick={() => {
-                    setBroadcastMessage("🔔 Waktu stase ronde selesai! Dokter penguji dan peserta dipersilakan melakukan rotasi pos.");
-                    setBroadcastTarget("all");
-                  }}
-                  className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-900 hover:bg-blue-100 transition flex items-center gap-1.5"
-                >
-                  <RotateCw size={13} className="text-blue-600" />
-                  Instruksi Rotasi Pos
-                </button>
-
-                <button
-                  onClick={() => {
-                    setBroadcastMessage("📢 Pengumuman: Waktu istirahat ronde sedang berlangsung (Break 10 Menit).");
-                    setBroadcastTarget("all");
-                  }}
-                  className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-900 hover:bg-emerald-100 transition flex items-center gap-1.5"
-                >
-                  <Coffee size={13} className="text-emerald-600" />
-                  Pengumuman Break Sesi
-                </button>
-              </div>
-            </div>
-
-            {/* Interactive Chat Broadcast Input Form */}
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="sm:col-span-2">
-                  <label className="text-[11px] font-bold uppercase text-slate-500 block mb-1">Pesan Broadcast Peringatan:</label>
-                  <input
-                    type="text"
-                    value={broadcastMessage}
-                    onChange={(e) => setBroadcastMessage(e.target.value)}
-                    placeholder="Ketik pesan broadcast untuk dikirim ke seluruh layar realtime..."
-                    className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-medium text-slate-900 focus:border-indigo-500 focus:outline-hidden"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-bold uppercase text-slate-500 block mb-1">Target Layar Penerima:</label>
-                  <select
-                    value={broadcastTarget}
-                    onChange={(e) => setBroadcastTarget(e.target.value)}
-                    className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-800 focus:border-indigo-500 focus:outline-hidden"
-                  >
-                    <option value="all">Semua Layar (Peserta & Penguji)</option>
-                    <option value="examiners">Layar Dokter Penguji Only</option>
-                    <option value="participants">Layar Peserta Only</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex justify-end pt-1">
-                <button
-                  onClick={handleSendBroadcast}
-                  disabled={!broadcastMessage.trim()}
-                  className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2 text-xs font-bold text-white shadow-md hover:bg-indigo-700 active:scale-95 transition disabled:opacity-50"
-                >
-                  <Send size={14} />
-                  Kirim Broadcast Realtime Now
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Station Pos Live Cards Grid */}
+          {/* Matriks Live Station Pos Grid */}
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
@@ -1418,56 +1420,105 @@ export default function LiveMonitorPage() {
         </div>
       )}
 
-      {/* Broadcast Modal Overlay */}
+      {/* Broadcast Modal Overlay (Unified Single Broadcast Form) */}
       {isBroadcastModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
-          <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl border border-slate-100 space-y-4 animate-in zoom-in-95">
+          <div className="w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl border border-slate-100 space-y-4 animate-in zoom-in-95">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
-                <Megaphone size={18} className="text-purple-600" />
-                Kirim Broadcast Pengumuman Realtime
-              </h2>
+              <div>
+                <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                  <Megaphone size={20} className="text-indigo-600" />
+                  Kirim Broadcast Peringatan Realtime (Supabase WebSocket)
+                </h2>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  Pesan instan akan muncul sebagai banner melayang di layar Peserta & Penguji.
+                </p>
+              </div>
               <button
                 onClick={() => setIsBroadcastModalOpen(false)}
-                className="rounded-full p-1 text-slate-400 hover:bg-slate-100"
+                className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
               >
                 <X size={18} />
               </button>
             </div>
 
-            <div className="space-y-3">
+            {/* Quick Preset 1-Click Buttons */}
+            <div className="space-y-2">
+              <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider block">
+                Tombol Pengumuman Cepat (Preset 1-Klik):
+              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBroadcastMessage("⚠️ Sisa waktu stase 2 menit lagi! Persiapkan penyelesaian dan instruksi penunjang.");
+                    setBroadcastTarget("all");
+                  }}
+                  className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100 transition flex items-center gap-1.5"
+                >
+                  <BellRing size={13} className="text-amber-600" />
+                  Peringatan Sisa 2 Menit
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBroadcastMessage("🔔 Waktu stase ronde selesai! Dokter penguji dan peserta dipersilakan melakukan rotasi pos.");
+                    setBroadcastTarget("all");
+                  }}
+                  className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-900 hover:bg-blue-100 transition flex items-center gap-1.5"
+                >
+                  <RotateCw size={13} className="text-blue-600" />
+                  Instruksi Rotasi Pos
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBroadcastMessage("📢 Pengumuman: Waktu istirahat ronde sedang berlangsung (Break Sesi).");
+                    setBroadcastTarget("all");
+                  }}
+                  className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-900 hover:bg-emerald-100 transition flex items-center gap-1.5"
+                >
+                  <Coffee size={13} className="text-emerald-600" />
+                  Pengumuman Break Sesi
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-3 pt-1">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Target Penerima Pesan
+                <label className="block text-xs font-extrabold text-slate-700 mb-1">
+                  Target Layar Penerima Pesan
                 </label>
                 <select
                   value={broadcastTarget}
                   onChange={(e) => setBroadcastTarget(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 p-2.5 text-xs font-semibold text-slate-800 focus:border-purple-500 focus:outline-none"
+                  className="w-full rounded-xl border border-slate-300 p-2.5 text-xs font-bold text-slate-800 focus:border-indigo-500 focus:outline-none"
                 >
-                  <option value="all">Semua Layar (Peserta & Penguji)</option>
+                  <option value="all">Semua Layar (Peserta & Dokter Penguji)</option>
                   <option value="examiners">Layar Dokter Penguji Saja</option>
                   <option value="participants">Layar Kiosk Peserta Saja</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Isi Pesan Broadcast
+                <label className="block text-xs font-extrabold text-slate-700 mb-1">
+                  Isi Pesan Broadcast Peringatan
                 </label>
                 <textarea
                   rows={3}
                   value={broadcastMessage}
                   onChange={(e) => setBroadcastMessage(e.target.value)}
                   placeholder="Ketikkan pengumuman darurat atau peringatan waktu..."
-                  className="w-full rounded-xl border border-slate-200 p-2.5 text-xs text-slate-800 focus:border-purple-500 focus:outline-none font-medium"
+                  className="w-full rounded-xl border border-slate-300 p-2.5 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none font-medium"
                 />
               </div>
 
               {/* Template Cepat */}
               <div>
-                <span className="block text-[11px] font-bold text-slate-400 mb-1.5">
-                  Template Pesan Cepat:
+                <span className="block text-[11px] font-extrabold text-slate-400 mb-1.5">
+                  Template Pesan Tambahan:
                 </span>
                 <div className="flex flex-wrap gap-1.5">
                   {[
@@ -1493,17 +1544,18 @@ export default function LiveMonitorPage() {
               <button
                 type="button"
                 onClick={() => setIsBroadcastModalOpen(false)}
-                className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 transition"
               >
                 Batal
               </button>
               <button
                 type="button"
                 onClick={handleSendBroadcast}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-purple-600 px-5 py-2 text-xs font-bold text-white shadow-md hover:bg-purple-700 active:scale-95 transition"
+                disabled={!broadcastMessage.trim()}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-5 py-2 text-xs font-bold text-white shadow-md hover:bg-indigo-700 active:scale-95 transition disabled:opacity-50"
               >
                 <Send size={14} />
-                Kirimkan Realtime
+                Kirim Broadcast Realtime Now
               </button>
             </div>
           </div>

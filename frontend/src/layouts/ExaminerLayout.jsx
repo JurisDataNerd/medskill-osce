@@ -188,15 +188,20 @@ export default function ExaminerLayout({ children }) {
           <div className="flex items-center gap-3">
             {activeSession ? (
               <>
-                {activeSession.status === "ongoing" || activeSession.status === "running" ? (
+                {["ongoing", "running", "waiting_room", "paused"].includes(activeSession.status?.toLowerCase()) ? (
                   <span className="rounded-full bg-emerald-100 border border-emerald-300 px-3 py-1 text-xs font-bold text-emerald-900 flex items-center gap-1.5">
                     <span className="h-2 w-2 rounded-full bg-emerald-600 animate-pulse" />
                     Sesi Live Berlangsung
                   </span>
+                ) : ["completed", "finished", "selesai"].includes(activeSession.status?.toLowerCase()) ? (
+                  <span className="rounded-full bg-slate-100 border border-slate-300 px-3 py-1 text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-slate-500" />
+                    Sesi Ujian Selesai (Completed)
+                  </span>
                 ) : (
                   <span className="rounded-full bg-blue-100 border border-blue-300 px-3 py-1 text-xs font-bold text-blue-900 flex items-center gap-1.5">
                     <span className="h-2 w-2 rounded-full bg-blue-600" />
-                    Sesi Ujian Terjadwal (Standby Stase)
+                    Sesi Ujian Dipublikasikan (Terjadwal)
                   </span>
                 )}
                 <span className="text-xs text-slate-600 font-medium truncate max-w-md">
@@ -207,7 +212,7 @@ export default function ExaminerLayout({ children }) {
               <>
                 <span className="rounded-full bg-amber-100 border border-amber-300 px-3 py-1 text-xs font-bold text-amber-900 flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-full bg-amber-500" />
-                  Sistem Standby • Belum Ada Sesi Ujian
+                  Sistem Standby • Belum Ada Sesi Live Ongoing
                 </span>
               </>
             )}

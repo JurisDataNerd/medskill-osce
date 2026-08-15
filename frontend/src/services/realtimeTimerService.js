@@ -485,47 +485,81 @@ export async function sendBroadcast(sessionId, message, priority = "info", targe
 export const sendBroadcastMessage = sendBroadcast;
 
 /**
+ * Send manual bell audio trigger broadcast to all connected screens.
+ */
+export async function sendBellBroadcast(sessionId, bellType = "warning") {
+  const bellNames = {
+    start: "🔔 BEL AUDIO MANUAL: Sesi Ujian / Reading Time Dimulai!",
+    warning: "🔔 BEL AUDIO MANUAL: Peringatan! Sisa Waktu Stase 2 Menit!",
+    rotation: "🔔 BEL AUDIO MANUAL: Waktu Stase Selesai! Segera Berpindah Pos Rotasi.",
+  };
+  const message = bellNames[bellType] || "🔔 BEL AUDIO MANUAL";
+
+  await sendBroadcast(sessionId, message, "warning", "all");
+
+  try {
+    const channelName = `osce-session:${sessionId}`;
+    let channel = supabase.getChannels().find((c) => c.topic === channelName || c.topic === `realtime:${channelName}`);
+    if (channel) {
+      await channel.send({
+        type: "broadcast",
+        event: "play_bell",
+        payload: { bell_type: bellType, message },
+      });
+    }
+  } catch (err) {
+    console.warn("WebSocket bell broadcast notice:", err);
+  }
+}
+
+/**
  * End / finish the OSCE session.
  */
 export async function finishSession(sessionId) {
   if (!sessionId) return null;
 
-  // 1. Update osce.sessions status to 'completed'
-  const sessionPromise = supabase
-    .schema("osce")
-    .from("sessions")
-    .update({
-      status: "completed",
-      finished_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", sessionId)
-    .select()
-    .maybeSingle();
+  let sessionData = null;
+  let timerData = null;
 
-  // 2. Update osce.session_timer_state phase to 'finished'
-  const timerPromise = supabase
-    .schema("osce")
-    .from("session_timer_state")
-    .upsert(
-      [{
-        session_id: sessionId,
-        phase: "finished",
-        target_end_time: null,
-        paused_remaining_ms: 0,
+  try {
+    const { data: sess } = await supabase
+      .schema("osce")
+      .from("sessions")
+      .update({
+        status: "completed",
+        finished_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      }],
-      { onConflict: "session_id" }
-    )
-    .select()
-    .maybeSingle();
+      })
+      .eq("id", sessionId)
+      .select()
+      .maybeSingle();
+    sessionData = sess;
+  } catch (err) {
+    console.warn("Notice updating session status to completed:", err);
+  }
 
-  const [{ data: sessionData }, { data: timerData }] = await Promise.all([
-    sessionPromise.catch(() => ({ data: null })),
-    timerPromise.catch(() => ({ data: null })),
-  ]);
+  try {
+    const { data: tm } = await supabase
+      .schema("osce")
+      .from("session_timer_state")
+      .upsert(
+        [{
+          session_id: sessionId,
+          phase: "finished",
+          target_end_time: null,
+          paused_remaining_ms: 0,
+          updated_at: new Date().toISOString(),
+        }],
+        { onConflict: "session_id" }
+      )
+      .select()
+      .maybeSingle();
+    timerData = tm;
+  } catch (err) {
+    console.warn("Notice updating timer state to finished:", err);
+  }
 
-  // 3. Send Realtime WebSocket Broadcast to immediately notify all Participants & Examiners
+  // Broadcast WebSocket session_finished event
   try {
     const channelName = `osce-session:${sessionId}`;
     let channel = supabase.getChannels().find((c) => c.topic === channelName || c.topic === `realtime:${channelName}`);
@@ -542,7 +576,7 @@ export async function finishSession(sessionId) {
     console.warn("WebSocket session_finished broadcast notice:", err);
   }
 
-  // 4. Cleanup & unsubscribe presence & session realtime channels after 1.5s
+  // Cleanup channels after 1.5s
   setTimeout(() => {
     cleanupChannel(`osce-session:${sessionId}`);
     cleanupChannel(`osce-presence:${sessionId}`);

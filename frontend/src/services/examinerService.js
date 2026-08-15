@@ -121,21 +121,28 @@ export async function submitExaminerEvaluation({
 
     // 5. Upsert rubric_scores
     if (evaluation?.id && rubric_scores && rubric_scores.length > 0) {
-      const scoresPayload = rubric_scores.map((s) => ({
-        evaluation_id: evaluation.id,
-        rubric_item_id: s.rubric_item_id,
-        score_given: s.score_given,
-        feedback: s.feedback || null,
-        scored_at: new Date().toISOString(),
-      }));
+      const validUuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const scoresPayload = rubric_scores
+        .filter((s) => s.rubric_item_id && validUuidRegex.test(s.rubric_item_id))
+        .map((s) => ({
+          evaluation_id: evaluation.id,
+          rubric_item_id: s.rubric_item_id,
+          score_given: s.score_given,
+          feedback: s.feedback || null,
+          scored_at: new Date().toISOString(),
+        }));
 
-      await supabase
-        .schema("osce")
-        .from("rubric_scores")
-        .upsert(scoresPayload, {
-          onConflict: "evaluation_id,rubric_item_id",
-        })
-        .catch(() => {});
+      if (scoresPayload.length > 0) {
+        await supabase
+          .schema("osce")
+          .from("rubric_scores")
+          .upsert(scoresPayload, {
+            onConflict: "evaluation_id,rubric_item_id",
+          })
+          .catch((err) => {
+            console.warn("Notice saving rubric scores to Supabase:", err);
+          });
+      }
     }
 
     return evaluation || evalPayload;

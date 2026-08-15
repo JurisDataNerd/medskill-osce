@@ -31,6 +31,7 @@ import {
   BellRing,
   X,
   LogOut,
+  History,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { fetchSessions } from "@/services/sessionService";
@@ -132,9 +133,19 @@ export default function ExaminerStagePage() {
         const currentName = (userProf?.full_name || user?.user_metadata?.full_name || user?.email || "").toLowerCase();
         const username = user?.email ? user.email.split("@")[0].toLowerCase() : "";
 
-        // 1. Fetch available sessions from sessionService
+        // 1. Fetch available active sessions from sessionService (published & ongoing only; completed sessions are in history)
         const rawSessions = await fetchSessions();
-        const sessList = rawSessions || [];
+        const sessList = (rawSessions || []).filter((s) => {
+          const status = String(s.status || "").toLowerCase();
+          return (
+            status === "published" ||
+            status === "scheduled" ||
+            status === "ongoing" ||
+            status === "running" ||
+            status === "waiting_room" ||
+            status === "paused"
+          );
+        });
         setAllActiveSessions(sessList);
 
         if (!sessList || sessList.length === 0) {
@@ -268,18 +279,153 @@ export default function ExaminerStagePage() {
         }
 
         if (st) {
-          setStationData(st);
+          // 1. Fetch Question Bank case details if question_bank_id or case_id exists
+          let qbCase = null;
+          const caseIdToFetch = st.question_bank_id || st.case_id;
+          if (caseIdToFetch) {
+            try {
+              const { data: cData } = await supabase
+                .schema("osce")
+                .from("question_bank")
+                .select(`*, question_bank_rubric_items (*), question_bank_auxiliary_configs (*)`)
+                .eq("id", caseIdToFetch)
+                .maybeSingle();
+              if (cData) qbCase = cData;
+            } catch (e) {
+              console.warn("Could not fetch question_bank case:", e);
+            }
+          }
 
-          // Query rubric items explicitly from osce.rubric_items table
-          const { data: rList } = await supabase
+          // 2. Merge station properties with question bank case properties
+          const mergedStation = {
+            ...st,
+            case_title: st.case_title || qbCase?.case_title || qbCase?.title || st.title || "Kasus Medis Terstandar",
+            system_organ: st.system_organ || qbCase?.system_organ || "Kardiovaskular",
+            skdi_level: st.skdi_level || qbCase?.skdi_level || "4A",
+            scenario: st.scenario || qbCase?.scenario || qbCase?.chief_complaint || "",
+            participant_instructions: st.participant_instructions || qbCase?.participant_instructions || "",
+            examiner_instructions: st.examiner_instructions || qbCase?.examiner_instructions || "",
+            answer_key_diagnosis: st.answer_key_diagnosis || qbCase?.answer_key_diagnosis || "",
+            answer_key_prescription: st.answer_key_prescription || qbCase?.answer_key_prescription || "",
+            answer_key_physical_exam: st.answer_key_physical_exam || qbCase?.answer_key_physical_exam || "",
+          };
+
+          setStationData(mergedStation);
+
+          // 3. Query rubric items explicitly from osce.rubric_items table
+          let { data: rList } = await supabase
             .schema("osce")
             .from("rubric_items")
             .select("*")
             .eq("station_id", st.id)
             .order("question_number", { ascending: true });
 
-          const loadedRubrics = rList && rList.length > 0 ? rList : st.rubric_items || [];
-          setRubricItems(loadedRubrics);
+          // 4. If no rubric items exist in DB for this station, populate and auto-insert real rubric items with DB UUIDs
+          if (!rList || rList.length === 0) {
+            const qbItems = qbCase?.question_bank_rubric_items || [];
+
+            let itemsToInsert = [];
+            if (qbItems.length > 0) {
+              itemsToInsert = qbItems.map((item, idx) => ({
+                station_id: st.id,
+                question_number: idx + 1,
+                title: item.title || item.question || item.name || `Item Rubrik #${idx + 1}`,
+                question: item.question || item.title || item.name || `Item Rubrik #${idx + 1}`,
+                description: item.description || item.answer_key || "",
+                answer_key: item.answer_key || item.description || "",
+                max_points: Number(item.max_points) || 3,
+                weight: Number(item.weight) || 1.0,
+                competency_area: item.competency_area || "KLINIS",
+                description_score_0: item.description_score_0 || item.descriptors?.[0] || "0: Tidak Dilakukan / Salah Total",
+                description_score_1: item.description_score_1 || item.descriptors?.[1] || "1: Minimal / Sebagian Salah",
+                description_score_2: item.description_score_2 || item.descriptors?.[2] || "2: Cukup / Memadai",
+                description_score_3: item.description_score_3 || item.descriptors?.[3] || "3: Sempurna & Lengkap",
+                sort_order: idx,
+              }));
+            } else {
+              itemsToInsert = [
+                {
+                  station_id: st.id,
+                  question_number: 1,
+                  title: "Komunikasi & Anamnesis Terarah",
+                  question: "Komunikasi & Anamnesis Terarah",
+                  description: "Evaluasi ketepatan anamnesis dan empati klinis peserta.",
+                  answer_key: mergedStation.participant_instructions || "Anamnesis terstruktur",
+                  max_points: 3,
+                  weight: 2.0,
+                  competency_area: "ANAMNESIS",
+                  description_score_0: "0: Tidak dilakukan / Salah Total",
+                  description_score_1: "1: Minimal / Sebagian Salah",
+                  description_score_2: "2: Cukup / Memadai",
+                  description_score_3: "3: Sempurna & Lengkap",
+                  sort_order: 0,
+                },
+                {
+                  station_id: st.id,
+                  question_number: 2,
+                  title: "Pemeriksaan Fisik & Penunjang",
+                  question: "Pemeriksaan Fisik & Penunjang",
+                  description: "Evaluasi teknik pemeriksaan fisik dan usulan pemeriksaan penunjang.",
+                  answer_key: "Pemeriksaan fisik & penunjang terarah",
+                  max_points: 3,
+                  weight: 3.0,
+                  competency_area: "PEMERIKSAAN_FISIK",
+                  description_score_0: "0: Tidak dilakukan / Salah Total",
+                  description_score_1: "1: Minimal / Sebagian Salah",
+                  description_score_2: "2: Cukup / Memadai",
+                  description_score_3: "3: Sempurna & Lengkap",
+                  sort_order: 1,
+                },
+                {
+                  station_id: st.id,
+                  question_number: 3,
+                  title: "Diagnosis Kerja (WDx) & Diagnosis Banding (DDx)",
+                  question: "Diagnosis Kerja (WDx) & Diagnosis Banding (DDx)",
+                  description: "Evaluasi formulasi diagnosis kerja utama dan diagnosis banding.",
+                  answer_key: mergedStation.answer_key_diagnosis || "WDx & DDx sesuai kasus",
+                  max_points: 3,
+                  weight: 4.0,
+                  competency_area: "DIAGNOSIS",
+                  description_score_0: "0: Salah total",
+                  description_score_1: "1: Kurang tepat",
+                  description_score_2: "2: Tepat",
+                  description_score_3: "3: Sempurna",
+                  sort_order: 2,
+                },
+                {
+                  station_id: st.id,
+                  question_number: 4,
+                  title: "Tatalaksana Farmakoterapi & Resep Medis",
+                  question: "Tatalaksana Farmakoterapi & Resep Medis",
+                  description: "Evaluasi penulisan resep dan tatalaksana farmakoterapi.",
+                  answer_key: mergedStation.answer_key_prescription || "Resep medis terstruktur",
+                  max_points: 3,
+                  weight: 4.0,
+                  competency_area: "RESEP_MEDIS",
+                  description_score_0: "0: Resep salah total",
+                  description_score_1: "1: Dosis / aturan pakai kurang tepat",
+                  description_score_2: "2: Tepat",
+                  description_score_3: "3: Sempurna & Lengkap",
+                  sort_order: 3,
+                },
+              ];
+            }
+
+            try {
+              const { data: insertedRubrics } = await supabase
+                .schema("osce")
+                .from("rubric_items")
+                .insert(itemsToInsert)
+                .select();
+              if (insertedRubrics && insertedRubrics.length > 0) {
+                rList = insertedRubrics;
+              }
+            } catch (e) {
+              console.warn("Notice inserting rubric items to Supabase:", e);
+            }
+          }
+
+          setRubricItems(rList || []);
 
           // Sync parent session for this station
           const { data: parentSess } = await supabase
@@ -670,29 +816,52 @@ export default function ExaminerStagePage() {
         {assignedSessionsList.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2">
             {assignedSessionsList.map(({ session: s, assignment: a, station: st }) => {
-              const isOngoing = s.status === "ongoing" || s.status === "running";
+              const sStatus = String(s.status || "").toLowerCase();
+              const isOngoing = ["ongoing", "running", "waiting_room", "paused"].includes(sStatus);
+              const isCompleted = ["completed", "finished", "selesai"].includes(sStatus);
+              const isPublished = ["published", "scheduled"].includes(sStatus);
+              const isDraft = sStatus === "draft";
 
               return (
                 <div
                   key={s.id}
                   onClick={() => {
-                    setActiveSession(s);
-                    setStationData(st);
-                    navigate(`/examiner/stage/${st?.id || s.id}`);
+                    if (isCompleted) {
+                      navigate("/examiner/history");
+                    } else if (!isDraft) {
+                      setActiveSession(s);
+                      setStationData(st);
+                      navigate(`/examiner/stage/${st?.id || s.id}`);
+                    }
                   }}
-                  className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5 space-y-4 shadow-2xs hover:border-blue-300 hover:bg-white transition flex flex-col justify-between cursor-pointer active:scale-98"
+                  className={`rounded-2xl border border-slate-200 bg-slate-50/70 p-5 space-y-4 shadow-2xs transition flex flex-col justify-between ${
+                    isDraft ? "opacity-70 cursor-not-allowed" : "hover:border-blue-300 hover:bg-white cursor-pointer active:scale-98"
+                  }`}
                 >
                   <div className="space-y-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span
-                        className={`rounded-md px-2.5 py-0.5 text-[10px] font-black uppercase inline-flex items-center gap-1 ${
-                          isOngoing
-                            ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
-                            : "bg-indigo-100 text-indigo-900 border border-indigo-300"
-                        }`}
-                      >
-                        {isOngoing ? "Live Berlangsung" : "Dipublikasikan (Terjadwal)"}
-                      </span>
+                      {isOngoing && (
+                        <span className="rounded-md bg-emerald-100 text-emerald-900 border border-emerald-300 px-2.5 py-0.5 text-[10px] font-black uppercase inline-flex items-center gap-1">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-ping" />
+                          Live Berlangsung
+                        </span>
+                      )}
+                      {isPublished && (
+                        <span className="rounded-md bg-blue-100 text-blue-900 border border-blue-300 px-2.5 py-0.5 text-[10px] font-black uppercase inline-flex items-center gap-1">
+                          Dipublikasikan (Terjadwal)
+                        </span>
+                      )}
+                      {isCompleted && (
+                        <span className="rounded-md bg-slate-200 text-slate-700 border border-slate-300 px-2.5 py-0.5 text-[10px] font-black uppercase inline-flex items-center gap-1">
+                          <CheckCircle2 size={11} className="text-slate-600" />
+                          Selesai (Completed)
+                        </span>
+                      )}
+                      {isDraft && (
+                        <span className="rounded-md bg-amber-100 text-amber-900 border border-amber-300 px-2.5 py-0.5 text-[10px] font-black uppercase inline-flex items-center gap-1">
+                          Draft (Belum Dipublikasikan)
+                        </span>
+                      )}
 
                       <span className="rounded-md bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-[10px] font-black text-emerald-900 inline-flex items-center gap-1 uppercase">
                         <CheckCircle2 size={11} className="text-emerald-700" />
@@ -722,15 +891,48 @@ export default function ExaminerStagePage() {
                   </div>
 
                   <div className="pt-3 border-t border-slate-200/60">
-                    <button
-                      className={`w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold text-white shadow-md transition active:scale-95 ${
-                        isOngoing
-                          ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/30 animate-pulse"
-                          : "bg-blue-600 hover:bg-blue-700 shadow-blue-600/30"
-                      }`}
-                    >
-                      {isOngoing ? "Masuk Sesi Live Ujian" : "Buka Kiosk Standby Sesi"}
-                    </button>
+                    {isCompleted ? (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate("/examiner/history");
+                        }}
+                        className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 bg-slate-200 hover:bg-slate-300 transition active:scale-95 shadow-sm"
+                      >
+                        <History size={16} />
+                        Lihat Riwayat & Rekap Evaluasi
+                      </button>
+                    ) : isDraft ? (
+                      <button
+                        type="button"
+                        disabled
+                        className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-400 bg-slate-100 cursor-not-allowed border border-slate-200"
+                      >
+                        Belum Dipublikasikan oleh Admin
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className={`w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold text-white shadow-md transition active:scale-95 ${
+                          isOngoing
+                            ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/30 animate-pulse"
+                            : "bg-blue-600 hover:bg-blue-700 shadow-blue-600/30"
+                        }`}
+                      >
+                        {isOngoing ? (
+                          <>
+                            <PlayCircle size={16} />
+                            Masuk Sesi Live Ujian
+                          </>
+                        ) : (
+                          <>
+                            <Play size={15} />
+                            Buka Kiosk Standby Sesi
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -1417,14 +1619,14 @@ export default function ExaminerStagePage() {
                 <div className="rounded-2xl bg-white/10 p-3.5 border border-white/10 space-y-1">
                   <span className="text-[10px] font-extrabold text-emerald-300 uppercase block">Kunci Diagnosis (WDx & DDx):</span>
                   <p className="font-semibold text-slate-100 leading-relaxed whitespace-pre-line">
-                    {stationData?.answer_key_diagnosis || "WDx: STEMI Inferior Onset < 12 Jam (Killip I)\nDDx: UAP, Diseksi Aorta, Perikarditis Akut"}
+                    {stationData?.answer_key_diagnosis || "Belum ada kunci diagnosis yang dikonfigurasi untuk stase ini."}
                   </p>
                 </div>
 
                 <div className="rounded-2xl bg-white/10 p-3.5 border border-white/10 space-y-1">
                   <span className="text-[10px] font-extrabold text-emerald-300 uppercase block">Kunci Resep Baku (Rx):</span>
                   <p className="font-semibold text-slate-100 leading-relaxed font-mono whitespace-pre-line">
-                    {stationData?.answer_key_prescription || "R/ Aspirin 80mg tab No. IV (Dosis Awal 320mg Kunyah)\nR/ Clopidogrel 75mg tab No. IV (Dosis Awal 300mg)"}
+                    {stationData?.answer_key_prescription || "Belum ada kunci resep obat yang dikonfigurasi untuk stase ini."}
                   </p>
                 </div>
 
@@ -1440,8 +1642,8 @@ export default function ExaminerStagePage() {
 
               {showScenario && (
                 <div className="rounded-2xl bg-slate-900/90 border border-emerald-400/40 p-4 space-y-2 text-xs text-slate-200 animate-in fade-in duration-200">
-                  <p><strong>Skenario Klinis:</strong> {stationData?.scenario || "Seorang laki-laki 55 tahun datang dengan keluhan nyeri dada substernal menjalar ke lengan kiri sejak 2 jam lalu."}</p>
-                  <p><strong>Instruksi Penguji:</strong> {stationData?.examiner_instructions || "Amati ketepatan auskultasi jantung, permintaan EKG, dan dosis loading antiplatelet."}</p>
+                  <p><strong>Skenario Klinis:</strong> {stationData?.scenario || "Skenario kasus medis terstandar untuk stase ini."}</p>
+                  <p><strong>Instruksi Penguji:</strong> {stationData?.examiner_instructions || "Amati kesantunan, komunikasi, dan keterampilan klinis peserta."}</p>
                 </div>
               )}
             </div>
@@ -1454,20 +1656,14 @@ export default function ExaminerStagePage() {
               </h2>
 
               <div className="space-y-4">
-                {(rubricItems.length > 0 ? rubricItems : [
-                  { id: "r1", title: "Anamnesis terarah nyeri dada (PQRST, Onset, Faktor Risiko)", max_points: 3, weight: 4 },
-                  { id: "r2", title: "Pemeriksaan fisik tanda vital & auskultasi 4 katup jantung", max_points: 3, weight: 3 },
-                  { id: "r3", title: "Pemeriksaan penunjang EKG 12 Lead & Enzim Jantung", max_points: 3, weight: 3 },
-                  { id: "r4", title: "Formulasi Diagnosis Kerja (STEMI Inferior) & DDx", max_points: 3, weight: 3 },
-                  { id: "r5", title: "Penulisan Resep Dual Antiplatelet Therapy (DAPT)", max_points: 3, weight: 3 },
-                ]).map((rub, rIdx) => {
+                {rubricItems.map((rub, rIdx) => {
                   const scoreVal = rubricScores[rub.id] ?? 3;
-                  const itemTitle = rub.title || rub.name || rub.question || `Item Rubrik #${rIdx + 1}`;
-                  const itemDesc = rub.description || "";
-                  const desc0 = rub.description_score_0 || "0: Tidak Dilakukan / Salah Total";
-                  const desc1 = rub.description_score_1 || "1: Minimal / Sebagian Salah";
-                  const desc2 = rub.description_score_2 || "2: Cukup / Memadai";
-                  const desc3 = rub.description_score_3 || "3: Sempurna & Lengkap";
+                  const itemTitle = rub.title || rub.question || rub.name || `Item Rubrik #${rIdx + 1}`;
+                  const itemDesc = rub.description || rub.answer_key || "";
+                  const desc0 = rub.description_score_0 || rub.descriptors?.[0] || "0: Tidak Dilakukan / Salah Total";
+                  const desc1 = rub.description_score_1 || rub.descriptors?.[1] || "1: Minimal / Sebagian Salah";
+                  const desc2 = rub.description_score_2 || rub.descriptors?.[2] || "2: Cukup / Memadai";
+                  const desc3 = rub.description_score_3 || rub.descriptors?.[3] || "3: Sempurna & Lengkap";
 
                   const opts = [
                     { val: 0, label: "Poin 0", desc: desc0, short: "Salah Total" },

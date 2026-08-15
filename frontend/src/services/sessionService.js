@@ -96,12 +96,14 @@ export async function createSession(sessionPayload, stationsPayload = []) {
       title: st.title || `Stase ${idx + 1}`,
       case_title: st.case_title || null,
       system_organ: st.system_organ || null,
-      skdi_level: st.skdi_level || null,
+      skdi_level: st.skdi_level || st.competency_level || null,
       scenario: st.scenario || null,
-      participant_instructions: st.participant_instructions || null,
-      examiner_instructions: st.examiner_instructions || null,
+      participant_instructions: st.participant_instructions || st.participant_instruction || null,
+      examiner_instructions: st.examiner_instructions || st.examiner_instruction || null,
       answer_key_diagnosis: st.answer_key_diagnosis || null,
       answer_key_prescription: st.answer_key_prescription || null,
+      answer_key_physical_exam: st.answer_key_physical_exam || st.auxiliary_answer_key || null,
+      question_bank_id: st.question_bank_id || st.case_id || null,
       assigned_examiner: st.assigned_examiner || st.examiner_name || null,
       examiner_name: st.assigned_examiner || st.examiner_name || null,
       examiner_specialty: st.examiner_specialty || null,
@@ -116,6 +118,14 @@ export async function createSession(sessionPayload, stationsPayload = []) {
       .select();
 
     if (stationsErr) console.warn("Error inserting stations:", stationsErr);
+
+    // Save rubric_items and station_auxiliary_configs for each created station
+    const stationsToProcess = createdStations || [];
+    for (let i = 0; i < stationsToProcess.length; i++) {
+      const createdSt = stationsToProcess[i];
+      const origSt = stationsPayload[i] || {};
+      await saveStationChildren(createdSt.id, origSt);
+    }
 
     // Save examiner assignments to osce.session_examiners
     const examinersPayload = [];
@@ -160,6 +170,69 @@ export async function createSession(sessionPayload, stationsPayload = []) {
 }
 
 /**
+ * Helper to save/update rubric_items and station_auxiliary_configs in Supabase
+ */
+export async function saveStationChildren(stationId, st) {
+  if (!stationId) return;
+
+  // 1. Handle Rubric Items
+  const rubrics = st.rubric_items || st.checklist_items || st.checklist || [];
+  if (Array.isArray(rubrics) && rubrics.length > 0) {
+    try {
+      await supabase.schema("osce").from("rubric_items").delete().eq("station_id", stationId);
+
+      const rubricPayload = rubrics.map((r, idx) => {
+        const descObj = typeof r.descriptors === "object" && r.descriptors ? r.descriptors : {};
+        return {
+          station_id: stationId,
+          question_number: idx + 1,
+          title: r.title || r.question || r.name || `Item Rubrik #${idx + 1}`,
+          question: r.question || r.title || r.name || `Item Rubrik #${idx + 1}`,
+          description: r.description || r.answer_key || "",
+          answer_key: r.answer_key || r.description || "",
+          max_points: Number(r.max_points) || 3,
+          weight: Number(r.weight) || 1.0,
+          competency_area: r.competency_area || r.competency || "KLINIS",
+          description_score_0: r.description_score_0 || descObj?.[0] || descObj?.["0"] || "0: Tidak Dilakukan / Salah Total",
+          description_score_1: r.description_score_1 || descObj?.[1] || descObj?.["1"] || "1: Minimal / Sebagian Salah",
+          description_score_2: r.description_score_2 || descObj?.[2] || descObj?.["2"] || "2: Cukup / Memadai",
+          description_score_3: r.description_score_3 || descObj?.[3] || descObj?.["3"] || "3: Sempurna & Lengkap",
+          sort_order: idx,
+        };
+      });
+
+      const { error: rErr } = await supabase.schema("osce").from("rubric_items").insert(rubricPayload);
+      if (rErr) console.warn("Error inserting rubric_items to Supabase:", rErr);
+    } catch (err) {
+      console.warn("Notice saving rubric_items:", err);
+    }
+  }
+
+  // 2. Handle Station Auxiliary Configs (Berkas Penunjang)
+  const auxFiles = st.station_auxiliary_configs || st.auxiliary_exam_configs || st.auxiliary_files || st.auxiliaryFiles || [];
+  if (Array.isArray(auxFiles) && auxFiles.length > 0) {
+    try {
+      await supabase.schema("osce").from("station_auxiliary_configs").delete().eq("station_id", stationId);
+
+      const auxPayload = auxFiles.map((aux, idx) => ({
+        station_id: stationId,
+        title: aux.title || aux.name || `Berkas Penunjang #${idx + 1}`,
+        category: aux.category || "Radiologi",
+        file_url: aux.file_url || aux.imageUrl || "",
+        report_text: aux.report_text || aux.reportText || "",
+        is_unlocked_by_default: Boolean(aux.is_unlocked_by_default ?? aux.matched_key),
+        sort_order: idx,
+      }));
+
+      const { error: auxErr } = await supabase.schema("osce").from("station_auxiliary_configs").insert(auxPayload);
+      if (auxErr) console.warn("Error inserting station_auxiliary_configs to Supabase:", auxErr);
+    } catch (err) {
+      console.warn("Notice saving station_auxiliary_configs:", err);
+    }
+  }
+}
+
+/**
  * Update an existing OSCE session with its stations
  */
 export async function updateSession(sessionId, sessionPayload, stationsPayload = []) {
@@ -191,12 +264,14 @@ export async function updateSession(sessionId, sessionPayload, stationsPayload =
       title: st.title || `Stase ${idx + 1}`,
       case_title: st.case_title || null,
       system_organ: st.system_organ || null,
-      skdi_level: st.skdi_level || null,
+      skdi_level: st.skdi_level || st.competency_level || null,
       scenario: st.scenario || null,
-      participant_instructions: st.participant_instructions || null,
-      examiner_instructions: st.examiner_instructions || null,
+      participant_instructions: st.participant_instructions || st.participant_instruction || null,
+      examiner_instructions: st.examiner_instructions || st.examiner_instruction || null,
       answer_key_diagnosis: st.answer_key_diagnosis || null,
       answer_key_prescription: st.answer_key_prescription || null,
+      answer_key_physical_exam: st.answer_key_physical_exam || st.auxiliary_answer_key || null,
+      question_bank_id: st.question_bank_id || st.case_id || null,
       assigned_examiner: st.assigned_examiner || st.examiner_name || null,
       examiner_name: st.assigned_examiner || st.examiner_name || null,
       examiner_specialty: st.examiner_specialty || null,
@@ -211,6 +286,14 @@ export async function updateSession(sessionId, sessionPayload, stationsPayload =
       .select();
 
     if (stationsErr) console.warn("Error updating stations:", stationsErr);
+
+    // Save rubric_items and station_auxiliary_configs for each created station
+    const stationsToProcess = createdStations || [];
+    for (let i = 0; i < stationsToProcess.length; i++) {
+      const createdSt = stationsToProcess[i];
+      const origSt = stationsPayload[i] || {};
+      await saveStationChildren(createdSt.id, origSt);
+    }
 
     // Save examiner assignments to osce.session_examiners
     const examinersPayload = [];

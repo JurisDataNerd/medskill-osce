@@ -55,7 +55,7 @@ const menus = [
   },
 ];
 
-export default function AdminLayout({ children }) {
+export default function AdminLayout({ children, headerAction }) {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
@@ -207,10 +207,14 @@ export default function AdminLayout({ children }) {
           </div>
 
           <div className="flex items-center gap-3">
-            <button className="relative rounded-xl bg-slate-100 p-2.5 transition hover:bg-slate-200">
-              <Bell size={20} className="text-slate-600" />
-              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500" />
-            </button>
+            {headerAction ? (
+              headerAction
+            ) : (
+              <button className="relative rounded-xl bg-slate-100 p-2.5 transition hover:bg-slate-200">
+                <Bell size={20} className="text-slate-600" />
+                <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500" />
+              </button>
+            )}
           </div>
 
         </header>
