@@ -40,8 +40,8 @@ export default function MediaEmbedViewer({
   className = "",
   zoomLevel = 1,
 }) {
-  const [useIframe, setUseIframe] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [useIframe, setUseIframe] = useState(false);
 
   if (!src) {
     return (
@@ -52,9 +52,13 @@ export default function MediaEmbedViewer({
     );
   }
 
-  const embedUrl = getEmbeddableUrl(src);
-  const isDriveUrl = src.includes("drive.google.com") || src.includes("docs.google.com");
-  const isDirectImage = !isDriveUrl && (src.match(/\.(jpeg|jpg|gif|png|webp|svg)($|\?)/i) || src.startsWith("data:image/"));
+  const cleanSrc = src.trim();
+  const embedUrl = getEmbeddableUrl(cleanSrc);
+  const isDriveUrl = cleanSrc.includes("drive.google.com") || cleanSrc.includes("docs.google.com");
+  const isPdfOrDoc = cleanSrc.match(/\.(pdf|doc|docx|xls|xlsx|ppt|pptx)($|\?)/i);
+
+  // If it's a Drive URL or PDF/Doc, iframe is required
+  const isIframeMode = isDriveUrl || isPdfOrDoc || useIframe;
 
   return (
     <div className={`relative w-full rounded-2xl overflow-hidden bg-slate-950 border border-slate-800 shadow-xl space-y-2 ${className}`}>
@@ -71,18 +75,18 @@ export default function MediaEmbedViewer({
         </div>
 
         <div className="flex items-center gap-2">
-          {!isDriveUrl && isDirectImage && (
+          {!isDriveUrl && !isPdfOrDoc && (
             <button
               onClick={() => setUseIframe(!useIframe)}
-              className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1 text-[11px] font-bold text-slate-200 hover:bg-slate-700 transition"
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1 text-[11px] font-bold text-slate-200 hover:bg-slate-700 transition cursor-pointer"
             >
-              {useIframe ? <ImageIcon size={13} /> : <Eye size={13} />}
-              {useIframe ? "Mode Gambar Direct" : "Mode Frame Iframe"}
+              {isIframeMode ? <ImageIcon size={13} /> : <Eye size={13} />}
+              {isIframeMode ? "Mode Gambar Direct" : "Mode Frame Iframe"}
             </button>
           )}
 
           <a
-            href={src}
+            href={cleanSrc}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1 text-[11px] font-bold text-blue-300 hover:bg-slate-700 hover:text-white transition"
@@ -96,9 +100,9 @@ export default function MediaEmbedViewer({
       {/* Main Render Area */}
       <div
         style={{ height }}
-        className="relative w-full overflow-hidden bg-slate-950 flex items-center justify-center p-1"
+        className="relative w-full overflow-hidden bg-slate-950 flex items-center justify-center p-2"
       >
-        {useIframe || isDriveUrl || !isDirectImage ? (
+        {isIframeMode ? (
           <iframe
             src={embedUrl}
             title={alt}
@@ -107,14 +111,34 @@ export default function MediaEmbedViewer({
             allowFullScreen
             onError={() => setLoadError(true)}
           />
+        ) : loadError ? (
+          <div className="flex flex-col items-center justify-center p-6 text-center space-y-3">
+            <AlertCircle size={32} className="text-amber-400" />
+            <p className="text-xs text-slate-300 font-medium">
+              Gagal memuat pratinjau gambar secara langsung.
+            </p>
+            <a
+              href={cleanSrc}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700 transition"
+            >
+              <ExternalLink size={14} />
+              Buka Berkas di Tab Baru
+            </a>
+          </div>
         ) : (
           <div className="w-full h-full overflow-auto flex items-center justify-center">
             <img
-              src={src}
+              src={cleanSrc}
               alt={alt}
               style={{ transform: `scale(${zoomLevel})` }}
               className="max-w-full max-h-full object-contain rounded-lg transition-transform duration-200"
-              onError={() => setUseIframe(true)}
+              onError={() => {
+                // If direct image loading fails, attempt iframe or show fallback
+                if (!useIframe) setUseIframe(true);
+                else setLoadError(true);
+              }}
             />
           </div>
         )}

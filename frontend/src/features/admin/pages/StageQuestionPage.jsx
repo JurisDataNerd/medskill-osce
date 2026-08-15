@@ -171,16 +171,40 @@ export default function StageQuestionPage() {
     setCompetencyLevel(data.competency_level || "4A (Tuntas Mandiri)");
     setAssignedExaminer(data.assigned_examiner || "");
     setScenario(data.scenario || "");
-    setParticipantInstruction(data.participant_instruction || "");
-    setExaminerInstruction(data.examiner_instruction || "");
+    setParticipantInstruction(data.participant_instructions || data.participant_instruction || "");
+    setExaminerInstruction(data.examiner_instructions || data.examiner_instruction || "");
     setDurationMinutes(data.duration_minutes || 15);
 
     setAuxAnswerKey(data.auxiliary_answer_key || "");
     setAuxFiles(data.auxiliary_files || []);
 
-    setWdxKey(data.gold_standard_keys?.wdx || "");
-    setDdxKeys(data.gold_standard_keys?.ddx || []);
-    setRecipeKey(data.gold_standard_keys?.recipe || "");
+    const rawDiagStr = data.answer_key_diagnosis || data.gold_standard_keys?.wdx || "";
+    let parsedWdx = data.gold_standard_keys?.wdx || "";
+    let parsedDdxArr = Array.isArray(data.gold_standard_keys?.ddx) ? [...data.gold_standard_keys.ddx] : [];
+
+    if (!parsedWdx && rawDiagStr) {
+      const diagLines = rawDiagStr.split("\n");
+      const ddxExtracted = [];
+      diagLines.forEach((l) => {
+        if (/wdx|kerja/i.test(l)) {
+          parsedWdx = l.replace(/^(wdx|diagnosis kerja utama|kerja)[\s:]*/i, "").trim();
+        } else if (/ddx|banding/i.test(l)) {
+          const dVal = l.replace(/^(ddx\s*\d*|diagnosis banding\s*\d*|banding\s*\d*)[\s:]*/i, "").trim();
+          if (dVal) ddxExtracted.push(dVal);
+        }
+      });
+      if (!parsedWdx && diagLines[0]) parsedWdx = diagLines[0];
+      if (ddxExtracted.length > 0) parsedDdxArr = ddxExtracted;
+      else if (diagLines.length > 1 && parsedDdxArr.length === 0) parsedDdxArr = diagLines.slice(1);
+    }
+
+    while (parsedDdxArr.length < 2) {
+      parsedDdxArr.push("");
+    }
+
+    setWdxKey(parsedWdx);
+    setDdxKeys(parsedDdxArr);
+    setRecipeKey(data.answer_key_prescription || data.gold_standard_keys?.recipe || "");
 
     setRubricItems(data.rubric_items || []);
     setLoading(false);
@@ -196,6 +220,8 @@ export default function StageQuestionPage() {
         category: "Radiologi",
         matched_key: true,
         file_url: "",
+        image_url: "",
+        report_text: "",
       },
     ]);
   }
@@ -209,6 +235,15 @@ export default function StageQuestionPage() {
   function updateAuxFile(idx, field, value) {
     const updated = [...auxFiles];
     updated[idx][field] = value;
+    if (field === "file_url" || field === "image_url" || field === "imageUrl") {
+      updated[idx]["file_url"] = value;
+      updated[idx]["image_url"] = value;
+      updated[idx]["imageUrl"] = value;
+    }
+    if (field === "report_text" || field === "reportText") {
+      updated[idx]["report_text"] = value;
+      updated[idx]["reportText"] = value;
+    }
     setAuxFiles(updated);
   }
 
@@ -279,7 +314,9 @@ export default function StageQuestionPage() {
       assigned_examiner: assignedExaminer,
       scenario,
       participant_instruction: participantInstruction,
+      participant_instructions: participantInstruction,
       examiner_instruction: examinerInstruction,
+      examiner_instructions: examinerInstruction,
       duration_minutes: Number(durationMinutes),
       auxiliary_answer_key: auxAnswerKey,
       auxiliary_files: auxFiles,
@@ -639,15 +676,28 @@ export default function StageQuestionPage() {
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-600 mb-0.5">URL Berkas Gambar / PDF Hasil</label>
-                    <input
-                      type="text"
-                      value={file.file_url}
-                      onChange={(e) => updateAuxFile(idx, "file_url", e.target.value)}
-                      placeholder="https://images.unsplash.com/... atau URL berkas hasil"
-                      className="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none font-mono"
-                    />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-0.5">URL Berkas Gambar / PDF Hasil / Link Storage</label>
+                      <input
+                        type="text"
+                        value={file.image_url || file.file_url || ""}
+                        onChange={(e) => updateAuxFile(idx, "file_url", e.target.value)}
+                        placeholder="https://images.unsplash.com/... atau URL berkas hasil"
+                        className="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none font-mono"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-0.5">Catatan Laporan / Ekspertise Medis Teks</label>
+                      <input
+                        type="text"
+                        value={file.report_text || file.reportText || ""}
+                        onChange={(e) => updateAuxFile(idx, "report_text", e.target.value)}
+                        placeholder="misal: ST Elevation pada Lead V1-V4 (STEMI Anteroseptal)"
+                        className="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none font-medium"
+                      />
+                    </div>
                   </div>
                 </div>
               ))}
@@ -672,12 +722,12 @@ export default function StageQuestionPage() {
             <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
               1. Kunci Diagnosis Kerja Baku (Working Diagnosis - WDx)
             </label>
-            <input
-              type="text"
+            <textarea
+              rows={3}
               value={wdxKey}
               onChange={(e) => setWdxKey(e.target.value)}
-              placeholder="misal: STEMI Anteroseptal Akut (ICD-10: I21.0)"
-              className="w-full rounded-xl border border-slate-200 p-3 text-xs text-slate-900 font-bold focus:border-blue-500 focus:outline-none"
+              placeholder="Tuliskan kunci diagnosis kerja utama (WDx) secara lengkap..."
+              className="w-full rounded-xl border border-slate-200 p-3 text-xs text-slate-900 font-bold focus:border-blue-500 focus:outline-none leading-relaxed"
             />
           </div>
 
@@ -695,21 +745,21 @@ export default function StageQuestionPage() {
               </button>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-3">
               {ddxKeys.map((ddx, dIdx) => (
-                <div key={dIdx} className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-slate-400 w-6">{dIdx + 1}.</span>
-                  <input
-                    type="text"
+                <div key={dIdx} className="flex items-start gap-2">
+                  <span className="text-xs font-bold text-slate-400 w-6 mt-2.5">{dIdx + 1}.</span>
+                  <textarea
+                    rows={2}
                     value={ddx}
                     onChange={(e) => updateDdxKey(dIdx, e.target.value)}
-                    placeholder={`Diagnosis Banding #${dIdx + 1}`}
-                    className="flex-1 rounded-xl border border-slate-200 p-2.5 text-xs text-slate-800 font-semibold focus:border-blue-500 focus:outline-none"
+                    placeholder={`Tuliskan kunci diagnosis banding #${dIdx + 1} (DDx ${dIdx + 1})...`}
+                    className="flex-1 rounded-xl border border-slate-200 p-2.5 text-xs text-slate-800 font-semibold focus:border-blue-500 focus:outline-none leading-relaxed"
                   />
                   <button
                     type="button"
                     onClick={() => removeDdxKey(dIdx)}
-                    className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg"
+                    className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg mt-1"
                   >
                     <Trash2 size={15} />
                   </button>

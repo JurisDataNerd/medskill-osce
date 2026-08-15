@@ -21,10 +21,10 @@ export default function StaseModal({
       setTitle(initialData.title ?? "");
       setScenario(initialData.scenario ?? "");
       setParticipantInstruction(
-        initialData.participant_instruction ?? ""
+        initialData.participant_instructions ?? initialData.participant_instruction ?? ""
       );
       setExaminerInstruction(
-        initialData.examiner_instruction ?? ""
+        initialData.examiner_instructions ?? initialData.examiner_instruction ?? ""
       );
       setDurationMinutes(
         initialData.duration_minutes ?? 10
@@ -49,7 +49,9 @@ export default function StaseModal({
       title,
       scenario,
       participant_instruction: participantInstruction,
+      participant_instructions: participantInstruction,
       examiner_instruction: examinerInstruction,
+      examiner_instructions: examinerInstruction,
       duration_minutes: Number(durationMinutes),
       checklist: initialData?.checklist ?? [],
     });

@@ -361,17 +361,40 @@ export default function SessionDetailPage() {
                       <div>
                         <h4 className="font-bold text-slate-900 text-xs uppercase mb-1">Instruksi Peserta Ujian</h4>
                         <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-slate-700 whitespace-pre-line font-medium">
-                          {stage.participant_instruction || "1. Lakukan anamnesis terarah.\n2. Lakukan pemeriksaan fisik sesuai standar SOP.\n3. Sampaikan diagnosis kerja & terapi."}
+                          {stage.participant_instructions || stage.participant_instruction || "1. Lakukan anamnesis terarah.\n2. Lakukan pemeriksaan fisik sesuai standar SOP.\n3. Sampaikan diagnosis kerja & terapi."}
                         </div>
                       </div>
 
                       <div>
                         <h4 className="font-bold text-slate-900 text-xs uppercase mb-1">Instruksi Dokter Penguji</h4>
                         <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-slate-700 whitespace-pre-line font-medium">
-                          {stage.examiner_instruction || "Amati kepatuhan prosedur sterilitas tangan, ketepatan auskultasi/pemeriksaan fisik, dan penyampaian edukasi ke pasien."}
+                          {stage.examiner_instructions || stage.examiner_instruction || "Amati kepatuhan prosedur sterilitas tangan, ketepatan auskultasi/pemeriksaan fisik, dan penyampaian edukasi ke pasien."}
                         </div>
                       </div>
                     </div>
+
+                    {/* Kunci Jawaban Diagnosis (WDx, DDx 1, DDx 2) & Resep Baku */}
+                    {(stage.answer_key_diagnosis || stage.answer_key_prescription) && (
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {stage.answer_key_diagnosis && (
+                          <div>
+                            <h4 className="font-bold text-slate-900 text-xs uppercase mb-1">Kunci Diagnosis (WDx, DDx 1, DDx 2)</h4>
+                            <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-slate-800 text-xs font-medium whitespace-pre-line leading-relaxed">
+                              {stage.answer_key_diagnosis}
+                            </div>
+                          </div>
+                        )}
+
+                        {stage.answer_key_prescription && (
+                          <div>
+                            <h4 className="font-bold text-slate-900 text-xs uppercase mb-1">Kunci Jawaban Resep Medis Baku</h4>
+                            <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-3 text-slate-900 text-xs font-mono whitespace-pre-line leading-relaxed">
+                              {stage.answer_key_prescription}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Berkas Penunjang (Auxiliary Exam Configs) */}
                     <div>
@@ -382,16 +405,32 @@ export default function SessionDetailPage() {
                         </span>
                       </h4>
                       {stage.station_auxiliary_configs && stage.station_auxiliary_configs.length > 0 ? (
-                        <div className="flex flex-wrap gap-2">
-                          {stage.station_auxiliary_configs.map((aux, aIdx) => (
-                            <div key={aIdx} className="rounded-lg bg-blue-50 border border-blue-200 px-3 py-1.5 text-xs">
-                              <span className="font-bold text-blue-900">{aux.title || aux.name || "Berkas Penunjang"}</span>
-                              <span className="ml-2 text-[10px] bg-blue-200 text-blue-800 px-1.5 py-0.5 rounded font-extrabold">{aux.category || "Radiologi"}</span>
-                              {aux.report_text && (
-                                <p className="text-[11px] text-slate-600 mt-0.5">{aux.report_text}</p>
-                              )}
-                            </div>
-                          ))}
+                        <div className="flex flex-wrap gap-2.5">
+                          {stage.station_auxiliary_configs.map((aux, aIdx) => {
+                            const imgUrl = aux.image_url || aux.imageUrl || aux.file_url;
+                            const reportNote = aux.report_text || aux.reportText;
+                            return (
+                              <div key={aIdx} className="rounded-xl bg-blue-50/80 border border-blue-200 p-2.5 text-xs space-y-1 max-w-sm">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="font-bold text-blue-900">{aux.name || aux.title || "Berkas Penunjang"}</span>
+                                  <span className="text-[10px] bg-blue-200 text-blue-800 px-2 py-0.5 rounded font-extrabold uppercase">{aux.category || "Radiologi"}</span>
+                                </div>
+                                {reportNote && (
+                                  <p className="text-[11px] text-slate-700 font-medium">Catatan: {reportNote}</p>
+                                )}
+                                {imgUrl && (
+                                  <a
+                                    href={imgUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1 text-[10px] font-extrabold text-blue-700 hover:underline mt-0.5"
+                                  >
+                                    🔗 Lihat Lampiran Gambar / Drive
+                                  </a>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       ) : (
                         <p className="text-[11px] text-slate-400 italic">Belum ada berkas penunjang yang dikonfigurasi untuk stase ini.</p>

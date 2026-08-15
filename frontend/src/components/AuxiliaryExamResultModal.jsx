@@ -186,21 +186,29 @@ export default function AuxiliaryExamResultModal({
             {/* Media & Iframe Viewer Area */}
             <div className="p-2 bg-slate-950">
               <MediaEmbedViewer
-                src={currentResult.imageUrl || currentResult.file_url || currentResult.media_url}
-                alt={currentResult.name || "Hasil Pemeriksaan Penunjang"}
+                src={
+                  currentResult.image_url ||
+                  currentResult.imageUrl ||
+                  currentResult.file_url ||
+                  currentResult.media_url ||
+                  currentResult.url ||
+                  currentResult.link ||
+                  ""
+                }
+                alt={currentResult.name || currentResult.title || "Hasil Pemeriksaan Penunjang"}
                 height={isFullscreen ? "620px" : "440px"}
                 zoomLevel={zoomLevel}
               />
             </div>
 
             {/* Diagnostic Report / Notes */}
-            {currentResult.reportText && (
+            {(currentResult.reportText || currentResult.report_text) && (
               <div className="border-t border-slate-200 bg-slate-50 p-4 space-y-1 text-xs">
                 <h4 className="font-bold text-slate-900 uppercase tracking-wider text-[10px]">
                   Laporan Ekspertise Radiologi / Lab:
                 </h4>
                 <p className="text-slate-700 font-medium whitespace-pre-line leading-relaxed">
-                  {currentResult.reportText}
+                  {currentResult.reportText || currentResult.report_text}
                 </p>
               </div>
             )}

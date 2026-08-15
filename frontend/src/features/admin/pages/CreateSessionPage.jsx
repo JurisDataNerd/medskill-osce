@@ -493,26 +493,64 @@ export default function CreateSessionPage() {
 
             if (foundSession.stations && foundSession.stations.length > 0) {
               const loadedStations = reindexAndAutoNameStations(
-                foundSession.stations.map((st, idx) => ({
-                  id: st.id,
-                  station_number: st.station_number || idx + 1,
-                  is_break: st.is_break,
-                  title: st.title || (st.is_break ? `Stase Istirahat ${idx + 1}` : `Stase Ujian ${idx + 1}`),
-                  case_title: st.case_title || (st.is_break ? `Rotasi Istirahat ${idx + 1}` : `Stase Ujian ${idx + 1}`),
-                  system_organ: st.system_organ || null,
-                  skdi_level: st.skdi_level || null,
-                  scenario: st.scenario || "",
-                  participant_instructions: st.participant_instructions || "",
-                  examiner_instructions: st.examiner_instructions || "",
-                  answer_key_diagnosis: st.answer_key_diagnosis || "",
-                  answer_key_prescription: st.answer_key_prescription || "",
-                  assigned_examiner: st.assigned_examiner || st.examiner_name || null,
-                  examiner_name: st.assigned_examiner || st.examiner_name || null,
-                  examiner_specialty: st.examiner_specialty || null,
-                  examiner_user_id: st.examiner_user_id || null,
-                  checklist_items: st.rubric_items || [],
-                  auxiliary_exam_configs: st.station_auxiliary_configs || [],
-                }))
+                foundSession.stations.map((st, idx) => {
+                  const rawDiag = st.answer_key_diagnosis || "";
+                  const diagLines = rawDiag.split("\n");
+                  let wdx = st.answer_key_wdx || "";
+                  let ddx1 = st.answer_key_ddx1 || "";
+                  let ddx2 = st.answer_key_ddx2 || "";
+
+                  if (!wdx && rawDiag) {
+                    diagLines.forEach((l) => {
+                      if (/wdx|kerja/i.test(l)) wdx = l.replace(/^(wdx|diagnosis kerja utama|kerja)[\s:]*/i, "").trim();
+                      else if (/ddx\s*1|banding\s*1/i.test(l)) ddx1 = l.replace(/^(ddx\s*1|diagnosis banding 1|banding 1)[\s:]*/i, "").trim();
+                      else if (/ddx\s*2|banding\s*2/i.test(l)) ddx2 = l.replace(/^(ddx\s*2|diagnosis banding 2|banding 2)[\s:]*/i, "").trim();
+                    });
+                    if (!wdx && diagLines[0]) wdx = diagLines[0];
+                    if (!ddx1 && diagLines[1]) ddx1 = diagLines[1];
+                    if (!ddx2 && diagLines[2]) ddx2 = diagLines[2];
+                  }
+
+                  return {
+                    id: st.id,
+                    station_number: st.station_number || idx + 1,
+                    is_break: st.is_break,
+                    title: st.title || (st.is_break ? `Stase Istirahat ${idx + 1}` : `Stase Ujian ${idx + 1}`),
+                    case_title: st.case_title || (st.is_break ? `Rotasi Istirahat ${idx + 1}` : `Stase Ujian ${idx + 1}`),
+                    system_organ: st.system_organ || null,
+                    skdi_level: st.skdi_level || null,
+                    scenario: st.scenario || "",
+                    participant_instructions: st.participant_instructions || "",
+                    examiner_instructions: st.examiner_instructions || "",
+                    answer_key_diagnosis: st.answer_key_diagnosis || "",
+                    answer_key_wdx: wdx,
+                    answer_key_ddx1: ddx1,
+                    answer_key_ddx2: ddx2,
+                    answer_key_prescription: st.answer_key_prescription || "",
+                    assigned_examiner: st.assigned_examiner || st.examiner_name || null,
+                    examiner_name: st.assigned_examiner || st.examiner_name || null,
+                    examiner_specialty: st.examiner_specialty || null,
+                    examiner_user_id: st.examiner_user_id || null,
+                    checklist_items: st.rubric_items || [],
+                    auxiliary_exam_configs: (st.station_auxiliary_configs || st.auxiliary_exam_configs || st.auxiliary_files || []).map((aux, aIdx) => {
+                      const itemKey = aux.itemId || aux.item_id || aux.id || `aux-${aIdx + 1}`;
+                      const img = aux.imageUrl || aux.image_url || aux.file_url || "";
+                      const report = aux.reportText || aux.report_text || "";
+                      return {
+                        ...aux,
+                        itemId: itemKey,
+                        item_id: itemKey,
+                        name: aux.name || aux.title || "Berkas Penunjang",
+                        category: aux.category || "PEMERIKSAAN",
+                        imageUrl: img,
+                        image_url: img,
+                        file_url: img,
+                        reportText: report,
+                        report_text: report,
+                      };
+                    }),
+                  };
+                })
               );
               setStationsConfig(loadedStations);
               setTotalStations(loadedStations.length);
@@ -1765,7 +1803,7 @@ export default function CreateSessionPage() {
                       </label>
                       <textarea
                         rows={3}
-                        value={activeStation.participant_instructions}
+                        value={activeStation.participant_instructions || ""}
                         onChange={(e) => {
                           const val = e.target.value;
                           setStationsConfig((prev) =>
@@ -1786,7 +1824,7 @@ export default function CreateSessionPage() {
                       </label>
                       <textarea
                         rows={3}
-                        value={activeStation.examiner_instructions}
+                        value={activeStation.examiner_instructions || ""}
                         onChange={(e) => {
                           const val = e.target.value;
                           setStationsConfig((prev) =>
@@ -1925,6 +1963,145 @@ export default function CreateSessionPage() {
                         );
                       }}
                     />
+                  </div>
+
+                  {/* Kunci Jawaban Diagnosis (3 Diagnosis: WDx, DDx 1, DDx 2) & Resep Medis Baku - Teks Box Long Text (Paling Bawah) */}
+                  <div className="border-t border-slate-200 pt-5 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-slate-900 uppercase flex items-center gap-1.5">
+                        <CheckCircle2 size={16} className="text-emerald-600" />
+                        Kunci Jawaban Diagnosis Medis (WDx, DDx 1, DDx 2) & Resep Medis Baku
+                      </h4>
+                      <span className="text-[10px] font-extrabold text-slate-500 bg-slate-100 px-2 py-0.5 rounded uppercase">
+                        Kunci Baku Stase
+                      </span>
+                    </div>
+
+                    <div className="grid gap-4 sm:grid-cols-3">
+                      <div>
+                        <label className="mb-1 block text-xs font-bold text-slate-800">
+                          1. Diagnosis Kerja Utama (WDx)
+                        </label>
+                        <textarea
+                          rows={3}
+                          placeholder="Tuliskan kunci diagnosis kerja utama (WDx) secara lengkap..."
+                          value={activeStation.answer_key_wdx || ""}
+                          onChange={(e) => {
+                            const wdx = e.target.value;
+                            const ddx1 = activeStation.answer_key_ddx1 || "";
+                            const ddx2 = activeStation.answer_key_ddx2 || "";
+                            const combined = [
+                              wdx ? `WDx (Diagnosis Kerja Utama): ${wdx}` : "",
+                              ddx1 ? `DDx 1 (Diagnosis Banding 1): ${ddx1}` : "",
+                              ddx2 ? `DDx 2 (Diagnosis Banding 2): ${ddx2}` : "",
+                            ].filter(Boolean).join("\n");
+
+                            setStationsConfig((prev) =>
+                              prev.map((item, i) =>
+                                i === selectedStationIndex
+                                  ? {
+                                      ...item,
+                                      answer_key_wdx: wdx,
+                                      answer_key_diagnosis: combined || wdx,
+                                    }
+                                  : item
+                              )
+                            );
+                          }}
+                          className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs font-bold text-slate-900 focus:border-blue-500 leading-relaxed"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="mb-1 block text-xs font-bold text-slate-800">
+                          2. Diagnosis Banding 1 (DDx 1)
+                        </label>
+                        <textarea
+                          rows={3}
+                          placeholder="Tuliskan kunci diagnosis banding 1 (DDx 1)..."
+                          value={activeStation.answer_key_ddx1 || ""}
+                          onChange={(e) => {
+                            const ddx1 = e.target.value;
+                            const wdx = activeStation.answer_key_wdx || "";
+                            const ddx2 = activeStation.answer_key_ddx2 || "";
+                            const combined = [
+                              wdx ? `WDx (Diagnosis Kerja Utama): ${wdx}` : "",
+                              ddx1 ? `DDx 1 (Diagnosis Banding 1): ${ddx1}` : "",
+                              ddx2 ? `DDx 2 (Diagnosis Banding 2): ${ddx2}` : "",
+                            ].filter(Boolean).join("\n");
+
+                            setStationsConfig((prev) =>
+                              prev.map((item, i) =>
+                                i === selectedStationIndex
+                                  ? {
+                                      ...item,
+                                      answer_key_ddx1: ddx1,
+                                      answer_key_diagnosis: combined || wdx,
+                                    }
+                                  : item
+                              )
+                            );
+                          }}
+                          className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs font-medium text-slate-800 focus:border-blue-500 leading-relaxed"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="mb-1 block text-xs font-bold text-slate-800">
+                          3. Diagnosis Banding 2 (DDx 2)
+                        </label>
+                        <textarea
+                          rows={3}
+                          placeholder="Tuliskan kunci diagnosis banding 2 (DDx 2)..."
+                          value={activeStation.answer_key_ddx2 || ""}
+                          onChange={(e) => {
+                            const ddx2 = e.target.value;
+                            const wdx = activeStation.answer_key_wdx || "";
+                            const ddx1 = activeStation.answer_key_ddx1 || "";
+                            const combined = [
+                              wdx ? `WDx (Diagnosis Kerja Utama): ${wdx}` : "",
+                              ddx1 ? `DDx 1 (Diagnosis Banding 1): ${ddx1}` : "",
+                              ddx2 ? `DDx 2 (Diagnosis Banding 2): ${ddx2}` : "",
+                            ].filter(Boolean).join("\n");
+
+                            setStationsConfig((prev) =>
+                              prev.map((item, i) =>
+                                i === selectedStationIndex
+                                  ? {
+                                      ...item,
+                                      answer_key_ddx2: ddx2,
+                                      answer_key_diagnosis: combined || wdx,
+                                    }
+                                  : item
+                              )
+                            );
+                          }}
+                          className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs font-medium text-slate-800 focus:border-blue-500 leading-relaxed"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="mb-1 block text-xs font-bold text-slate-800">
+                        Kunci Jawaban Resep Medis Baku (Farmakoterapi)
+                      </label>
+                      <textarea
+                        rows={3}
+                        placeholder="R/ Aspirin tab 80 mg No. IV..."
+                        value={activeStation.answer_key_prescription || ""}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setStationsConfig((prev) =>
+                            prev.map((item, i) =>
+                              i === selectedStationIndex
+                                ? { ...item, answer_key_prescription: val }
+                                : item
+                            )
+                          );
+                        }}
+                        className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs font-mono text-slate-900 leading-relaxed"
+                      />
+                    </div>
                   </div>
                 </div>
               )}
