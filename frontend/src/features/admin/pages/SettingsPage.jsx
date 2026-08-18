@@ -26,12 +26,12 @@ export default function SettingsPage() {
 
   // Form State
   const [settings, setSettings] = useState({
-    institution_name: "Fakultas Kedokteran & Kesehatan - Universitas Indonesia",
-    accreditation: "LAM-PTKes Unggul (A)",
-    institution_code: "FK-UI-2026",
-    address: "Jl. Salemba Raya No. 6, Jakarta Pusat, DKI Jakarta",
-    committee_lead: "Prof. dr. Ari Fahrial Syam, Sp.PD-KGEH, MMB",
-    logo_url: "https://images.unsplash.com/photo-1516549655169-df83a0774514?w=150&auto=format&fit=crop&q=80",
+    institution_name: "",
+    accreditation: "",
+    institution_code: "",
+    address: "",
+    committee_lead: "",
+    logo_url: "",
     
     // NBL Settings
     nbl_method: "borderline_regression",

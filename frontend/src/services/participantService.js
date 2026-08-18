@@ -136,74 +136,80 @@ export async function fetchParticipantAnswer(sessionId, stationId, participantId
 }
 
 /**
- * Fetch participant history / transcripts for completed sessions
+ * Fetch participant history / transcripts for completed sessions from Supabase
  */
 export async function fetchParticipantHistory(user) {
   try {
     const { data: authData } = await supabase.auth.getUser();
     const currentUser = authData?.user || user;
 
-    // 1. Query all sessions from osce.sessions
-    const { data: allSessions, error: sessErr } = await supabase
-      .schema("osce")
-      .from("sessions")
-      .select("*")
-      .order("created_at", { ascending: false });
+    if (!currentUser) return [];
 
-    if (sessErr || !allSessions) {
-      console.warn("Could not fetch sessions for history:", sessErr);
+    // 1. Fetch user's registered sessions from osce.session_participants
+    const { data: registrations, error: regErr } = await supabase
+      .schema("osce")
+      .from("session_participants")
+      .select("*")
+      .or(`user_id.eq.${currentUser.id},email.eq.${currentUser.email}`);
+
+    if (regErr || !registrations || registrations.length === 0) {
       return [];
     }
 
-    const historyItems = [];
+    const sessionIds = [...new Set(registrations.map((r) => r.session_id).filter(Boolean))];
 
-    // 2. Filter sessions that are completed or published
-    for (const sess of allSessions) {
+    // 2. Fetch sessions details
+    const { data: sessions } = await supabase
+      .schema("osce")
+      .from("sessions")
+      .select("*")
+      .in("id", sessionIds);
+
+    const sessionsMap = new Map((sessions || []).map((s) => [s.id, s]));
+
+    // 3. Fetch all examiner evaluations for these sessions
+    const { data: evals } = await supabase
+      .schema("osce")
+      .from("examiner_evaluations")
+      .select("*")
+      .in("session_id", sessionIds);
+
+    const historyItems = registrations.map((reg) => {
+      const sess = sessionsMap.get(reg.session_id) || {};
+      const userEvals = (evals || []).filter(
+        (ev) =>
+          ev.session_id === reg.session_id &&
+          (ev.participant_id === reg.id || ev.participant_id === reg.user_id || ev.participant_id === currentUser.id)
+      );
+
+      let finalScore = 0;
+      if (userEvals.length > 0) {
+        const sum = userEvals.reduce((acc, curr) => acc + Number(curr.final_score_percentage || 0), 0);
+        finalScore = Math.round((sum / userEvals.length) * 10) / 10;
+      }
+
+      const nbl = Number(sess.nbl_cutoff) || 70;
       const isSessionCompleted =
         sess.status === "completed" ||
         sess.status === "published" ||
         sess.status === "published_results" ||
         sess.status === "finished";
 
-      let isRegistered = false;
-      let participantRecord = null;
+      const passed = userEvals.length > 0 ? finalScore >= nbl : false;
 
-      try {
-        const { data: pList } = await supabase
-          .schema("osce")
-          .from("session_participants")
-          .select("*")
-          .eq("session_id", sess.id);
-
-        if (pList && currentUser) {
-          participantRecord = pList.find(
-            (item) =>
-              (currentUser.id && item.user_id === currentUser.id) ||
-              (currentUser.email && item.email === currentUser.email)
-          );
-          if (participantRecord && participantRecord.status !== "rejected") {
-            isRegistered = true;
-          }
-        }
-      } catch (e) {
-        console.warn("Error querying session_participants for sess:", sess.id, e);
-      }
-
-      // Include in history if session is completed OR if user is registered and session is not ongoing/draft
-      if (isSessionCompleted || (isRegistered && sess.status !== "draft" && sess.status !== "ongoing" && sess.status !== "running")) {
-        historyItems.push({
-          id: participantRecord?.id || sess.id,
-          session_id: sess.id,
-          title: sess.title,
-          session_date: sess.session_date || "15 Agustus 2026",
-          total_stations: sess.total_stations || 6,
-          location: sess.location_building || "Gedung Skill Lab FK",
-          status: isSessionCompleted ? "Selesai" : "Hasil Dipublikasikan",
-          final_score: 85.5,
-          passed: true,
-        });
-      }
-    }
+      return {
+        id: reg.id,
+        session_id: reg.session_id,
+        title: sess.title || "Sesi Ujian OSCE",
+        session_date: sess.session_date || "Sesuai Jadwal",
+        total_stations: sess.total_stations || 6,
+        location: sess.location_building || "Gedung Skill Lab FK",
+        status: isSessionCompleted ? "Selesai" : "Proses Ujian",
+        final_score: finalScore,
+        passed,
+        has_evaluations: userEvals.length > 0,
+      };
+    });
 
     return historyItems;
   } catch (err) {

@@ -244,7 +244,7 @@ export default function PillNav({
                         style={{ backgroundColor: baseColor }}
                       >
                         <LayoutDashboard size={14} />
-                        <span>Buka Dashboard ({getRoleLabel()})</span>
+                        <span>Buka Dashboard</span>
                       </Link>
 
                       <button
@@ -252,7 +252,7 @@ export default function PillNav({
                         className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-extrabold text-red-600 hover:bg-red-50 transition cursor-pointer"
                       >
                         <LogOut size={14} />
-                        <span>Keluar Sistem</span>
+                        <span>Keluar</span>
                       </button>
                     </motion.div>
                   )}

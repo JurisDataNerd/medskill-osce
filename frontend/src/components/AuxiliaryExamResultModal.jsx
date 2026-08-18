@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   X,
   FileSpreadsheet,
@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  ArrowRight,
   Info,
 } from "lucide-react";
 import MediaEmbedViewer from "@/components/MediaEmbedViewer";
@@ -23,6 +24,18 @@ export default function AuxiliaryExamResultModal({
   const [activeIndex, setActiveIndex] = useState(0);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Event listener keydown Escape untuk fitur Back / Tutup Modal Cepat
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen || results.length === 0) return null;
 
@@ -76,8 +89,10 @@ export default function AuxiliaryExamResultModal({
             </button>
             <button
               onClick={onClose}
-              className="rounded-xl border border-slate-700 bg-slate-800 p-2 text-slate-300 hover:bg-slate-700 hover:text-white transition"
+              className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-bold text-slate-300 hover:bg-rose-950 hover:border-rose-500 hover:text-rose-300 transition"
+              title="Tutup Modal (Esc)"
             >
+              <span className="text-[10px] font-mono bg-slate-900 border border-slate-700 px-1.5 py-0.5 rounded text-slate-400">Esc</span>
               <X size={16} />
             </button>
           </div>
@@ -147,7 +162,7 @@ export default function AuxiliaryExamResultModal({
               ) : (
                 <span className="rounded-full bg-amber-100 border border-amber-300 px-3 py-1 text-xs font-bold text-amber-900 flex items-center gap-1">
                   <Info size={14} className="text-amber-700" />
-                  Hasil Normal / Tidak Diindikasikan
+                  Hasil Normal
                 </span>
               )}
             </div>
@@ -159,7 +174,7 @@ export default function AuxiliaryExamResultModal({
             <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-600">
               <span className="flex items-center gap-1.5">
                 <FileSpreadsheet size={15} className="text-blue-600" />
-                Lembar Radiologi / Laboratorium
+                Lembar Hasil Pemeriksaan
               </span>
 
               <div className="flex items-center gap-1">
@@ -205,7 +220,7 @@ export default function AuxiliaryExamResultModal({
             {(currentResult.reportText || currentResult.report_text) && (
               <div className="border-t border-slate-200 bg-slate-50 p-4 space-y-1 text-xs">
                 <h4 className="font-bold text-slate-900 uppercase tracking-wider text-[10px]">
-                  Laporan Ekspertise Radiologi / Lab:
+                  Laporan Ekspertise:
                 </h4>
                 <p className="text-slate-700 font-medium whitespace-pre-line leading-relaxed">
                   {currentResult.reportText || currentResult.report_text}
@@ -217,15 +232,16 @@ export default function AuxiliaryExamResultModal({
 
         {/* Modal Footer */}
         <div className="flex items-center justify-between border-t border-slate-200 bg-white px-6 py-4">
-          <p className="text-xs text-slate-500 font-medium">
+          <p className="text-xs text-slate-500 font-medium hidden sm:block">
             Hasil pemeriksaan penunjang ini telah disimpan ke rekam medis peserta stase.
           </p>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center justify-end gap-3 w-full sm:w-auto">
             <button
               onClick={onClose}
-              className="rounded-xl border border-slate-200 px-5 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 transition"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-5 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-900 active:scale-95 transition"
             >
-              Tutup Berkas
+              <ChevronLeft size={16} />
+              <span>Tutup Berkas</span>
             </button>
             {onConfirmNext && (
               <button
@@ -233,9 +249,10 @@ export default function AuxiliaryExamResultModal({
                   onClose();
                   onConfirmNext();
                 }}
-                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-2.5 text-xs font-bold text-white shadow-lg shadow-indigo-600/30 hover:bg-indigo-700 transition"
+                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-2.5 text-xs font-bold text-white shadow-lg shadow-indigo-600/30 hover:bg-indigo-700 active:scale-95 transition"
               >
-                Lanjut ke Diagnosis & Resep
+                <span>Lanjut ke Diagnosis & Resep</span>
+                <ArrowRight size={16} />
               </button>
             )}
           </div>

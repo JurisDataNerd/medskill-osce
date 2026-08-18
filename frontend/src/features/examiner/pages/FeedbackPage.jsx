@@ -134,17 +134,20 @@ export default function FeedbackPage() {
             </div>
 
             <div>
-              <label className="mb-2 block font-semibold">Diagnosis</label>
+              <label className="mb-2 block font-semibold text-slate-800">
+                Diagnosis
+              </label>
               <textarea
-                rows={2}
-                className="w-full rounded-xl border p-4"
+                rows={4}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs font-medium text-slate-800 focus:border-blue-500 focus:bg-white focus:outline-none transition leading-relaxed"
+                placeholder={"1. [Diagnosis Kerja Utama]\n2. [Diagnosis Banding 1]\n3. [Diagnosis Banding 2]"}
                 value={diagnosis}
                 onChange={(e) => setDiagnosis(e.target.value)}
               />
             </div>
 
             <div>
-              <label className="mb-2 block font-semibold">Feedback (paragraf)</label>
+              <label className="mb-2 block font-semibold text-slate-800">Feedback</label>
               <textarea
                 rows={4}
                 className="w-full rounded-xl border p-4"

@@ -10,13 +10,17 @@ import {
   Search,
   Award,
   CheckCheck,
+  Shuffle,
+  Loader2,
 } from "lucide-react";
 import AdminLayout from "@/layouts/AdminLayout";
 import {
   getSessionParticipants,
   approveParticipant,
   rejectParticipant,
+  randomizeStationMapping,
 } from "@/services/session.service";
+import { supabase } from "@/lib/supabaseClient";
 import ParticipantAnswerModal from "@/features/admin/components/ParticipantAnswerModal";
 
 function formatLastSeen(lastSeen) {
@@ -52,12 +56,38 @@ export default function SessionParticipantsPage() {
 
   const [participants, setParticipants] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [randomizing, setRandomizing] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedScorecard, setSelectedScorecard] = useState(null);
 
   useEffect(() => {
     load();
+  }, [id]);
+
+  // Real-time subscription to session_participants table
+  useEffect(() => {
+    if (!id) return;
+
+    const channel = supabase
+      .channel(`admin_session_participants_page_${id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "osce",
+          table: "session_participants",
+          filter: `session_id=eq.${id}`,
+        },
+        () => {
+          load();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [id]);
 
   async function load() {
@@ -70,6 +100,18 @@ export default function SessionParticipantsPage() {
       setParticipants([]);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleRandomizeMapping() {
+    try {
+      setRandomizing(true);
+      const updated = await randomizeStationMapping(id);
+      setParticipants(updated || []);
+    } catch (err) {
+      console.error("Error randomizing station mapping:", err);
+    } finally {
+      setRandomizing(false);
     }
   }
 
@@ -158,14 +200,26 @@ export default function SessionParticipantsPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={handleRandomizeMapping}
+              disabled={randomizing || participants.length === 0}
+              className={`inline-flex items-center gap-1.5 rounded-lg border border-purple-200 bg-purple-50 px-4 py-2 text-xs font-semibold text-purple-700 shadow-xs transition hover:bg-purple-100 active:scale-95 ${
+                randomizing ? "opacity-70 cursor-not-allowed" : ""
+              }`}
+              title="Acak alokasi pos awal stase peserta secara seimbang"
+            >
+              {randomizing ? <Loader2 size={16} className="animate-spin" /> : <Shuffle size={16} />}
+              <span>{randomizing ? "Mengacak Stase..." : "Acak Mapping Stase"}</span>
+            </button>
+
             {pendingCount > 0 && (
               <button
                 onClick={handleApproveAllPending}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-emerald-700 active:scale-95"
               >
                 <CheckCheck size={16} />
-                Setujui Semua Pending ({pendingCount})
+                Setujui Semua ({pendingCount})
               </button>
             )}
 

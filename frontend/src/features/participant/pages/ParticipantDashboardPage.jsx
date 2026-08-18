@@ -60,6 +60,8 @@ export default function ParticipantDashboardPage() {
   const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
   const [pendingModalSession, setPendingModalSession] = useState(null);
 
+  const [userProfileData, setUserProfileData] = useState(null);
+
   useEffect(() => {
     async function loadParticipantDashboard(isInitial = false) {
       try {
@@ -67,11 +69,26 @@ export default function ParticipantDashboardPage() {
         const data = await fetchSessions();
         setSessions(data || []);
 
+        const { data: authData } = await supabase.auth.getUser();
+        const currentUser = authData?.user || user;
+
+        if (currentUser) {
+          try {
+            const { data: prof } = await supabase
+              .from("profiles")
+              .select("full_name, nim, institution, university")
+              .eq("id", currentUser.id)
+              .maybeSingle();
+            if (prof) {
+              setUserProfileData(prof);
+            }
+          } catch (e) {
+            console.error("Error fetching participant profile:", e);
+          }
+        }
+
         const statusMap = {};
         if (data && data.length > 0) {
-          const { data: authData } = await supabase.auth.getUser();
-          const currentUser = authData?.user || user;
-
           for (const s of data) {
             try {
               const list = await getSessionParticipants(s.id);
@@ -416,7 +433,7 @@ export default function ParticipantDashboardPage() {
                           <span className="font-black text-slate-900">{sess.total_stations || 6} Pos</span>
                         </div>
                         <div className="rounded-xl border border-slate-200 bg-white p-2.5 text-center">
-                          <span className="text-slate-400 text-[10px] block font-bold">Durasi / Pos</span>
+                          <span className="text-slate-400 text-[10px] block font-bold">Durasi Stase</span>
                           <span className="font-black text-slate-900">{sess.station_duration_minutes || 12} Mnt</span>
                         </div>
                       </div>
@@ -489,19 +506,19 @@ export default function ParticipantDashboardPage() {
               </div>
               <div className="space-y-1">
                 <h4 className="text-base font-extrabold text-slate-900">
-                  Belum Ada Sesi Ujian Aktif / Terdaftar Saat Ini
+                  Belum Ada Sesi Ujian
                 </h4>
                 <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed font-medium">
-                  Sesi ujian sirkuit yang dipublikasikan oleh Admin Control Room akan secara otomatis muncul di sini saat sesi ujian diaktifkan. Silakan klik tombol di bawah ini untuk memuat ulang status jadwal.
+                  Sesi ujian aktif akan tampil di sini saat pendaftaran dibuka.
                 </p>
               </div>
               <div className="pt-2 flex items-center justify-center gap-3">
                 <button
                   onClick={() => window.location.reload()}
-                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 py-2.5 text-xs font-bold text-white shadow-md transition active:scale-95"
+                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-5 py-2.5 text-xs font-bold text-white shadow-md transition active:scale-95"
                 >
                   <Activity size={15} />
-                  Refresh Jadwal Ujian
+                  Muat Ulang
                 </button>
               </div>
             </div>
@@ -516,9 +533,21 @@ export default function ParticipantDashboardPage() {
         onConfirm={handleRegister}
         session={selectedSessionForModal}
         userProfile={{
-          name: user?.user_metadata?.full_name || user?.email || "dr. Kairav Mahardika",
-          nim: user?.user_metadata?.nim || "20200710042",
-          institution: "Fakultas Kedokteran - MedSkill Indonesia",
+          name:
+            userProfileData?.full_name ||
+            user?.user_metadata?.full_name ||
+            user?.user_metadata?.name ||
+            user?.email ||
+            "Tidak ada data",
+          nim:
+            userProfileData?.nim ||
+            user?.user_metadata?.nim ||
+            "Tidak ada data",
+          institution:
+            userProfileData?.institution ||
+            userProfileData?.university ||
+            user?.user_metadata?.institution ||
+            "Tidak ada data",
         }}
       />
 

@@ -237,7 +237,7 @@ export default function LiveMonitorPage() {
 
         const userState = {
           user_id: user?.id || user?.email || `admin-${Date.now()}`,
-          full_name: user?.user_metadata?.full_name || user?.email || "Admin Control Room",
+          full_name: user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || "Admin",
           role: "admin",
           email: user?.email,
         };
@@ -1400,7 +1400,7 @@ export default function LiveMonitorPage() {
                       {stg.case_title || "Kasus Medis Terstandar"}
                     </h3>
                     <p className="text-[11px] text-slate-500 mt-0.5">
-                      Penguji: <span className="font-bold text-slate-700">{stg.examiner?.full_name || "dr. Spesialis"}</span>
+                      Penguji: <span className="font-bold text-slate-700">{stg.examiner?.full_name || "Tidak ada data"}</span>
                     </p>
                   </div>
 

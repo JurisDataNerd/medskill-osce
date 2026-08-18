@@ -121,7 +121,7 @@ export default function StageQuestionPage() {
   const [caseTitle, setCaseTitle] = useState("");
   const [systemOrgan, setSystemOrgan] = useState("Kardiovaskular");
   const [competencyLevel, setCompetencyLevel] = useState("4A (Tuntas Mandiri)");
-  const [assignedExaminer, setAssignedExaminer] = useState("dr. Alexander Budiman, Sp.JP");
+  const [assignedExaminer, setAssignedExaminer] = useState("");
   const [scenario, setScenario] = useState("");
   const [participantInstruction, setParticipantInstruction] = useState("");
   const [examinerInstruction, setExaminerInstruction] = useState("");

@@ -152,8 +152,8 @@ export default function CreateSessionPage() {
       {
         is_break: false,
         case_title: "Sindrom Koroner Akut (STEMI Anteroseptal)",
-        assigned_examiner: "dr. Alexander Budiman, Sp.JP",
-        examiner_specialty: "Sp.JP (Kardiovaskular)",
+        assigned_examiner: "",
+        examiner_specialty: "",
         scenario:
           "Pasien laki-laki 52 tahun datang ke UGD dengan keluhan nyeri dada kiri menjalar ke lengan kiri sejak 2 jam lalu.",
         participant_instructions:
@@ -204,8 +204,8 @@ export default function CreateSessionPage() {
       {
         is_break: false,
         case_title: "Eksaserbasi Akut Asma Bronkial Derajat Sedang-Berat",
-        assigned_examiner: "dr. Faisal Hasibuan, Sp.P",
-        examiner_specialty: "Sp.P (Respirasi/Pulmonologi)",
+        assigned_examiner: "",
+        examiner_specialty: "",
         scenario:
           "Pasien perempuan 28 tahun datang dengan sesak napas berat berbunyi ngik-ngik dan bentuk dada cembung di sisi kanan.",
         participant_instructions:

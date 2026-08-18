@@ -131,7 +131,7 @@ export default function AdminLayout({ children, headerAction }) {
                 />
                 <div className="min-w-0">
                   <p className="text-xs font-black text-slate-900 truncate">
-                    {user?.user_metadata?.full_name ?? user?.email ?? "Admin Medskill"}
+                    {user?.user_metadata?.full_name ?? user?.user_metadata?.name ?? user?.email ?? "Admin"}
                   </p>
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">
                     Administrator
@@ -158,10 +158,10 @@ export default function AdminLayout({ children, headerAction }) {
                     setIsProfileMenuOpen(false);
                     navigate("/admin/profile");
                   }}
-                  className="w-full text-left px-3 py-2.5 text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-700 rounded-xl transition flex items-center gap-2.5"
+                  className="w-full text-left px-3 py-2.5 text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-700 rounded-xl transition flex items-center gap-2.5 cursor-pointer"
                 >
                   <User size={15} className="text-blue-600" />
-                  Pengaturan Profil Admin
+                  Pengaturan Profil
                 </button>
 
                 <button
@@ -169,10 +169,10 @@ export default function AdminLayout({ children, headerAction }) {
                     setIsProfileMenuOpen(false);
                     navigate("/admin/settings");
                   }}
-                  className="w-full text-left px-3 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-900 rounded-xl transition flex items-center gap-2.5"
+                  className="w-full text-left px-3 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-900 rounded-xl transition flex items-center gap-2.5 cursor-pointer"
                 >
                   <Settings size={15} className="text-slate-500" />
-                  Pengaturan Sistem OSCE
+                  Pengaturan Sistem
                 </button>
               </div>
             )}
@@ -180,10 +180,10 @@ export default function AdminLayout({ children, headerAction }) {
 
           <button
             onClick={handleLogout}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 py-2.5 text-xs font-black text-white transition hover:bg-red-700 active:scale-98 shadow-md"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 py-2.5 text-xs font-black text-white transition hover:bg-red-700 active:scale-98 shadow-md cursor-pointer"
           >
             <LogOut size={16} />
-            Keluar Sistem (Logout)
+            Keluar
           </button>
 
         </div>

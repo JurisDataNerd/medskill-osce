@@ -110,7 +110,7 @@ export default function ConfirmModal({
             disabled={loading}
             className={`inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs font-bold shadow-md active:scale-95 transition disabled:opacity-50 ${style.buttonBg}`}
           >
-            {loading ? "Memproses..." : isAlert ? (confirmText === "Ya, Lanjutkan" ? "Mengerti / Tutup" : confirmText) : confirmText}
+            {loading ? "Memproses..." : isAlert ? (confirmText === "Ya, Lanjutkan" ? "Mengerti" : confirmText) : confirmText}
           </button>
         </div>
       </div>

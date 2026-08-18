@@ -16,6 +16,7 @@ import AdminLiveMonitorPage from "@/features/admin/pages/LiveMonitorPage";
 import SessionsPage from "@/features/admin/pages/SessionsPage";
 import SessionDetailPage from "@/features/admin/pages/SessionDetailPage";
 import ParticipantsPage from "@/features/admin/pages/ParticipantsPage";
+import ParticipantDetailPage from "@/features/admin/pages/ParticipantDetailPage";
 import ExaminersPage from "@/features/admin/pages/ExaminersPage";
 import ReportsPage from "@/features/admin/pages/ReportsPage";
 import SessionParticipantsPage from "@/features/admin/pages/SessionParticipantsPage";
@@ -189,6 +190,15 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute allow={["admin"]}>
         <ParticipantsPage />
+      </ProtectedRoute>
+    ),
+  },
+
+  {
+    path: "/admin/participants/:id",
+    element: (
+      <ProtectedRoute allow={["admin"]}>
+        <ParticipantDetailPage />
       </ProtectedRoute>
     ),
   },

@@ -9,12 +9,15 @@ import {
   Award,
   Loader2,
   UserCheck,
+  Shuffle,
 } from "lucide-react";
 import {
   getSessionParticipants,
   approveParticipant,
   rejectParticipant,
+  randomizeStationMapping,
 } from "@/services/session.service";
+import { supabase } from "@/lib/supabaseClient";
 
 function formatLastSeen(lastSeen) {
   if (!lastSeen) return "Belum login";
@@ -49,6 +52,7 @@ export default function SessionParticipantsInlineSection({
 }) {
   const [participants, setParticipants] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [randomizing, setRandomizing] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [actionLoadingId, setActionLoadingId] = useState(null);
@@ -57,6 +61,31 @@ export default function SessionParticipantsInlineSection({
     if (sessionId) {
       loadParticipants();
     }
+  }, [sessionId]);
+
+  // Real-time subscription for inline session participants component
+  useEffect(() => {
+    if (!sessionId) return;
+
+    const channel = supabase
+      .channel(`admin_session_participants_inline_${sessionId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "osce",
+          table: "session_participants",
+          filter: `session_id=eq.${sessionId}`,
+        },
+        () => {
+          loadParticipants();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [sessionId]);
 
   async function loadParticipants() {
@@ -69,6 +98,19 @@ export default function SessionParticipantsInlineSection({
       setParticipants([]);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleRandomizeMapping() {
+    try {
+      setRandomizing(true);
+      const updated = await randomizeStationMapping(sessionId);
+      setParticipants(updated || []);
+      if (onUpdate) onUpdate();
+    } catch (err) {
+      console.error("Error randomizing mapping:", err);
+    } finally {
+      setRandomizing(false);
     }
   }
 
@@ -155,15 +197,29 @@ export default function SessionParticipantsInlineSection({
           </p>
         </div>
 
-        {pendingCount > 0 && (
+        <div className="flex flex-wrap items-center gap-2.5">
           <button
-            onClick={handleApproveAllPending}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-emerald-700 transition active:scale-95"
+            onClick={handleRandomizeMapping}
+            disabled={randomizing || participants.length === 0}
+            className={`inline-flex items-center gap-1.5 rounded-xl border border-purple-200 bg-purple-50 px-4 py-2 text-xs font-bold text-purple-700 shadow-xs transition hover:bg-purple-100 active:scale-95 ${
+              randomizing ? "opacity-70 cursor-not-allowed" : ""
+            }`}
+            title="Acak alokasi pos awal stase peserta secara seimbang"
           >
-            <CheckCheck size={15} />
-            Setujui Semua Pending ({pendingCount})
+            {randomizing ? <Loader2 size={15} className="animate-spin" /> : <Shuffle size={15} />}
+            <span>{randomizing ? "Mengacak Stase..." : "Acak Mapping Stase"}</span>
           </button>
-        )}
+
+          {pendingCount > 0 && (
+            <button
+              onClick={handleApproveAllPending}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-emerald-700 transition active:scale-95"
+            >
+              <CheckCheck size={15} />
+              Setujui Semua ({pendingCount})
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Filter Tabs & Search Bar */}

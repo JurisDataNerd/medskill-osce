@@ -184,16 +184,16 @@ export default function ExaminerPage() {
 
   function formatDoctorDisplayName(fullName, email) {
     if (fullName && fullName.trim()) return fullName;
-    if (!email) return "dr. Penguji Medis";
+    if (!email) return "Tidak ada data";
     const username = email.split("@")[0].replace(/[._]/g, " ");
     const formatted = username.split(" ").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
-    return `dr. ${formatted}`;
+    return formatted || "Tidak ada data";
   }
 
   const examinerName = formatDoctorDisplayName(profile?.full_name || user?.user_metadata?.full_name, user?.email);
-  const examinerSpecialty = profile?.specialty || user?.user_metadata?.specialty || "Dokter Penguji Spesialis";
-  const examinerEmail = profile?.email || user?.email || "";
-  const examinerUniversity = profile?.university || user?.user_metadata?.university || "Fakultas Kedokteran SKDI";
+  const examinerSpecialty = profile?.specialty || user?.user_metadata?.specialty || "Tidak ada data";
+  const examinerEmail = profile?.email || user?.email || "-";
+  const examinerUniversity = profile?.university || profile?.institution || user?.user_metadata?.institution || user?.user_metadata?.university || "Tidak ada data";
 
   const assignedStationNum = assignedSessions[0]?.station?.station_number || assignedSessions[0]?.assignment?.assigned_station_number || 1;
 

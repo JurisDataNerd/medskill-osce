@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Clock,
   FileText,
+  FileCheck2,
   Send,
   Stethoscope,
   User,
@@ -37,7 +38,9 @@ import {
   Award,
   Megaphone,
   BellRing,
+  PauseCircle,
 } from "lucide-react";
+import { playOsceAudio } from "@/services/audioService";
 import {
   AUXILIARY_EXAM_CATALOG,
   getAllAuxiliaryExamItems,
@@ -147,7 +150,7 @@ export default function ParticipantSessionPage() {
           data: { user },
         } = await supabase.auth.getUser();
 
-        let full_name = user?.user_metadata?.full_name || user?.email || "Peserta Mahasiswa";
+        let full_name = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || "Tidak ada data";
         let nim = user?.user_metadata?.nim || "";
 
         if (user?.id) {
@@ -325,7 +328,7 @@ export default function ParticipantSessionPage() {
   const [liveStageData] = useState({
     station_number: 1,
     title: "Stase 1: Kardiovaskular (STEMI Anteroseptal)",
-    examiner_name: "dr. Alexander Budiman, Sp.JP",
+    examiner_name: "Tidak ada data",
     scenario: "Seorang laki-laki berusia 54 tahun datang ke UGD dengan keluhan nyeri dada kiri hebat seperti ditindih beban berat sejak 2 jam lalu. Nyeri menjalar ke lengan kiri dan leher, disertai keringat dingin dan mual.",
     participant_instructions: [
       "Lakukan anamnesis terarah mengenai keluhan utama nyeri dada.",
@@ -387,7 +390,7 @@ export default function ParticipantSessionPage() {
       case_title,
       scenario,
       participant_instructions: Array.isArray(instructions) ? instructions : [instructions],
-      examiner_name: is_break ? "Stase Istirahat (Tanpa Penguji)" : (ex?.full_name ? (ex.specialty ? `${ex.full_name}, ${ex.specialty}` : ex.full_name) : "dr. Penguji Medis"),
+      examiner_name: is_break ? "Stase Istirahat (Tanpa Penguji)" : (ex?.full_name ? (ex.specialty ? `${ex.full_name}, ${ex.specialty}` : ex.full_name) : "Tidak ada data"),
       location: sessionDetail?.location_building || `Gedung Skill Lab Ruang 10${currentStationNum}`,
     };
   }, [dbStations, dbExaminers, currentStationNum, sessionDetail, liveStageData]);
@@ -700,7 +703,7 @@ export default function ParticipantSessionPage() {
         isPaused
       );
 
-      if (viewMode === "live_round") setRoundSecondsLeft(rem);
+      if (viewMode === "live_round" || viewMode === "station_completed_wait") setRoundSecondsLeft(rem);
       else if (viewMode === "transit") setTransitSecondsLeft(rem);
       else if (viewMode === "round_break") setBreakSecondsLeft(rem);
       else if (viewMode === "waiting_room") setWaitingCountdown(rem);
@@ -708,6 +711,32 @@ export default function ParticipantSessionPage() {
 
     return () => clearInterval(interval);
   }, [sessionId, globalTimerState, viewMode, sessionDetail?.status]);
+
+  // Audio Playback Triggers based on timer ticks & phase changes
+  useEffect(() => {
+    if (!sessionId || !globalTimerState) return;
+
+    const phase = globalTimerState.phase;
+    const isPaused = phase === "paused" || sessionDetail?.status === "paused";
+
+    if (isPaused) {
+      playOsceAudio("admin_broadcast");
+      return;
+    }
+
+    const currentRem = viewMode === "live_round"
+      ? roundSecondsLeft
+      : viewMode === "transit"
+      ? transitSecondsLeft
+      : viewMode === "round_break"
+      ? breakSecondsLeft
+      : waitingCountdown;
+
+    if (viewMode === "live_round") {
+      if (currentRem === 120) playOsceAudio("warning_2min");
+      if (currentRem === 60) playOsceAudio("warning_1min");
+    }
+  }, [sessionId, globalTimerState, viewMode, roundSecondsLeft, transitSecondsLeft, breakSecondsLeft, waitingCountdown, sessionDetail?.status]);
 
   function formatTime(secs) {
     const m = Math.floor(secs / 60);
@@ -738,23 +767,46 @@ export default function ParticipantSessionPage() {
     if (!globalTimerState) return;
 
     if (globalTimerState.current_round && Number(globalTimerState.current_round) >= 1) {
-      setCurrentRound(Number(globalTimerState.current_round));
+      const serverRound = Number(globalTimerState.current_round);
+      if (serverRound !== currentRound) {
+        if (sessionId) {
+          localStorage.removeItem(`osce_station_submitted_${sessionId}_round_${serverRound}`);
+        }
+        setCurrentRound(serverRound);
+        setExamStep(1);
+      }
     }
 
     if (globalTimerState.phase === "transition") {
-      setViewMode("transit");
+      if (currentRound >= totalRoundsInSession) {
+        setViewMode("completed");
+      } else {
+        setViewMode("transit");
+      }
     } else if (globalTimerState.phase === "break") {
       setViewMode("round_break");
-    } else if (globalTimerState.phase === "finished" || globalTimerState.phase === "completed") {
+    } else if (
+      globalTimerState.phase === "finished" ||
+      globalTimerState.phase === "completed" ||
+      sessionDetail?.status === "completed" ||
+      sessionDetail?.status === "finished"
+    ) {
       setViewMode("completed");
     } else if (
       (globalTimerState.phase === "running" || globalTimerState.phase === "paused") &&
       sessionDetail?.status !== "draft" &&
       sessionDetail?.status !== "published"
     ) {
-      setViewMode((prev) => (prev === "waiting_room" ? "live_round" : prev));
+      setViewMode((prev) => {
+        if (prev === "waiting_room") return "live_round";
+        const isSubmitted = sessionId && localStorage.getItem(`osce_station_submitted_${sessionId}_round_${currentRound}`) === "true";
+        if (isSubmitted && prev !== "station_completed_wait") {
+          return "station_completed_wait";
+        }
+        return prev;
+      });
     }
-  }, [globalTimerState, sessionDetail?.status]);
+  }, [globalTimerState, sessionDetail?.status, sessionId, currentRound]);
 
   function handleEnterLiveSession() {
     handleStartSimulationFromWaiting();
@@ -808,9 +860,19 @@ export default function ParticipantSessionPage() {
     if (pendingNextStep) {
       if (pendingNextStep === 5) {
         performAutoSave({ current_step: 4, status: "submitted" });
+        if (sessionId && currentRound) {
+          localStorage.setItem(`osce_station_submitted_${sessionId}_round_${currentRound}`, "true");
+        }
         setPendingNextStep(null);
         setIsConfirmModalOpen(false);
-        handleFinishActiveRound();
+
+        // Middleware check: Jika timer stase global masih tersisa, kunci peserta di halaman station_completed_wait
+        const isTimerStillRunning = roundSecondsLeft > 0 && globalTimerState?.phase !== "transition";
+        if (isTimerStillRunning) {
+          setViewMode("station_completed_wait");
+        } else {
+          handleFinishActiveRound();
+        }
         return;
       }
       setExamStep(pendingNextStep);
@@ -1134,9 +1196,9 @@ export default function ParticipantSessionPage() {
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Kasus Medis Awalan</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase">Urutan Rotasi Ujian</span>
                 <p className="font-bold text-slate-900 text-sm mt-0.5 truncate">
-                  {currentStationInfo.case_title}
+                  Stase {currentStationInfo.station_number} dari {totalRoundsInSession}
                 </p>
                 <p className="text-[11px] text-emerald-700 font-semibold mt-0.5 inline-flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -1189,7 +1251,7 @@ export default function ParticipantSessionPage() {
                             ? `Dokter Penguji ${u.specialty ? `• ${u.specialty}` : ""}`
                             : u.role === "admin"
                             ? "Admin Control Room"
-                            : `Peserta ${u.nim ? `(NIM: ${u.nim})` : ""}`}
+                            : "Peserta Ujian"}
                         </p>
                       </div>
 
@@ -1340,10 +1402,10 @@ export default function ParticipantSessionPage() {
 
               <div>
                 <h2 className="text-lg font-bold text-slate-900">
-                  {nextStationInfo.title}
+                  {`Stase ${nextStationInfo.station_number}${nextStationInfo.is_break ? " (Istirahat)" : ""}`}
                 </h2>
                 <p className="text-xs text-slate-600 mt-1">
-                  Materi Kasus: <strong>{nextStationInfo.case_title}</strong>
+                  Persiapkan diri Anda sebelum masuk ke ruang stase rotasi berikutnya.
                 </p>
               </div>
             </div>
@@ -1351,10 +1413,17 @@ export default function ParticipantSessionPage() {
             <div className="pt-2 flex justify-center">
               <button
                 onClick={handleStartNextRoundFromTransit}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-8 py-3.5 text-xs font-bold text-white shadow-lg shadow-blue-600/30 hover:bg-blue-700 active:scale-95 transition"
+                disabled={isSessionLive && transitSecondsLeft > 0}
+                className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl px-8 py-3.5 text-xs font-bold text-white shadow-lg transition ${
+                  isSessionLive && transitSecondsLeft > 0
+                    ? "bg-slate-400 cursor-not-allowed opacity-80"
+                    : "bg-blue-600 hover:bg-blue-700 shadow-blue-600/30 active:scale-95"
+                }`}
               >
                 <ArrowRight size={16} />
-                Lanjut Masuk Ronde {nextRoundNumber} ({nextStationInfo.title})
+                {isSessionLive && transitSecondsLeft > 0
+                  ? `Menunggu Bel Transisi Selesai (${formatTime(transitSecondsLeft)})`
+                  : `Lanjut Masuk Ronde ${nextRoundNumber}`}
               </button>
             </div>
           </div>
@@ -1479,51 +1548,92 @@ export default function ParticipantSessionPage() {
   }
 
   /* ============================================================
-     RENDER VIEW 4: HALAMAN TERIMAKASIH MENGIKUTI UJIAN (COMPLETED)
+     RENDER VIEW 4: HALAMAN TERIMAKASIH MENGIKUTI UJIAN (COMPLETED - DINAMIS)
   ============================================================ */
-  if (viewMode === "completed") {
+  if (viewMode === "completed" || sessionDetail?.status === "completed" || sessionDetail?.status === "finished") {
+    const completedDate = new Date().toLocaleDateString("id-ID", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
     return (
       <div className="min-h-screen bg-slate-100 font-sans text-slate-800 flex flex-col">
-        <main className="flex-1 max-w-3xl w-full mx-auto p-6 my-auto space-y-6">
-          <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-xl space-y-6 text-center">
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 shadow-inner">
-              <Award size={44} />
+        <main className="flex-1 max-w-4xl w-full mx-auto p-6 my-auto space-y-6">
+          <div className="rounded-3xl border border-slate-200 bg-white p-8 sm:p-12 shadow-xl space-y-8 text-center animate-in fade-in zoom-in-95 duration-200">
+            <div className="relative inline-block">
+              <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-3xl bg-gradient-to-tr from-emerald-500 to-teal-500 text-white shadow-xl shadow-emerald-500/30">
+                <Award size={52} className="animate-bounce" />
+              </div>
+              <span className="absolute -top-2 -right-2 flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-white shadow-md">
+                <CheckCircle2 size={16} />
+              </span>
             </div>
 
-            <div>
-              <span className="rounded-full bg-emerald-100 text-emerald-800 px-3.5 py-1 text-xs font-black uppercase tracking-wider">
-                Sesi Ujian OSCE Selesai
+            <div className="space-y-3">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 border border-emerald-300 px-4 py-1 text-xs font-black text-emerald-900 uppercase tracking-wider">
+                <ShieldCheck size={14} className="text-emerald-700" />
+                Sesi Ujian OSCE Selesai & Ter-Enkripsi
               </span>
-              <h1 className="text-3xl font-black text-slate-900 mt-3">
+              <h1 className="text-2xl sm:text-4xl font-black text-slate-900 leading-tight">
                 Terima Kasih Telah Mengikuti Ujian OSCE!
               </h1>
-              <p className="text-xs text-slate-500 mt-2 max-w-md mx-auto leading-relaxed">
-                Seluruh {totalRoundsInSession} ronde rotasi sirkuit keterampilan medis telah berhasil Anda selesaikan. Rekapitulasi nilai dan umpan balik penguji sedang diproses oleh sistem.
+              <p className="text-xs sm:text-sm text-slate-600 font-medium max-w-lg mx-auto leading-relaxed">
+                Selamat! Anda telah menyelesaikan seluruh <strong className="text-slate-900">{totalRoundsInSession} ronde rotasi sirkuit stase</strong> pada sesi <strong className="text-slate-900">{sessionDetail?.title || "OSCE MedSkill"}</strong>. Seluruh lembar jawaban Anda telah tersimpan secara permanen.
               </p>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 grid sm:grid-cols-3 gap-4 text-xs text-left">
-              <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Total Ronde Selesai</span>
-                <p className="font-extrabold text-slate-900 text-sm mt-0.5">{totalRoundsInSession} / {totalRoundsInSession} Ronde</p>
+            {/* Dynamic Session Summary Cards */}
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-6 grid sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs text-left">
+              <div className="space-y-1">
+                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Sesi Ujian</span>
+                <p className="font-extrabold text-slate-900 text-xs truncate">{sessionDetail?.title || "Ujian OSCE Sirkuit"}</p>
+                <span className="text-[10px] text-slate-500 font-medium block">{sessionDetail?.code || "SKDI-2026"}</span>
               </div>
-              <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Status Kelengkapan</span>
-                <p className="font-extrabold text-emerald-700 text-sm mt-0.5">100% Terisi</p>
+              <div className="space-y-1">
+                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Total Ronde Selesai</span>
+                <p className="font-extrabold text-emerald-700 text-xs">{totalRoundsInSession} / {totalRoundsInSession} Stase</p>
+                <span className="text-[10px] text-emerald-600 font-bold block">100% Lembar Terisi</span>
               </div>
-              <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Pengumuman Nilai</span>
-                <p className="font-extrabold text-blue-900 text-sm mt-0.5">Akan Dipublikasikan</p>
+              <div className="space-y-1">
+                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Waktu Selesai</span>
+                <p className="font-extrabold text-slate-900 text-xs">{completedDate}</p>
+                <span className="text-[10px] text-slate-500 font-medium block">{sessionDetail?.location_building || "Gedung Skill Lab"}</span>
+              </div>
+              <div className="space-y-1">
+                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Status Evaluasi</span>
+                <p className="font-extrabold text-blue-800 text-xs">Umpan Balik Penguji</p>
+                <span className="text-[10px] text-blue-600 font-medium block">Sedang Rekapitulasi</span>
               </div>
             </div>
 
-            <div className="pt-4">
+            {/* Information Banner */}
+            <div className="rounded-2xl bg-blue-50 border border-blue-200 p-4 max-w-2xl mx-auto text-left text-xs text-blue-900 flex items-start gap-3">
+              <FileCheck2 size={20} className="text-blue-600 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="font-extrabold text-blue-950">Informasi Hasil & Rekapitulasi Nilai:</p>
+                <p className="text-[11px] text-blue-800 leading-relaxed font-medium">
+                  Nilai akhir, rubrik penguji, serta feedback spesifik tiap stase akan dipublikasikan oleh Panitia Akademik melalui menu <strong>Riwayat & Transkrip Ujian</strong> setelah proses penilaian seluruh peserta selesai disetujui.
+                </p>
+              </div>
+            </div>
+
+            {/* Dynamic Actions */}
+            <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
               <button
                 onClick={() => navigate("/participant")}
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-8 py-3.5 text-xs font-bold text-white shadow-lg shadow-blue-600/30 hover:bg-blue-700 active:scale-95 transition"
               >
                 <ArrowLeft size={16} />
-                Kembali ke Dashboard Peserta
+                Kembali ke Dashboard Utama
+              </button>
+              <button
+                onClick={() => navigate("/participant/history")}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-8 py-3.5 text-xs font-bold text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-900 active:scale-95 transition"
+              >
+                <FileCheck2 size={16} className="text-blue-600" />
+                Lihat Riwayat & Transkrip Ujian
               </button>
             </div>
           </div>
@@ -1670,7 +1780,7 @@ export default function ParticipantSessionPage() {
             </div>
 
             <h1 className="text-sm font-extrabold text-slate-900 leading-snug">
-              {activeStationInfo.title}
+              {`Stase ${activeStationInfo.station_number}${activeStationInfo.is_break ? " (Istirahat)" : ""}`}
             </h1>
           </div>
 
@@ -1704,7 +1814,49 @@ export default function ParticipantSessionPage() {
 
         {/* RIGHT COLUMN (8 COLS): PRIMARY EXAM WORKSPACE (FOKUS UJIAN) */}
         <div className="lg:col-span-8 space-y-6">
-          {activeStationInfo.is_break ? (
+          {viewMode === "station_completed_wait" ? (
+            <div className="rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-8 sm:p-10 text-center shadow-lg space-y-6">
+              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-emerald-500 text-white shadow-md shadow-emerald-500/30">
+                <CheckCircle2 size={44} className="animate-bounce" />
+              </div>
+
+              <div className="space-y-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 border border-emerald-300 px-4 py-1 text-xs font-black text-emerald-900 uppercase tracking-wider">
+                  <Lock size={12} className="text-emerald-700" />
+                  Jawaban Stase {activeStationInfo.station_number} Dikirim & Terkunci
+                </span>
+                <h2 className="text-2xl font-black text-slate-900 pt-1">
+                  Terima Kasih! Lembar Jawaban Stase Telah Tersimpan
+                </h2>
+                <p className="text-xs text-slate-600 font-medium max-w-md mx-auto leading-relaxed">
+                  Anda telah menyelesaikan pengerjaan <strong className="text-slate-900">Stase {activeStationInfo.station_number}</strong>. Seluruh data jawaban Anda telah aman tersimpan di server.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-emerald-200 bg-white p-5 max-w-md mx-auto shadow-2xs space-y-2 border-dashed">
+                <div className="flex items-center justify-center gap-2 text-xs font-extrabold text-slate-500">
+                  <Clock size={16} className="text-emerald-600 animate-pulse" />
+                  <span>SISA WAKTU STASE INI</span>
+                </div>
+                <p className="text-4xl font-black font-mono text-emerald-700">
+                  {formatTime(roundSecondsLeft)}
+                </p>
+                <p className="text-[11px] text-slate-500 font-medium">
+                  Menunggu waktu sisa stase berakhir untuk perpindahan masal...
+                </p>
+              </div>
+
+              <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 max-w-md mx-auto text-left text-xs text-amber-900 flex items-start gap-2.5">
+                <ShieldCheck size={18} className="text-amber-600 shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <p className="font-extrabold text-amber-950">Petunjuk Menunggu Bel Rotasi:</p>
+                  <p className="text-[11px] text-amber-800 leading-relaxed font-medium">
+                    Harap tetap berada di area stase. Saat timer sisa stase habis, sistem akan membunyikan bel transisi dan membuka Halaman Transisi Perpindahan Stase secara otomatis.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : activeStationInfo.is_break ? (
             <div className="rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-8 text-center shadow-lg space-y-6">
               <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 shadow-inner">
                 <Coffee size={40} className="animate-bounce text-emerald-600" />
@@ -1813,22 +1965,14 @@ export default function ParticipantSessionPage() {
                   Instruksi & Prosedur Pemeriksaan Fisik
                 </h3>
                 <p className="text-xs text-slate-700 leading-relaxed font-medium">
-                  Lakukan auskultasi 4 katup jantung menggunakan stetoskop dengan posisi dan teknik yang benar pada Pasien Standar / Manekin simulator.
+                  Lakukan prosedur pemeriksaan fisik terarah sesuai instruksi kasus pada Pasien Standar di ruangan.
                 </p>
 
-                <div className="space-y-2 text-xs">
-                  <div className="rounded-lg bg-white border border-slate-200 p-3">
-                    <span className="font-bold text-slate-800">Temuan Fisik Awal:</span>
-                    <p className="text-slate-600 text-[11px] mt-0.5">
-                      Kesadaran Compos Mentis, TD 140/90 mmHg, Nadi 98x/menit regular, RR 22x/menit, Sumbu Suhu 36.8°C.
-                    </p>
-                  </div>
-                  <div className="rounded-lg bg-white border border-slate-200 p-3">
-                    <span className="font-bold text-slate-800">Auskultasi Jantung & Paru:</span>
-                    <p className="text-slate-600 text-[11px] mt-0.5">
-                      S1 S2 tunggal regular, murmur (-), gallop (-). Vesikuler +/+, rhonchi -/-, wheezing -/-.
-                    </p>
-                  </div>
+                <div className="rounded-lg bg-blue-50 border border-blue-100 p-3.5 text-xs text-blue-900 space-y-1">
+                  <p className="font-bold">Panduan Prosedur:</p>
+                  <p className="text-[11px] leading-relaxed">
+                    Sampaikan permintaan pemeriksaan fisik secara langsung kepada Pasien Standar di ruangan.
+                  </p>
                 </div>
               </div>
 
@@ -2023,7 +2167,7 @@ export default function ParticipantSessionPage() {
                     Pengujian Diagnosis & Resep Obat
                   </h2>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Isi formulir diagnosis dan resep obat di bawah ini sebagai lembar jawaban final stase.
+                    Isi lembar jawaban diagnosis dan resep obat di bawah ini.
                   </p>
                 </div>
               </div>
@@ -2031,35 +2175,35 @@ export default function ParticipantSessionPage() {
               {/* 1. Form Diagnosis Banding */}
               <div className="space-y-2">
                 <label className="block text-xs font-bold text-slate-800">
-                  1. Diagnosis Banding (Differential Diagnosis)
+                  1. Diagnosis Banding
                 </label>
                 <textarea
-                  rows={3}
+                  rows={4}
                   value={differentialDiagnosis}
                   onChange={(e) => setDifferentialDiagnosis(e.target.value)}
-                  placeholder="Tuliskan 2 - 3 diagnosis banding..."
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-800 focus:border-blue-500 focus:bg-white focus:outline-none transition font-medium"
+                  placeholder={"1. [Diagnosis Banding 1]\n2. [Diagnosis Banding 2]\n3. [Diagnosis Banding 3]"}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-800 focus:border-blue-500 focus:bg-white focus:outline-none transition font-medium leading-relaxed"
                 />
               </div>
 
               {/* 2. Form Diagnosis Kerja */}
               <div className="space-y-2">
                 <label className="block text-xs font-bold text-slate-800">
-                  2. Diagnosis Kerja (Working Diagnosis Utama)
+                  2. Diagnosis Kerja
                 </label>
-                <input
-                  type="text"
+                <textarea
+                  rows={3}
                   value={workingDiagnosis}
                   onChange={(e) => setWorkingDiagnosis(e.target.value)}
-                  placeholder="Tuliskan diagnosis kerja utama yang spesifik..."
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-800 focus:border-blue-500 focus:bg-white focus:outline-none transition font-semibold"
+                  placeholder="1. [Diagnosis Kerja Utama]"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-800 focus:border-blue-500 focus:bg-white focus:outline-none transition font-semibold leading-relaxed"
                 />
               </div>
 
               {/* 3. Form Penulisan Resep Obat */}
               <div className="space-y-2">
                 <label className="block text-xs font-bold text-slate-800 flex items-center justify-between">
-                  <span>3. Lembar Penulisan Resep Obat (Prescription Sheet)</span>
+                  <span>3. Penulisan Resep Obat</span>
                   <span className="text-[10px] font-semibold text-slate-400">Format R/, Signa, Dosis</span>
                 </label>
                 <textarea
@@ -2074,7 +2218,7 @@ export default function ParticipantSessionPage() {
               {/* Finish Station CTA Card */}
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-5 flex flex-wrap items-center justify-between gap-4 shadow-xs">
                 <div>
-                  <p className="font-bold text-xs text-emerald-900">Selesaikan Stase 1</p>
+                  <p className="font-bold text-xs text-emerald-900">Selesaikan Stase {activeStationInfo.station_number}</p>
                   <p className="text-[11px] text-emerald-700 font-medium">
                     Pastikan lembar jawaban diagnosis dan resep obat telah diisi dengan benar sebelum menyelesaikan stase.
                   </p>
@@ -2120,7 +2264,7 @@ export default function ParticipantSessionPage() {
               </p>
               <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
                 {pendingNextStep === 5
-                  ? "Apakah Anda yakin ingin menyelesaikan Stase 1 dan masuk ke Ruang Tunggu Perpindahan Stase?"
+                  ? `Apakah Anda yakin ingin menyelesaikan Stase ${activeStationInfo.station_number} dan masuk ke Ruang Tunggu Perpindahan Stase?`
                   : `Apakah Anda sudah selesai dan yakin ingin melanjutkan ke Tahap ${pendingNextStep}?`}
               </p>
             </div>
@@ -2131,7 +2275,7 @@ export default function ParticipantSessionPage() {
                 onClick={() => setIsConfirmModalOpen(false)}
                 className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
               >
-                Batal / Periksa Kembali
+                Batal
               </button>
               <button
                 type="button"
@@ -2175,6 +2319,35 @@ export default function ParticipantSessionPage() {
             >
               Saya Mengerti & Kembali ke Layar Ujian Fullscreen
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* FULLSCREEN NON-CLOSABLE OVERLAY WHEN OSCE SESSION IS PAUSED BY ADMIN */}
+      {(globalTimerState?.phase === "paused" || sessionDetail?.status === "paused") && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-6 animate-in fade-in duration-200 select-none pointer-events-auto">
+          <div className="max-w-md w-full rounded-3xl border border-amber-500/50 bg-slate-900 p-8 text-center space-y-6 shadow-2xl text-white">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-amber-500/20 text-amber-400 border border-amber-500/40 shadow-inner">
+              <PauseCircle size={48} className="animate-pulse" />
+            </div>
+
+            <div className="space-y-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/20 border border-amber-400/40 px-3.5 py-1 text-[11px] font-black text-amber-300 uppercase tracking-widest">
+                <span className="h-2 w-2 rounded-full bg-amber-400 animate-ping" />
+                Sesi Dihentikan Sementara
+              </span>
+              <h2 className="text-xl font-black text-white pt-1">
+                Sesi OSCE Sedang Diberhentikan Sementara
+              </h2>
+              <p className="text-xs text-slate-300 font-medium leading-relaxed max-w-sm mx-auto">
+                Panitia Control Room sedang mem-pause timer ujian. Harap tetap tenang, berada di posisi stase Anda, dan menunggu pengumuman selanjutnya.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 text-[11px] font-semibold text-slate-400 flex items-center justify-center gap-2">
+              <Volume2 size={16} className="text-amber-400 animate-pulse shrink-0" />
+              <span>Suara pengumuman & bel akan otomatis berbunyi saat dilanjutkan.</span>
+            </div>
           </div>
         </div>
       )}

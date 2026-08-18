@@ -86,18 +86,7 @@ export default function StationMonitorDetailPage() {
                 ];
 
           const rawExName = examiner?.full_name || examiner?.name || examiner?.email || "";
-          let doctorName = "Belum ditugaskan";
-          if (rawExName) {
-            let clean = rawExName.trim();
-            if (clean.includes(".") && !clean.toLowerCase().startsWith("dr.") && !clean.toLowerCase().startsWith("prof.")) {
-              clean = clean.split(".").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
-              doctorName = `dr. ${clean}`;
-            } else if (!clean.toLowerCase().startsWith("dr.") && !clean.toLowerCase().startsWith("prof.")) {
-              doctorName = `dr. ${clean}`;
-            } else {
-              doctorName = clean;
-            }
-          }
+          let doctorName = rawExName ? rawExName.trim() : "Tidak ada data";
 
           setStationData({
             id: st.id,

@@ -19,8 +19,11 @@ export default function ParticipantNavbar() {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
 
-  const participantName = user?.user_metadata?.full_name || user?.email || "Peserta Ujian";
-  const nimNumber = user?.user_metadata?.nim || "20200710042";
+  const participantName =
+    user?.user_metadata?.full_name ||
+    user?.user_metadata?.name ||
+    user?.email ||
+    "Tidak ada data";
 
   // Get User Initials for Avatar
   const initials = participantName
@@ -77,7 +80,7 @@ export default function ParticipantNavbar() {
                   {participantName.split(",")[0]}
                 </span>
                 <span className="text-[10px] font-bold text-blue-600 block leading-tight truncate">
-                  NIM: {nimNumber}
+                  Peserta OSCE
                 </span>
               </div>
               <ChevronDown
@@ -99,9 +102,6 @@ export default function ParticipantNavbar() {
                   <div className="overflow-hidden">
                     <p className="text-xs font-extrabold text-slate-900 truncate">
                       {participantName}
-                    </p>
-                    <p className="text-[10px] font-bold text-blue-600 truncate mt-0.5">
-                      NIM: {nimNumber}
                     </p>
                     <span className="inline-flex items-center gap-1 rounded-md bg-blue-100 text-blue-800 text-[9px] font-black px-1.5 py-0.5 mt-1">
                       <ShieldCheck size={10} />
@@ -126,7 +126,7 @@ export default function ParticipantNavbar() {
                     }`}
                   >
                     <LayoutDashboard size={16} className="text-blue-600" />
-                    <span>Dashboard Utama</span>
+                    <span>Dashboard</span>
                   </button>
 
                   <button
@@ -141,7 +141,7 @@ export default function ParticipantNavbar() {
                     }`}
                   >
                     <FileCheck2 size={16} className="text-blue-600" />
-                    <span>Riwayat & Transkrip Ujian</span>
+                    <span>Riwayat Ujian</span>
                   </button>
 
                   <button
@@ -156,7 +156,7 @@ export default function ParticipantNavbar() {
                     }`}
                   >
                     <User size={16} className="text-blue-600" />
-                    <span>Edit Profil Saya</span>
+                    <span>Edit Profil</span>
                   </button>
                 </div>
 
@@ -168,10 +168,10 @@ export default function ParticipantNavbar() {
                     setIsOpen(false);
                     logout();
                   }}
-                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-bold text-rose-600 hover:bg-rose-50 hover:text-rose-700 transition"
+                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-bold text-rose-600 hover:bg-rose-50 hover:text-rose-700 transition cursor-pointer"
                 >
                   <LogOut size={16} />
-                  <span>Keluar (Logout)</span>
+                  <span>Keluar</span>
                 </button>
               </div>
             )}

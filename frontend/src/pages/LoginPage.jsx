@@ -166,7 +166,7 @@ export default function LoginPage() {
                 : "text-slate-500 hover:text-slate-800"
             }`}
           >
-            Masuk (Login)
+            Masuk
           </button>
           <button
             type="button"
@@ -177,16 +177,16 @@ export default function LoginPage() {
                 : "text-slate-500 hover:text-slate-800"
             }`}
           >
-            Daftar Akun Baru (Register)
+            Daftar
           </button>
         </div>
 
-        {/* Form Login / Register Direct to Supabase */}
+        {/* Form Login / Register */}
         <form onSubmit={handleSubmit} className="space-y-4">
           {mode === "register" && (
             <div>
               <label className="mb-1.5 block text-xs font-bold text-slate-700">
-                Nama Lengkap & Gelar
+                Nama Lengkap
               </label>
               <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 focus-within:border-blue-500 focus-within:bg-white transition">
                 <User size={16} className="text-slate-400" />
@@ -204,7 +204,7 @@ export default function LoginPage() {
 
           <div>
             <label className="mb-1.5 block text-xs font-bold text-slate-700">
-              Alamat Email Supabase
+              Email
             </label>
             <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 focus-within:border-blue-500 focus-within:bg-white transition">
               <Mail size={16} className="text-slate-400" />
@@ -221,7 +221,7 @@ export default function LoginPage() {
 
           <div>
             <label className="mb-1.5 block text-xs font-bold text-slate-700">
-              Kata Sandi (Password)
+              Kata Sandi
             </label>
             <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 focus-within:border-blue-500 focus-within:bg-white transition">
               <Lock size={16} className="text-slate-400" />
@@ -240,17 +240,17 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-xl bg-blue-600 py-3 text-xs font-bold text-white shadow-md shadow-blue-600/30 transition hover:bg-blue-700 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full rounded-xl bg-blue-600 py-3 text-xs font-bold text-white shadow-md shadow-blue-600/30 transition hover:bg-blue-700 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
           >
             {mode === "register" ? (
               <>
                 <UserPlus size={16} />
-                {loading ? "Mendaftarkan ke Supabase..." : `Daftar Akun Baru (User)`}
+                {loading ? "Memproses..." : "Daftar"}
               </>
             ) : (
               <>
                 <LogIn size={16} />
-                {loading ? "Menghubungkan Supabase..." : "Masuk ke Sistem"}
+                {loading ? "Memproses..." : "Masuk"}
               </>
             )}
           </button>
@@ -268,14 +268,14 @@ export default function LoginPage() {
           <button
             type="button"
             onClick={signIn}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition active:scale-95"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition active:scale-95 cursor-pointer"
           >
             <img
               src="https://www.svgrepo.com/show/475656/google-color.svg"
               alt="Google"
               className="h-4 w-4"
             />
-            Masuk dengan Google (Supabase Auth)
+            Masuk dengan Google
           </button>
         </div>
       </div>

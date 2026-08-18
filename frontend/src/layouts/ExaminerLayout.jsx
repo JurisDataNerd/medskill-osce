@@ -94,14 +94,14 @@ export default function ExaminerLayout({ children }) {
 
   function formatDoctorDisplayName(fullName, email) {
     if (fullName && fullName.trim()) return fullName;
-    if (!email) return "dr. Penguji Medis";
+    if (!email) return "Tidak ada data";
     const username = email.split("@")[0].replace(/[._]/g, " ");
     const formatted = username.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
-    return `dr. ${formatted}`;
+    return formatted || "Tidak ada data";
   }
 
   const examinerName = formatDoctorDisplayName(profile?.full_name || user?.user_metadata?.full_name, user?.email);
-  const examinerSpecialty = profile?.specialty || user?.user_metadata?.specialty || "Dokter Penguji Spesialis";
+  const examinerSpecialty = profile?.specialty || user?.user_metadata?.specialty || "Tidak ada data";
 
   return (
     <div className="flex h-screen bg-slate-100 font-sans text-slate-800">
@@ -173,10 +173,10 @@ export default function ExaminerLayout({ children }) {
         <div className="border-t border-slate-200 p-4">
           <button
             onClick={handleLogout}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 py-2.5 text-xs font-bold text-rose-700 transition hover:bg-rose-100 active:scale-95"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 py-2.5 text-xs font-bold text-rose-700 transition hover:bg-rose-100 active:scale-95 cursor-pointer"
           >
             <LogOut size={16} />
-            Keluar (Logout)
+            Keluar
           </button>
         </div>
       </aside>
