@@ -57,6 +57,7 @@ import {
 } from "@/services/live.service";
 import { fetchSessions, fetchSessionById, updateSessionStatus } from "@/services/sessionService";
 import ConfirmModal from "@/components/ConfirmModal";
+import SessionRotationScheduleView from "@/features/admin/components/SessionRotationScheduleView";
 
 // Web Audio API Bell Synthesizer (No external file dependencies needed)
 function playOsceBell(type = "warning") {
@@ -753,14 +754,14 @@ export default function LiveMonitorPage() {
                 <div className="flex items-center gap-2">
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/20 border border-amber-400/30 px-3 py-1 text-xs font-extrabold text-amber-300">
                     <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
-                    Sistem Standby • Tidak Ada Sesi Ongoing di Supabase
+                    Standby
                   </span>
                 </div>
                 <h1 className="text-2xl font-black sm:text-3xl text-white">
-                  Pilih & Jalankan Sesi Ujian OSCE Live
+                  Pilih Sesi Ujian
                 </h1>
                 <p className="text-xs text-slate-300 max-w-2xl leading-relaxed font-medium">
-                  Pilih salah satu sesi ujian sirkuit dari database Supabase di bawah ini untuk mengaktifkan master timer, bel audio, dan pemantauan rotasi pos secara real-time.
+                  Pilih sesi ujian di bawah untuk mengaktifkan timer dan pemantauan rotasi real-time.
                 </p>
               </div>
             </div>
@@ -770,7 +771,7 @@ export default function LiveMonitorPage() {
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
                 <Building2 size={20} className="text-blue-600" />
-                Daftar Sesi Ujian Siap Dijalankan ({dbSessions.length} Sesi Terdaftar)
+                Daftar Sesi Ujian
               </h2>
               <button
                 onClick={() => navigate("/admin/sessions/create")}
@@ -782,7 +783,7 @@ export default function LiveMonitorPage() {
 
             {dbSessions.length === 0 ? (
               <div className="p-8 text-center text-xs text-slate-500">
-                Belum ada sesi di database Supabase.
+                Belum ada sesi ujian terdaftar.
               </div>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2">
@@ -813,11 +814,11 @@ export default function LiveMonitorPage() {
 
                       <div className="grid grid-cols-2 gap-2 text-xs font-semibold text-slate-700">
                         <div className="rounded-xl border border-slate-200 bg-white p-2 text-center">
-                          <span className="text-slate-400 text-[10px] block font-bold">Total Station Pos</span>
+                          <span className="text-slate-400 text-[10px] block font-bold">Total Stase</span>
                           <span className="font-black text-slate-900">{sess.total_stations || 8} Pos</span>
                         </div>
                         <div className="rounded-xl border border-slate-200 bg-white p-2 text-center">
-                          <span className="text-slate-400 text-[10px] block font-bold">Durasi / Pos</span>
+                          <span className="text-slate-400 text-[10px] block font-bold">Durasi Stase</span>
                           <span className="font-black text-slate-900">{sess.station_duration_minutes || 12} Mnt</span>
                         </div>
                       </div>
@@ -854,18 +855,18 @@ export default function LiveMonitorPage() {
                 <div className="flex items-center gap-2">
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/20 border border-blue-400/30 px-3 py-1 text-xs font-black text-blue-300">
                     <span className="h-2 w-2 rounded-full bg-blue-400 animate-pulse" />
-                    WAITING ROOM AKTIF
+                    Waiting Room
                   </span>
                   <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-400">
                     <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
-                    Supabase Realtime Live
+                    Realtime
                   </span>
                 </div>
                 <h1 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
                   {activeSession.title}
                 </h1>
                 <p className="text-xs text-blue-200/90 font-medium leading-relaxed">
-                  Waiting Room sudah dibuka. Peserta dan Dokter Penguji dapat bergabung. Tekan tombol di bawah untuk memulai ujian dan mengaktifkan timer global.
+                  Waiting Room aktif. Peserta dan Dokter Penguji dapat bergabung. Tekan tombol di bawah untuk memulai sesi.
                 </p>
               </div>
             </div>
@@ -965,14 +966,14 @@ export default function LiveMonitorPage() {
                   className="inline-flex items-center gap-2 rounded-xl border border-rose-300 bg-white hover:bg-rose-100 px-5 py-3 text-xs font-bold text-rose-700 shadow-2xs active:scale-95 transition"
                 >
                   <XCircle size={18} className="text-rose-600" />
-                  Tutup / Keluar Waiting Room
+                  Keluar Waiting Room
                 </button>
                 <button
                   onClick={handleStartOsce}
                   className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-3 text-sm font-black text-white shadow-lg hover:bg-emerald-700 active:scale-95 transition"
                 >
                   <Play size={20} />
-                  Mulai Sesi OSCE Sekarang
+                  Mulai Sesi
                 </button>
               </div>
             </div>
@@ -983,7 +984,7 @@ export default function LiveMonitorPage() {
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
                 <Grid size={18} className="text-blue-600" />
-                Matriks Live Station Pos ({liveStations.length} Pos)
+                Matriks Stase ({liveStations.length} Pos)
               </h2>
               <span className="text-xs text-slate-500 font-medium">Klik "Inspect Stase" untuk memantau detail stase</span>
             </div>
@@ -1063,7 +1064,7 @@ export default function LiveMonitorPage() {
                     </h1>
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 px-3 py-1 text-xs font-bold text-emerald-300">
                       <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
-                      REALTIME LIVE (SUPABASE ONGOING)
+                      Realtime
                     </span>
                   </div>
                   <p className="mt-1 text-sm text-slate-300 font-medium">
@@ -1080,7 +1081,7 @@ export default function LiveMonitorPage() {
                   <div className="text-left">
                     <div className="flex items-center gap-1">
                       <span className="text-[9px] font-black uppercase tracking-wider text-cyan-300 block leading-tight">
-                        Total Timer Sesi
+                        Total Timer
                       </span>
                       {!isTimerRunning && (
                         <span className="text-[8px] font-black uppercase text-amber-400 bg-amber-400/20 px-1 rounded">
@@ -1100,33 +1101,33 @@ export default function LiveMonitorPage() {
                     className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-800/80 px-4 py-2.5 text-xs font-bold text-slate-200 hover:bg-slate-700 hover:text-white transition shadow-sm"
                   >
                     <BellRing size={16} className="text-amber-400" />
-                    Bel Manual Audio
+                    Bel Manual
                   </button>
 
                   {isBellMenuOpen && (
                     <div className="absolute right-0 mt-2 w-64 rounded-2xl border border-slate-700 bg-slate-900 p-2 shadow-2xl z-50 animate-in fade-in">
                       <div className="px-3 py-2 text-[10px] font-black uppercase text-slate-400 border-b border-slate-800">
-                        Pilihan Bunyi Bel Audio OSCE
+                        Pilihan Bel Audio
                       </div>
                       <button
                         onClick={() => handleTriggerBell("start")}
                         className="w-full text-left px-3 py-2 text-xs font-bold text-slate-200 hover:bg-slate-800 rounded-xl transition flex items-center justify-between"
                       >
-                        <span>Bel 1x (Mulai / Reading)</span>
+                        <span>Bel 1x (Mulai)</span>
                         <Play size={12} className="text-emerald-400" />
                       </button>
                       <button
                         onClick={() => handleTriggerBell("warning")}
                         className="w-full text-left px-3 py-2 text-xs font-bold text-slate-200 hover:bg-slate-800 rounded-xl transition flex items-center justify-between"
                       >
-                        <span>Bel 2x (Sisa 2 Menit)</span>
+                        <span>Bel 2x (Sisa 2 Mnt)</span>
                         <AlertTriangle size={12} className="text-amber-400" />
                       </button>
                       <button
                         onClick={() => handleTriggerBell("rotation")}
                         className="w-full text-left px-3 py-2 text-xs font-bold text-slate-200 hover:bg-slate-800 rounded-xl transition flex items-center justify-between"
                       >
-                        <span>Bel 3x (Selesai & Rotasi)</span>
+                        <span>Bel 3x (Rotasi)</span>
                         <BellRing size={12} className="text-red-400" />
                       </button>
                     </div>
@@ -1145,12 +1146,12 @@ export default function LiveMonitorPage() {
                   {isTimerRunning ? (
                     <>
                       <Pause size={16} />
-                      Pause Timer Global
+                      Jeda
                     </>
                   ) : (
                     <>
                       <Play size={16} />
-                      Lanjutkan (Resume) Timer
+                      {timerState?.paused_remaining_ms ? "Lanjutkan" : "Mulai"}
                     </>
                   )}
                 </button>
@@ -1160,7 +1161,7 @@ export default function LiveMonitorPage() {
                   className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-indigo-700 active:scale-95 transition"
                 >
                   <Megaphone size={16} />
-                  Kirim Broadcast Peringatan
+                  Broadcast
                 </button>
 
                 <button
@@ -1168,7 +1169,7 @@ export default function LiveMonitorPage() {
                   className="inline-flex items-center gap-2 rounded-xl border border-red-500/50 bg-red-600/20 px-4 py-2.5 text-xs font-bold text-red-300 hover:bg-red-600 hover:text-white transition"
                 >
                   <Square size={15} />
-                  Akhiri Sesi OSCE
+                  Akhiri Sesi
                 </button>
               </div>
             </div>
@@ -1416,6 +1417,11 @@ export default function LiveMonitorPage() {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Matriks Live Rotasi Stase & Peserta-Dokter Schedule */}
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xs">
+            <SessionRotationScheduleView sessionId={activeSession.id} activeRound={currentRound} />
           </div>
         </div>
       )}

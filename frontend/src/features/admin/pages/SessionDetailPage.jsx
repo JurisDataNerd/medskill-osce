@@ -21,11 +21,13 @@ import {
   ChevronUp,
   Activity,
   Award,
+  Layers,
 } from "lucide-react";
 
 import AdminLayout from "@/layouts/AdminLayout";
 import { fetchSessionById } from "@/services/sessionService";
 import SessionParticipantsInlineSection from "@/features/admin/components/SessionParticipantsInlineSection";
+import SessionRotationScheduleView from "@/features/admin/components/SessionRotationScheduleView";
 
 export default function SessionDetailPage() {
   const navigate = useNavigate();
@@ -102,10 +104,18 @@ export default function SessionDetailPage() {
             <p className="mt-1 text-sm text-slate-500">{session.description}</p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => navigate(`/admin/sessions/${session.id}/schedule`)}
+              className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-xs font-bold text-blue-700 shadow-2xs transition hover:bg-blue-100 active:scale-95 cursor-pointer"
+            >
+              <Layers size={15} />
+              Jadwal Mapping Rotasi
+            </button>
+
             <button
               onClick={() => navigate(`/admin/sessions/${session.id}/edit`)}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-50 active:scale-95"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-50 active:scale-95 cursor-pointer"
             >
               <Pencil size={15} />
               Edit Sesi Ini
@@ -174,6 +184,11 @@ export default function SessionDetailPage() {
           sessionId={session.id}
           onUpdate={loadDetail}
         />
+      </div>
+
+      {/* Embedded Rotation Schedule Section */}
+      <div className="mb-6">
+        <SessionRotationScheduleView sessionId={session.id} />
       </div>
 
       {/* OSCE Rules Summary Badge */}

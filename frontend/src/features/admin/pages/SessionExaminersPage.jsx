@@ -11,6 +11,7 @@ import {
   Trash2,
   Coffee,
   RefreshCw,
+  Layers,
 } from "lucide-react";
 import AdminLayout from "@/layouts/AdminLayout";
 import { getSessionExaminers } from "@/services/session.service";
@@ -208,10 +209,18 @@ export default function SessionExaminersPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => navigate(`/admin/sessions/${id}/schedule`)}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-2 text-xs font-bold text-blue-700 transition hover:bg-blue-100 active:scale-95 shadow-2xs cursor-pointer"
+            >
+              <Layers size={15} />
+              Mapping Rotasi Peserta
+            </button>
+
             <button
               onClick={loadAllData}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-50 active:scale-95 shadow-2xs"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-50 active:scale-95 shadow-2xs cursor-pointer"
               title="Refresh Data"
             >
               <RefreshCw size={14} />

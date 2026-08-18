@@ -28,6 +28,7 @@ import CreateCasePage from "@/features/admin/pages/CreateCasePage";
 import SettingsPage from "@/features/admin/pages/SettingsPage";
 import ParticipantAnswerPage from "@/features/admin/pages/ParticipantAnswerPage";
 import StationMonitorDetailPage from "@/features/admin/pages/StationMonitorDetailPage";
+import SessionRotationSchedulePage from "@/features/admin/pages/SessionRotationSchedulePage";
 
 
 // ======================
@@ -181,6 +182,15 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute allow={["admin"]}>
         <SessionExaminersPage />
+      </ProtectedRoute>
+    ),
+  },
+
+  {
+    path: "/admin/sessions/:id/schedule",
+    element: (
+      <ProtectedRoute allow={["admin"]}>
+        <SessionRotationSchedulePage />
       </ProtectedRoute>
     ),
   },

@@ -12,6 +12,7 @@ import {
   CheckCheck,
   Shuffle,
   Loader2,
+  Layers,
 } from "lucide-react";
 import AdminLayout from "@/layouts/AdminLayout";
 import {
@@ -201,6 +202,14 @@ export default function SessionParticipantsPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => navigate(`/admin/sessions/${id}/schedule`)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-xs font-semibold text-blue-700 shadow-xs transition hover:bg-blue-100 active:scale-95 cursor-pointer"
+            >
+              <Layers size={16} />
+              <span>Lihat Mapping Dokter</span>
+            </button>
+
             <button
               onClick={handleRandomizeMapping}
               disabled={randomizing || participants.length === 0}

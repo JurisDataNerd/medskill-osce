@@ -47,6 +47,7 @@ import {
 } from "@/services/realtimeTimerService";
 import AuxiliaryExamResultModal from "@/components/AuxiliaryExamResultModal";
 import ConfirmModal from "@/components/ConfirmModal";
+import ExaminerStationScheduleWidget from "@/features/examiner/components/ExaminerStationScheduleWidget";
 
 export default function ExaminerStagePage() {
   const { stageId, sessionId, id } = useParams();
@@ -1213,6 +1214,13 @@ export default function ExaminerStagePage() {
             </div>
           </div>
         </div>
+
+        {/* Embedded Examiner Station Rotation Schedule Widget */}
+        <ExaminerStationScheduleWidget
+          sessionId={activeSession.id}
+          stationNumber={stationData.station_number}
+          activeRound={currentRoundNum}
+        />
 
         {/* Live Presence Standby Participants & Examiners Card */}
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-md space-y-4">

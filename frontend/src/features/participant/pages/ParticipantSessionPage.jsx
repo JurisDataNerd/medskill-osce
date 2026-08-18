@@ -62,6 +62,7 @@ import {
   saveParticipantStepAnswer,
   fetchParticipantAnswer,
 } from "@/services/participantService";
+import ParticipantPersonalScheduleWidget from "@/features/participant/components/ParticipantPersonalScheduleWidget";
 
 export default function ParticipantSessionPage() {
   const { sessionId } = useParams();
@@ -1040,25 +1041,22 @@ export default function ParticipantSessionPage() {
         )}
 
         {/* Top Header */}
-        <header className="border-b border-slate-200 bg-white px-6 py-4 shadow-2xs">
+        <header className="border-b border-slate-200 bg-white px-6 py-3.5 shadow-2xs">
           <div className="mx-auto flex max-w-5xl items-center justify-between">
-            <button
-              onClick={handleExitWaitingRoom}
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-rose-700 hover:text-rose-900 bg-rose-50 border border-rose-200 px-3 py-1.5 rounded-xl transition shadow-2xs"
-            >
-              <LogOut size={15} />
-              Keluar Waiting Room
-            </button>
+            <div className="flex items-center gap-2">
+              <span className="h-3 w-3 rounded-full bg-blue-600 animate-pulse" />
+              <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Waiting Room OSCE</span>
+            </div>
 
             {isSessionLive ? (
               <span className="rounded-full bg-emerald-100 border border-emerald-300 px-3 py-1 text-xs font-bold text-emerald-900 flex items-center gap-1.5 animate-pulse">
                 <Activity size={14} className="text-emerald-700" />
-                Sesi Live Berlangsung
+                Sesi Berlangsung
               </span>
             ) : (
               <span className="rounded-full bg-amber-100 border border-amber-300 px-3 py-1 text-xs font-bold text-amber-900 flex items-center gap-1.5">
                 <Hourglass size={14} className="text-amber-700" />
-                Sesi Standby • Menunggu Admin Start
+                Menunggu Admin Mulai
               </span>
             )}
           </div>
@@ -1099,11 +1097,11 @@ export default function ParticipantSessionPage() {
               <div>
                 <div className="flex items-center gap-2.5">
                   <span className="rounded-md bg-blue-500/30 border border-blue-400/40 px-2.5 py-0.5 text-[10px] font-black uppercase text-blue-200 tracking-wider">
-                    INFORMASI SESI UJIAN OSCE
+                    Informasi Sesi
                   </span>
                   <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-400">
                     <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
-                    Supabase Realtime Live
+                    Realtime
                   </span>
                 </div>
                 <h1 className="text-xl font-extrabold tracking-tight text-white mt-1.5 sm:text-2xl">
@@ -1144,76 +1142,8 @@ export default function ParticipantSessionPage() {
             </div>
           </div>
 
-          <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-xl space-y-6 text-center sm:text-left">
-            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-5">
-              <div>
-                <span className="rounded-md bg-blue-600 px-3 py-1 text-xs font-black text-white">
-                  PERSIAPAN RONDE 1
-                </span>
-                <h1 className="text-xl font-bold text-slate-900 mt-2">
-                  {currentStationInfo.title}
-                </h1>
-                <p className="text-xs text-slate-500 mt-0.5 flex items-center justify-center sm:justify-start gap-1">
-                  <MapPin size={14} className="text-slate-400" />
-                  {currentStationInfo.location}
-                </p>
-              </div>
-
-              {/* Countdown Briefing / Standby Status Card */}
-              {isSessionLive ? (
-                <div className="mx-auto sm:mx-0 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-center min-w-[170px] animate-in fade-in">
-                  <p className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">
-                    Persiapan Memulai Ronde 1:
-                  </p>
-                  <p className="text-2xl font-black font-mono text-emerald-900 mt-0.5">
-                    {formatTime(waitingCountdown)}
-                  </p>
-                </div>
-              ) : (
-                <div className="mx-auto sm:mx-0 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-center min-w-[210px] space-y-0.5">
-                  <p className="text-[10px] font-bold text-amber-800 uppercase tracking-wider">
-                    Status Timer Sesi:
-                  </p>
-                  <p className="text-xs font-black text-amber-900 flex items-center justify-center gap-1.5 pt-0.5">
-                    <span className="h-2 w-2 rounded-full bg-amber-500 animate-ping" />
-                    STANDBY (BELUM START)
-                  </p>
-                  <p className="text-[10px] text-amber-700">
-                    Menunggu Admin menekan tombol Start Live.
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Rotation Info */}
-            <div className="grid gap-4 sm:grid-cols-3 text-xs">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Posisi Ronde Pertama Anda</span>
-                <p className="font-bold text-blue-900 text-sm mt-0.5">
-                  Stase {currentStationInfo.station_number}
-                </p>
-                <p className="text-[11px] text-slate-500 mt-0.5">Ronde 1 dari {totalRoundsInSession} Rotasi Sirkuit</p>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Urutan Rotasi Ujian</span>
-                <p className="font-bold text-slate-900 text-sm mt-0.5 truncate">
-                  Stase {currentStationInfo.station_number} dari {totalRoundsInSession}
-                </p>
-                <p className="text-[11px] text-emerald-700 font-semibold mt-0.5 inline-flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                  Penguji Standby
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Estimasi Total Durasi</span>
-                <p className="font-bold text-slate-900 text-sm mt-0.5">
-                  {totalRoundsInSession} Ronde (± {totalRoundsInSession * 15} Menit)
-                </p>
-                <p className="text-[11px] text-blue-700 font-semibold mt-0.5">Termasuk Transisi & Istirahat</p>
-              </div>
-            </div>
+          {/* Embedded Participant Personal Schedule Widget */}
+          <ParticipantPersonalScheduleWidget sessionId={sessionId} activeRound={currentRound} />
 
             {/* Live Online Users List Widget */}
             <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5 space-y-3">
@@ -1221,7 +1151,7 @@ export default function ParticipantSessionPage() {
                 <div className="flex items-center gap-2">
                   <Users size={18} className="text-blue-600" />
                   <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                    Pengguna & Peserta Terhubung (Live Online)
+                    Peserta Terhubung
                   </h3>
                 </div>
                 <span className="rounded-full bg-emerald-100 border border-emerald-300 px-3 py-0.5 text-xs font-bold text-emerald-900 flex items-center gap-1.5 animate-pulse">
@@ -1293,7 +1223,7 @@ export default function ParticipantSessionPage() {
                   className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-rose-50 border border-rose-200 hover:bg-rose-100 px-6 py-3.5 text-xs font-bold text-rose-700 transition active:scale-95 shadow-2xs"
                 >
                   <LogOut size={16} />
-                  Keluar dari Waiting Room
+                  Keluar
                 </button>
                 <button
                   onClick={handleStartSimulationFromWaiting}
@@ -1304,15 +1234,12 @@ export default function ParticipantSessionPage() {
                   }`}
                 >
                   <Play size={16} />
-                  {isSessionLive
-                    ? `Masuk ke Ruang Ujian Live (${currentStationInfo.title})`
-                    : `Masuk Kiosk Briefing Stase 1 (Simulasi Standby)`}
+                  Masuk
                   <ChevronRight size={16} />
                 </button>
               </div>
             </div>
-          </div>
-        </main>
+          </main>
 
         <ConfirmModal
           isOpen={confirmModal.isOpen}
