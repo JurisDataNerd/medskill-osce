@@ -62,7 +62,7 @@ export default function ParticipantDetailPage() {
         <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-xs text-slate-500 space-y-3">
           <AlertTriangle size={36} className="mx-auto text-amber-500" />
           <h3 className="text-base font-bold text-slate-800">Data Peserta Tidak Ditemukan</h3>
-          <p>Mahasiswa dengan ID atau NIM ini tidak ditemukan di database Supabase.</p>
+          <p>Peserta dengan ID atau NIM ini tidak ditemukan.</p>
           <button
             onClick={() => navigate("/admin/participants")}
             className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700 transition"

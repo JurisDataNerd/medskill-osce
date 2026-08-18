@@ -275,7 +275,7 @@ export default function ExaminerPage() {
             <span className="text-2xl font-black text-slate-900">{evalStats.total}</span>
             <span className="text-xs font-bold text-emerald-600">Peserta</span>
           </div>
-          <p className="text-[11px] text-slate-400 font-medium">Evaluasi tersimpan di Supabase</p>
+          <p className="text-[11px] text-slate-400 font-medium">Evaluasi telah tersimpan</p>
         </div>
 
         {/* Stat 3: Station Assignment */}
@@ -349,18 +349,18 @@ export default function ExaminerPage() {
                           )}
                           {isPublished && (
                             <span className="rounded-md bg-blue-100 text-blue-900 border border-blue-300 px-2.5 py-0.5 text-[10px] font-black uppercase inline-flex items-center gap-1">
-                              Dipublikasikan (Terjadwal)
+                              Sesi Terjadwal
                             </span>
                           )}
                           {isCompleted && (
                             <span className="rounded-md bg-slate-200 text-slate-700 border border-slate-300 px-2.5 py-0.5 text-[10px] font-black uppercase inline-flex items-center gap-1">
                               <CheckCircle2 size={11} className="text-slate-600" />
-                              Selesai (Completed)
+                              Selesai
                             </span>
                           )}
                           {isDraft && (
                             <span className="rounded-md bg-amber-100 text-amber-900 border border-amber-300 px-2.5 py-0.5 text-[10px] font-black uppercase inline-flex items-center gap-1">
-                              Draft (Belum Dipublikasikan)
+                              Draft
                             </span>
                           )}
 

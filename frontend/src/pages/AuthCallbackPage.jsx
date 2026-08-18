@@ -123,7 +123,7 @@ export default function AuthCallbackPage() {
 
         <div className="mt-8 flex items-center justify-center gap-1.5 text-[10px] font-semibold text-slate-500">
           <ShieldCheck className="h-3.5 w-3.5 text-blue-400" />
-          <span>Dekripsi Sesi Terenkripsi Supabase Auth</span>
+          <span>Koneksi Aman & Terenkripsi</span>
         </div>
       </div>
     </div>

@@ -29,12 +29,12 @@ const menus = [
     path: "/admin/live",
   },
   {
-    title: "Kelola Sesi OSCE",
+    title: "Kelola Sesi",
     icon: CalendarDays,
     path: "/admin/sessions",
   },
   {
-    title: "Bank Soal & Kasus",
+    title: "Bank Soal",
     icon: BookOpen,
     path: "/admin/cases",
   },

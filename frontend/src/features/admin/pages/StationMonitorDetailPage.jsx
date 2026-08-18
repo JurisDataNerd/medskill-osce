@@ -162,7 +162,7 @@ export default function StationMonitorDetailPage() {
       <AdminLayout>
         <div className="flex h-[450px] items-center justify-center text-xs font-semibold text-slate-500">
           <Loader2 size={24} className="animate-spin text-blue-600 mr-2" />
-          Memuat Detail Stase Supabase...
+          Memuat Detail Stase...
         </div>
       </AdminLayout>
     );
@@ -172,13 +172,13 @@ export default function StationMonitorDetailPage() {
     return (
       <AdminLayout>
         <div className="p-8 text-center text-xs text-slate-500 space-y-3">
-          <p className="font-bold text-slate-700">Data stase tidak ditemukan di database Supabase.</p>
+          <p className="font-bold text-slate-700">Data stase tidak ditemukan.</p>
           <button
             onClick={() => navigate("/admin/live")}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-xs"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-xs cursor-pointer"
           >
             <ArrowLeft size={16} />
-            Kembali ke Live Control Room
+            Kembali ke Monitor Langsung
           </button>
         </div>
       </AdminLayout>

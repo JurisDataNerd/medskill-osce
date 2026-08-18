@@ -31,7 +31,7 @@ const menus = [
     path: "/examiner/history",
   },
   {
-    title: "Profil Saya",
+    title: "Profil",
     icon: User,
     path: "/examiner/profile",
   },
@@ -196,12 +196,12 @@ export default function ExaminerLayout({ children }) {
                 ) : ["completed", "finished", "selesai"].includes(activeSession.status?.toLowerCase()) ? (
                   <span className="rounded-full bg-slate-100 border border-slate-300 px-3 py-1 text-xs font-bold text-slate-700 flex items-center gap-1.5">
                     <span className="h-2 w-2 rounded-full bg-slate-500" />
-                    Sesi Ujian Selesai (Completed)
+                    Sesi Ujian Selesai
                   </span>
                 ) : (
                   <span className="rounded-full bg-blue-100 border border-blue-300 px-3 py-1 text-xs font-bold text-blue-900 flex items-center gap-1.5">
                     <span className="h-2 w-2 rounded-full bg-blue-600" />
-                    Sesi Ujian Dipublikasikan (Terjadwal)
+                    Sesi Terjadwal
                   </span>
                 )}
                 <span className="text-xs text-slate-600 font-medium truncate max-w-md">
@@ -212,7 +212,7 @@ export default function ExaminerLayout({ children }) {
               <>
                 <span className="rounded-full bg-amber-100 border border-amber-300 px-3 py-1 text-xs font-bold text-amber-900 flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-full bg-amber-500" />
-                  Sistem Standby • Belum Ada Sesi Live Ongoing
+                  Sistem Standby
                 </span>
               </>
             )}

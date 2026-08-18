@@ -61,7 +61,7 @@ export default function LoginPage() {
           setConfirmModal({
             isOpen: true,
             title: "Gagal Registrasi",
-            message: "Gagal Registrasi Supabase: " + error.message,
+            message: "Gagal melakukan pendaftaran: " + error.message,
             confirmText: "Mengerti",
             variant: "danger",
             isAlert: true,
@@ -88,14 +88,14 @@ export default function LoginPage() {
         return;
       }
 
-      // Direct Login to Supabase database (auto detects role from raw_user_meta_data JSON)
+      // Direct Login (auto detects role from raw_user_meta_data JSON)
       const { data, error } = await login(email, password);
 
       if (error) {
         setConfirmModal({
           isOpen: true,
-          title: "Gagal Autentikasi Login",
-          message: "Gagal Login: " + error.message,
+          title: "Gagal Masuk",
+          message: "Gagal masuk: " + error.message,
           confirmText: "Mengerti",
           variant: "danger",
           isAlert: true,
@@ -114,7 +114,7 @@ export default function LoginPage() {
       setConfirmModal({
         isOpen: true,
         title: "Kesalahan Koneksi",
-        message: "Terjadi kesalahan saat terhubung ke Supabase database.",
+        message: "Terjadi kesalahan saat menghubungkan ke server.",
         confirmText: "Mengerti",
         variant: "warning",
         isAlert: true,

@@ -101,13 +101,13 @@ export default function QuestionBankSelectModal({
             </div>
             <div>
               <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-                Pilih Soal dari Bank Soal Supabase
+                Pilih Kasus Medis
                 <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-bold text-blue-700 border border-blue-200">
                   {catalog.length} Kasus Terdaftar
                 </span>
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Pilih paket soal medis terstandar untuk otomatis mengisi skenario, instruksi, dan rubrik kunci jawaban.
+                Pilih paket soal medis terstandar untuk mengisi skenario, instruksi, dan rubrik penilaian.
               </p>
             </div>
           </div>
@@ -163,7 +163,7 @@ export default function QuestionBankSelectModal({
           {loading ? (
             <div className="flex flex-col items-center justify-center h-56 text-slate-400 space-y-2">
               <Loader2 size={24} className="animate-spin text-blue-600" />
-              <span className="text-xs font-semibold">Memuat Bank Soal dari Database Supabase...</span>
+              <span className="text-xs font-semibold">Memuat Bank Soal...</span>
             </div>
           ) : filteredCases.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-10 text-center text-xs text-slate-500 space-y-2 my-auto">
@@ -172,7 +172,7 @@ export default function QuestionBankSelectModal({
               </div>
               <p className="font-bold text-slate-800 text-sm">
                 {catalog.length === 0
-                  ? "Belum Ada Soal di Bank Soal Supabase"
+                  ? "Belum Ada Soal di Bank Soal"
                   : "Tidak Ada Kasus Medis Sesuai Pencarian"}
               </p>
               <p className="max-w-md text-slate-500">

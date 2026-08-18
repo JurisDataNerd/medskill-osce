@@ -66,7 +66,7 @@ export default function AdminPage() {
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 px-3 py-1 text-xs font-extrabold text-emerald-300 backdrop-blur-xs">
                 <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                Supabase Schema osce Active
+                Control Room Aktif
               </span>
               <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-slate-200 backdrop-blur-xs">
                 {new Date().toLocaleDateString("id-ID", {
@@ -130,7 +130,7 @@ export default function AdminPage() {
           <StatCard
             title="Total Sesi OSCE"
             value={stats?.sessions ?? 0}
-            subtitle="Sirkuit Terjadwal & Draft"
+            subtitle="Sesi Ujian Terdaftar"
             icon={<Building2 size={20} />}
             color="blue"
             onClick={() => navigate("/admin/sessions")}
@@ -138,7 +138,7 @@ export default function AdminPage() {
           <StatCard
             title="Bank Soal Medis"
             value={stats?.questionBankCount ?? 10}
-            subtitle="Kasus Baku 8 Organ"
+            subtitle="Kasus Medis Terstandar"
             icon={<BookOpen size={20} />}
             color="indigo"
             onClick={() => navigate("/admin/cases")}
@@ -146,7 +146,7 @@ export default function AdminPage() {
           <StatCard
             title="Peserta Terdaftar"
             value={stats?.participants ?? 0}
-            subtitle="Dokter Muda / Mahasiswa"
+            subtitle="Peserta Ujian"
             icon={<Users size={20} />}
             color="emerald"
             onClick={() => navigate("/admin/participants")}
@@ -154,15 +154,15 @@ export default function AdminPage() {
           <StatCard
             title="Dokter Penguji"
             value={stats?.examiners ?? 0}
-            subtitle="Spesialis Terverifikasi"
+            subtitle="Penguji Terverifikasi"
             icon={<UserCheck size={20} />}
             color="violet"
             onClick={() => navigate("/admin/examiners")}
           />
           <StatCard
-            title="Database Status"
-            value="ACTIVE"
-            subtitle="Supabase Postgres 2.0"
+            title="Status Sistem"
+            value="ONLINE"
+            subtitle="Sistem Terhubung"
             icon={<ShieldCheck size={20} />}
             color="teal"
           />
@@ -257,7 +257,7 @@ export default function AdminPage() {
                     <p className="text-base font-black text-emerald-950">{session.total_stations || 8} Pos</p>
                   </div>
                   <div className="rounded-xl border border-emerald-200 bg-white p-3 shadow-2xs">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">Durasi / Stase</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">Durasi Stase</p>
                     <p className="text-base font-black text-emerald-950">{session.station_duration_minutes || 12} Menit</p>
                   </div>
                   <div className="rounded-xl border border-emerald-200 bg-white p-3 shadow-2xs col-span-2 sm:col-span-1">
@@ -268,10 +268,10 @@ export default function AdminPage() {
 
                 <button
                   onClick={() => navigate("/admin/live")}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 text-xs font-bold text-white shadow-md hover:bg-emerald-700 active:scale-95 transition"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 text-xs font-bold text-white shadow-md hover:bg-emerald-700 active:scale-95 transition cursor-pointer"
                 >
                   <Activity size={16} />
-                  Masuk ke Room Live Monitor Admin
+                  Buka Live Monitor
                 </button>
               </div>
             )}
@@ -286,7 +286,7 @@ export default function AdminPage() {
                   Daftar Sesi OSCE Terbaru
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Menampilkan 4 sesi OSCE terakhir yang telah dikonfigurasi di database.
+                  Daftar 4 sesi OSCE terbaru.
                 </p>
               </div>
 

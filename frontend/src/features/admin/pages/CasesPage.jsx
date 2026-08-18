@@ -111,19 +111,19 @@ export default function CasesPage() {
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-900">
-            Master Bank Soal & Kasus Medis
+            Bank Soal
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Repository bank soal klinis terklasifikasi berdasarkan Sistem Organ dan Tingkat Kompetensi SKDI.
+            Koleksi kasus medis terstandar berdasarkan sistem organ dan tingkat kompetensi.
           </p>
         </div>
 
         <button
           onClick={() => navigate("/admin/cases/create")}
-          className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-xs font-extrabold text-white shadow-xs hover:bg-blue-700 active:scale-95 transition"
+          className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-xs font-extrabold text-white shadow-xs hover:bg-blue-700 active:scale-95 transition cursor-pointer"
         >
           <Plus size={16} />
-          Buat Kasus Medis Baru
+          Buat Kasus Baru
         </button>
       </div>
 
@@ -276,8 +276,8 @@ export default function CasesPage() {
         }}
         onConfirm={handleConfirmDelete}
         title="Hapus Kasus Medis"
-        message={`Apakah Anda yakin ingin menghapus kasus medis "${targetCaseToDelete?.title || ""}" ini dari Bank Soal Supabase? Tindakan ini tidak dapat dibatalkan.`}
-        confirmText="Ya, Hapus Kasus"
+        message={`Apakah Anda yakin ingin menghapus kasus medis "${targetCaseToDelete?.title || ""}" dari bank soal? Tindakan ini tidak dapat dibatalkan.`}
+        confirmText="Hapus Kasus"
         cancelText="Batal"
         variant="danger"
         loading={deleting}

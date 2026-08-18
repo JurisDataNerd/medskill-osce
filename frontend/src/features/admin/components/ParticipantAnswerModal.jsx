@@ -151,7 +151,7 @@ export default function ParticipantAnswerModal({ open, onClose, participantId, p
           {loading ? (
             <div className="flex flex-col items-center justify-center text-slate-400 space-y-2 py-12">
               <Loader2 size={28} className="animate-spin text-blue-600" />
-              <span className="text-xs font-semibold">Memuat Rekap Jawaban dari Database Supabase...</span>
+              <span className="text-xs font-semibold">Memuat Rekap Jawaban...</span>
             </div>
           ) : !scorecard || !scorecard.station_results || scorecard.station_results.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-12 text-center text-xs text-slate-500 space-y-2 my-auto">

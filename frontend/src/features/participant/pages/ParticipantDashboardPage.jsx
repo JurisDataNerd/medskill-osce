@@ -138,7 +138,7 @@ export default function ParticipantDashboardPage() {
       setConfirmModal({
         isOpen: true,
         title: "Gagal Pendaftaran Sesi",
-        message: err.message || "Gagal mendaftar sesi ke database Supabase.",
+        message: err.message || "Gagal mendaftar sesi ujian.",
         confirmText: "Mengerti",
         variant: "warning",
         isAlert: true,
@@ -197,7 +197,7 @@ export default function ParticipantDashboardPage() {
     return (
       <div className="flex h-screen items-center justify-center bg-slate-100 text-xs font-semibold text-slate-500">
         <Loader2 size={24} className="animate-spin text-blue-600 mr-2" />
-        Memuat Portal Peserta Mahasiswa Supabase...
+        Memuat Portal Peserta...
       </div>
     );
   }
@@ -388,7 +388,7 @@ export default function ParticipantDashboardPage() {
                               Live Berlangsung
                             </>
                           ) : (
-                            "Dipublikasikan (Terjadwal)"
+                            "Sesi Terjadwal"
                           )}
                         </span>
 

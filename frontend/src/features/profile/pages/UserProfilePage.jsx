@@ -227,9 +227,7 @@ export default function UserProfilePage({ roleType = "participant" }) {
       const publicUrl = publicUrlData?.publicUrl || "";
 
       setFormData((prev) => ({ ...prev, avatar_url: publicUrl }));
-      setSuccessMessage(
-        `Foto profil berhasil diunggah ke Supabase Storage (${bucketName}) & dikompresi menjadi ${compressedKb} KB (Maks 500KB)!`
-      );
+      setSuccessMessage("Foto profil berhasil diperbarui.");
     } catch (err) {
       console.error("Error compressing/uploading image:", err);
       setErrorMessage(err.message || "Gagal memproses/mengunggah foto profil.");
