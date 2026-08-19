@@ -53,7 +53,7 @@ export default function HeroSection() {
               className="inline-flex items-center gap-2.5 rounded-full border border-[#C9A227]/40 bg-amber-50/90 px-4 py-1.5 shadow-xs mb-5"
             >
               <img
-                src="/praxis_0.png"
+                src="/logo_biru.avif"
                 alt="Praxis Logo"
                 className="h-5 w-auto object-contain"
                 onError={(e) => {

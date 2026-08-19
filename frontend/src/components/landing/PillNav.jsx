@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/context/AuthProvider";
 
 export default function PillNav({
-  logo = "/praxis_0.png",
+  logo = "/logo_biru.avif",
   logoAlt = "Praxis by Medskill Logo",
   items = [
     { label: "Kenapa Praxis", href: "#why-praxis" },
@@ -141,15 +141,22 @@ export default function PillNav({
         }}
       >
         <div className="flex items-center justify-between">
-          {/* Prominent Logo Anchor: Deep Navy Background Badge for praxis_0.png */}
-          <Link to="/" className="group flex items-center gap-3">
-            <div className="relative flex items-center justify-center rounded-2xl bg-[#0D3A68] px-3.5 py-2 shadow-md border border-white/20 transition-transform duration-200 group-hover:scale-105">
+          {/* Logo Anchor Matching Footer Style */}
+          <Link to="/" className="group flex items-center gap-2.5 shrink-0 transition-transform duration-200 hover:scale-[1.02]">
+            <div className="flex items-center justify-center rounded-xl bg-white p-1.5 shadow-md border border-slate-200/80 shrink-0">
               <img
-                src={logo}
+                src="/logo_biru.avif"
                 alt={logoAlt}
-                className="h-12 sm:h-14 w-auto object-contain drop-shadow-md"
-                style={{ minWidth: "120px" }}
+                className="h-7 sm:h-8 w-auto object-contain"
               />
+            </div>
+            <div className={`hidden sm:flex flex-col border-l pl-2.5 transition-colors duration-200 ${scrolled ? "border-white/25" : "border-slate-300/80"}`}>
+              <span className="text-[10px] font-black tracking-wider uppercase text-[#C9A227]">
+                by Medskill Indonesia
+              </span>
+              <span className={`text-[11px] font-extrabold leading-tight ${scrolled ? "text-white" : "text-slate-900"}`}>
+                Platform Ujian OSCE
+              </span>
             </div>
           </Link>
 

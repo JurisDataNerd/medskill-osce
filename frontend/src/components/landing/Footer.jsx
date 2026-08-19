@@ -26,12 +26,12 @@ export default function Footer() {
     <footer className="relative bg-[#0D3A68] text-white overflow-hidden pt-16 pb-10 border-t border-[#0A2B4E]">
       <div className="mx-auto max-w-7xl px-4 sm:px-8 relative z-10">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-12 pb-12 border-b border-white/10">
-          {/* Column 1: Brand & Tagline with praxis_0.png */}
+          {/* Column 1: Brand & Tagline with logo_biru.avif */}
           <div className="md:col-span-5 flex flex-col items-start">
             <Link to="/" className="flex items-center gap-3">
               <div className="flex items-center justify-center rounded-xl bg-white p-1.5 shadow-md">
                 <img
-                  src="/praxis_0.png"
+                  src="/logo_biru.avif"
                   alt="Praxis Logo Utama"
                   className="h-8 w-auto object-contain"
                   onError={(e) => {

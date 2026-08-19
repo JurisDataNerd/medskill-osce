@@ -12,7 +12,7 @@ export default function Navbar() {
 
   return (
     <PillNav
-      logo="/praxis_0.png"
+      logo="/logo_biru.avif"
       logoAlt="Praxis by Medskill Logo"
       items={items}
       activeHref="#why-praxis"
