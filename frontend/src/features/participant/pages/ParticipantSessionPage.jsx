@@ -47,6 +47,7 @@ import {
 } from "@/features/participant/data/auxiliaryExamsCatalog";
 import AuxiliaryExamResultModal from "@/components/AuxiliaryExamResultModal";
 import ConfirmModal from "@/components/ConfirmModal";
+import { toast } from "sonner";
 
 import { supabase } from "@/lib/supabaseClient";
 import { fetchSessionById } from "@/services/sessionService";
@@ -89,32 +90,6 @@ export default function ParticipantSessionPage() {
   // Live Presence State for Waiting Room Users
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [activeBroadcast, setActiveBroadcast] = useState(null);
-
-  useEffect(() => {
-    if (!sessionId) return;
-
-    const unsubscribe = subscribeToSession(sessionId, {
-      onSessionUpdate: (sess) => {
-        if (sess && (sess.status === "ongoing" || sess.status === "running")) {
-          setViewMode((prev) => (prev === "waiting_room" ? "live_round" : prev));
-        }
-      },
-      onBroadcast: (msg) => {
-        if (!msg) return;
-        if (msg.target_role === "all" || msg.target_role === "participants") {
-          playBroadcastNotificationSound();
-          setActiveBroadcast({
-            id: msg.id || Date.now(),
-            message: msg.message,
-            priority: msg.priority || "info",
-            time: new Date(msg.created_at || Date.now()).toLocaleTimeString("id-ID"),
-          });
-        }
-      },
-    });
-
-    return () => unsubscribe();
-  }, [sessionId]);
 
   // Broadcast Auto-dismiss Timer (5 Seconds)
   useEffect(() => {
@@ -685,6 +660,17 @@ export default function ParticipantSessionPage() {
           }
         }
       },
+      onBroadcast: (msg) => {
+        if (!msg) return;
+        const target = String(msg.target_role || "all").toLowerCase();
+        if (target === "all" || target === "participants" || target === "peserta") {
+          playBroadcastNotificationSound();
+          toast.info(msg.message || "Pemberitahuan Admin Control Room", {
+            description: `Pengumuman Admin • ${new Date().toLocaleTimeString("id-ID")}`,
+            duration: 8000,
+          });
+        }
+      },
     });
 
     return () => {
@@ -1008,37 +994,6 @@ export default function ParticipantSessionPage() {
   if (viewMode === "waiting_room") {
     return (
       <div className="min-h-screen bg-slate-100 font-sans text-slate-800 flex flex-col relative">
-        {/* Realtime Broadcast Toast Overlay Component (Auto 5s & X Close Button) */}
-        {activeBroadcast && (
-          <div className="fixed top-5 right-5 z-[9999] max-w-md w-full animate-in slide-in-from-top-4 fade-in duration-200">
-            <div className="flex items-start justify-between gap-3 rounded-2xl border-2 border-indigo-500 bg-slate-900 p-4 text-white shadow-2xl backdrop-blur-md">
-              <div className="flex items-start gap-3 min-w-0">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md">
-                  <Megaphone size={20} className="animate-bounce text-white" />
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-indigo-300">
-                    <BellRing size={12} className="text-amber-400" />
-                    <span>Broadcast Admin Control Room</span>
-                    <span>•</span>
-                    <span>{activeBroadcast.time}</span>
-                  </div>
-                  <p className="font-bold text-xs text-slate-100 mt-1 leading-snug break-words">
-                    "{activeBroadcast.message}"
-                  </p>
-                </div>
-              </div>
-
-              <button
-                onClick={() => setActiveBroadcast(null)}
-                title="Tutup Pesan (Close)"
-                className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-white transition"
-              >
-                <X size={18} />
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* Top Header */}
         <header className="border-b border-slate-200 bg-white px-6 py-3.5 shadow-2xs">
@@ -1064,32 +1019,6 @@ export default function ParticipantSessionPage() {
 
         {/* Waiting Room Body */}
         <main className="flex-1 max-w-4xl w-full mx-auto p-6 my-auto space-y-6">
-          {/* Realtime Broadcast Toast Notification Banner */}
-          {activeBroadcast && (
-            <div className="flex items-center justify-between rounded-2xl border border-amber-400 bg-amber-500 p-4 text-slate-950 shadow-lg animate-in slide-in-from-top duration-300">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-amber-400">
-                  <Megaphone size={20} className="animate-bounce" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-950/80">
-                    <span>PENGUMUMAN DARI ADMIN CONTROL ROOM</span>
-                    <span>•</span>
-                    <span>{activeBroadcast.time}</span>
-                  </div>
-                  <p className="font-extrabold text-sm text-slate-950 mt-0.5">
-                    "{activeBroadcast.message}"
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setActiveBroadcast(null)}
-                className="rounded-lg bg-slate-950/10 p-1.5 text-slate-950 hover:bg-slate-950/20"
-              >
-                <X size={18} />
-              </button>
-            </div>
-          )}
 
           {/* OSCE Session Master Overview Card */}
           <div className="rounded-3xl border border-blue-200 bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 p-6 text-white shadow-xl space-y-4">
@@ -2278,6 +2207,8 @@ export default function ParticipantSessionPage() {
           </div>
         </div>
       )}
+
+
 
       {/* Confirm & Alert Modal */}
       <ConfirmModal

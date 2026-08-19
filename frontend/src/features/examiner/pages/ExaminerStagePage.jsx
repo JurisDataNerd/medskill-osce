@@ -183,7 +183,6 @@ export default function ExaminerStagePage() {
           .order("station_number");
 
         const assignedList = [];
-        let matchedStationNum = null;
 
         for (const s of sessList) {
           const sessionExs = (allExaminers || []).filter((e) => e.session_id === s.id);
@@ -201,28 +200,16 @@ export default function ExaminerStagePage() {
             );
           });
 
-          if (match) {
-            const matchedSt = sessionSts.find(
-              (st) => Number(st.station_number) === Number(match.assigned_station_number)
-            );
-            assignedList.push({
-              session: s,
-              assignment: match,
-              station: matchedSt || sessionSts.find((st) => !st.is_break) || sessionSts[0],
-            });
-          }
-        }
+          const matchedSt = match
+            ? sessionSts.find((st) => Number(st.station_number) === Number(match.assigned_station_number))
+            : null;
 
-        // Fallback if no explicit examiner match: include all active sessions
-        if (assignedList.length === 0 && sessList.length > 0) {
-          for (const s of sessList) {
-            const sessionSts = (allStations || []).filter((st) => st.session_id === s.id);
-            assignedList.push({
-              session: s,
-              assignment: { assigned_station_number: 1 },
-              station: sessionSts.find((st) => !st.is_break) || sessionSts[0],
-            });
-          }
+          assignedList.push({
+            session: s,
+            assignment: match || { assigned_station_number: 1 },
+            station: matchedSt || sessionSts.find((st) => !st.is_break) || sessionSts[0],
+            stations: sessionSts,
+          });
         }
 
         setAssignedSessionsList(assignedList);
@@ -583,13 +570,12 @@ export default function ExaminerStagePage() {
       },
       onBroadcast: (msg) => {
         if (!msg) return;
-        if (msg.target_role === "all" || msg.target_role === "examiners") {
+        const target = String(msg.target_role || "all").toLowerCase();
+        if (target === "all" || target === "examiners" || target === "penguji") {
           playBroadcastNotificationSound();
-          setActiveBroadcast({
-            id: msg.id || Date.now(),
-            message: msg.message,
-            priority: msg.priority || "info",
-            time: new Date(msg.created_at || Date.now()).toLocaleTimeString("id-ID"),
+          toast.info(msg.message || "Pemberitahuan Admin Control Room", {
+            description: `Pengumuman Admin • ${new Date().toLocaleTimeString("id-ID")}`,
+            duration: 8000,
           });
         }
       },
@@ -2130,6 +2116,8 @@ export default function ExaminerStagePage() {
         onClose={() => setSelectedAuxModalResults(null)}
         results={selectedAuxModalResults || []}
       />
+
+
 
       <ConfirmModal
         isOpen={confirmModal.isOpen}

@@ -135,9 +135,28 @@ export function subscribeToSession(sessionId, {
     }
   );
 
+  const seenBroadcastKeys = new Set();
+  const triggerBroadcast = (rawPayload) => {
+    if (!onBroadcast || !rawPayload) return;
+    const msgData = rawPayload.payload || rawPayload;
+    const msgText = String(msgData.message || msgData.text || "").trim();
+    if (!msgText) return;
+
+    // Deduplicate strictly by message text to match WebSocket client ID (bcast_...) with DB server UUID
+    const dedupeKey = `text:${msgText.toLowerCase()}`;
+    if (seenBroadcastKeys.has(dedupeKey)) return;
+
+    seenBroadcastKeys.add(dedupeKey);
+    setTimeout(() => {
+      seenBroadcastKeys.delete(dedupeKey);
+    }, 6000);
+
+    onBroadcast(msgData);
+  };
+
   // Direct WebSocket Broadcast Event (Instant 0ms latency)
   channel.on("broadcast", { event: "announcement" }, (payload) => {
-    if (onBroadcast) onBroadcast(payload.payload || payload);
+    triggerBroadcast(payload);
   });
 
   // Direct WebSocket Session Finished Event (Instant 0ms latency)
@@ -146,12 +165,12 @@ export function subscribeToSession(sessionId, {
     if (onTimerUpdate) onTimerUpdate({ phase: "finished" });
   });
 
-  // broadcast_messages table (INSERT only)
+  // broadcast_messages table (INSERT fallback)
   channel.on(
     "postgres_changes",
     { event: "INSERT", schema: "osce", table: "broadcast_messages", filter: `session_id=eq.${sessionId}` },
     (payload) => {
-      if (onBroadcast) onBroadcast(payload.new);
+      triggerBroadcast(payload.new);
     }
   );
 

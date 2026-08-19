@@ -113,30 +113,16 @@ export default function ExaminerPage() {
             );
           });
 
-          if (match) {
-            const matchedSt = sessionSts.find(
-              (st) => Number(st.station_number) === Number(match.assigned_station_number)
-            );
-            assignedList.push({
-              session: s,
-              assignment: match,
-              station: matchedSt || sessionSts.find((st) => !st.is_break) || sessionSts[0],
-              stations: sessionSts,
-            });
-          }
-        }
+          const matchedSt = match
+            ? sessionSts.find((st) => Number(st.station_number) === Number(match.assigned_station_number))
+            : null;
 
-        // Fallback: If no explicit match in session_examiners, show active sessions for preview
-        if (assignedList.length === 0 && activeOnlySessions.length > 0) {
-          for (const s of activeOnlySessions) {
-            const sessionSts = (allStations || []).filter((st) => st.session_id === s.id);
-            assignedList.push({
-              session: s,
-              assignment: { assigned_station_number: 1 },
-              station: sessionSts.find((st) => !st.is_break) || sessionSts[0],
-              stations: sessionSts,
-            });
-          }
+          assignedList.push({
+            session: s,
+            assignment: match || { assigned_station_number: 1 },
+            station: matchedSt || sessionSts.find((st) => !st.is_break) || sessionSts[0],
+            stations: sessionSts,
+          });
         }
 
         setAssignedSessions(assignedList);

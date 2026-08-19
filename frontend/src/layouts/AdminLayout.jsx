@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -13,6 +13,8 @@ import {
   BookOpen,
   User,
   ChevronUp,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 
 import { useAuth } from "@/context/AuthProvider";
@@ -58,34 +60,56 @@ const menus = [
 export default function AdminLayout({ children, headerAction }) {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
+
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    return localStorage.getItem("admin_sidebar_collapsed") === "true";
+  });
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem("admin_sidebar_collapsed", String(isCollapsed));
+  }, [isCollapsed]);
 
   function handleLogout() {
     logout();
   }
 
   return (
-    <div className="flex h-screen bg-slate-100">
+    <div className="flex h-screen w-screen overflow-hidden bg-slate-100 font-sans">
 
       {/* Sidebar */}
 
-      <aside className="flex w-72 flex-col border-r bg-white shadow-xs">
+      <aside
+        className={`flex flex-col border-r bg-white shadow-xs transition-all duration-300 ease-in-out shrink-0 ${
+          isCollapsed ? "w-20" : "w-72"
+        }`}
+      >
 
-        <div className="border-b border-slate-200 p-6">
-          <div className="flex items-center gap-3">
-            <img src="/favicon.svg" alt="Praxis Logo" className="h-10 w-10 object-contain rounded-xl shadow-md" />
-            <div>
-              <h1 className="text-xl font-black text-slate-900 tracking-tight leading-none">
-                Praxis <span className="text-blue-600">OSCE</span>
-              </h1>
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
-                Portal Admin Institusi
-              </p>
+        {/* Brand Header */}
+
+        <div className="border-b border-slate-200 p-4 flex items-center h-20">
+          {!isCollapsed ? (
+            <div className="flex items-center gap-3 min-w-0 px-2">
+              <img src="/favicon.svg" alt="Praxis Logo" className="h-10 w-10 shrink-0 object-contain rounded-xl shadow-md" />
+              <div className="min-w-0">
+                <h1 className="text-xl font-black text-slate-900 tracking-tight leading-none truncate">
+                  Praxis <span className="text-blue-600">OSCE</span>
+                </h1>
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mt-0.5 truncate">
+                  Portal Admin Institusi
+                </p>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="w-full flex justify-center">
+              <img src="/favicon.svg" alt="Praxis Logo" className="h-10 w-10 object-contain rounded-xl shadow-md" />
+            </div>
+          )}
         </div>
 
-        <nav className="flex-1 space-y-1.5 overflow-y-auto p-4">
+        {/* Navigation Links */}
+
+        <nav className="flex-1 space-y-1.5 overflow-y-auto p-3">
 
           {menus.map((menu) => {
             const Icon = menu.icon;
@@ -95,16 +119,19 @@ export default function AdminLayout({ children, headerAction }) {
                 key={menu.path}
                 to={menu.path}
                 end={menu.path === "/admin"}
+                title={isCollapsed ? menu.title : undefined}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-xl px-4 py-3 text-xs font-bold transition ${
+                  `flex items-center gap-3 rounded-xl py-3 transition text-xs font-bold ${
+                    isCollapsed ? "justify-center px-0" : "px-4"
+                  } ${
                     isActive
-                      ? "bg-blue-600 text-white shadow-md font-bold"
+                      ? "bg-blue-600 text-white shadow-md"
                       : "text-slate-700 hover:bg-slate-100"
                   }`
                 }
               >
-                <Icon size={18} />
-                <span>{menu.title}</span>
+                <Icon size={18} className="shrink-0" />
+                {!isCollapsed && <span className="truncate">{menu.title}</span>}
               </NavLink>
             );
           })}
@@ -112,13 +139,17 @@ export default function AdminLayout({ children, headerAction }) {
         </nav>
 
         {/* Sidebar Footer with Profile & Logout */}
-        <div className="border-t border-slate-200 p-4 space-y-3 bg-slate-50/50">
+
+        <div className="border-t border-slate-200 p-3 space-y-2 bg-slate-50/50">
 
           {/* Interactive Profile Card */}
           <div className="relative">
             <div
               onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-              className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-2.5 hover:bg-slate-100 hover:border-slate-300 transition cursor-pointer group shadow-2xs"
+              title={isCollapsed ? (user?.user_metadata?.full_name || "Admin") : undefined}
+              className={`flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-2 hover:bg-slate-100 hover:border-slate-300 transition cursor-pointer group shadow-2xs ${
+                isCollapsed ? "justify-center" : ""
+              }`}
             >
               <div className="flex items-center gap-2.5 min-w-0">
                 <img
@@ -127,23 +158,29 @@ export default function AdminLayout({ children, headerAction }) {
                     `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.user_metadata?.full_name || user?.email || "Admin")}&background=2563eb&color=fff`
                   }
                   alt="Administrator"
-                  className="h-9 w-9 shrink-0 rounded-xl border border-slate-200 object-cover shadow-2xs group-hover:scale-105 transition"
+                  className="h-8 w-8 shrink-0 rounded-xl border border-slate-200 object-cover shadow-2xs group-hover:scale-105 transition"
                 />
-                <div className="min-w-0">
-                  <p className="text-xs font-black text-slate-900 truncate">
-                    {user?.user_metadata?.full_name ?? user?.user_metadata?.name ?? user?.email ?? "Admin"}
-                  </p>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">
-                    Administrator
-                  </p>
-                </div>
+                {!isCollapsed && (
+                  <div className="min-w-0">
+                    <p className="text-xs font-black text-slate-900 truncate">
+                      {user?.user_metadata?.full_name ?? user?.user_metadata?.name ?? user?.email ?? "Admin"}
+                    </p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">
+                      Administrator
+                    </p>
+                  </div>
+                )}
               </div>
-              <ChevronUp size={16} className={`text-slate-400 group-hover:text-slate-600 transition-transform ${isProfileMenuOpen ? "rotate-180" : ""}`} />
+              {!isCollapsed && (
+                <ChevronUp size={15} className={`text-slate-400 group-hover:text-slate-600 transition-transform ${isProfileMenuOpen ? "rotate-180" : ""}`} />
+              )}
             </div>
 
             {/* Popover Dropdown Menu */}
             {isProfileMenuOpen && (
-              <div className="absolute bottom-full left-0 right-0 mb-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl z-50 animate-in slide-in-from-bottom-2 duration-150 space-y-1">
+              <div className={`absolute bottom-full mb-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl z-50 animate-in slide-in-from-bottom-2 duration-150 space-y-1 ${
+                isCollapsed ? "left-full ml-2 w-48" : "left-0 right-0"
+              }`}>
                 <div className="px-3 py-2 border-b border-slate-100">
                   <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
                     Sesi Akun Terhubung
@@ -180,10 +217,13 @@ export default function AdminLayout({ children, headerAction }) {
 
           <button
             onClick={handleLogout}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 py-2.5 text-xs font-black text-white transition hover:bg-red-700 active:scale-98 shadow-md cursor-pointer"
+            title={isCollapsed ? "Keluar" : undefined}
+            className={`flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 py-2.5 text-xs font-black text-white transition hover:bg-red-700 active:scale-98 shadow-md cursor-pointer ${
+              isCollapsed ? "px-0" : ""
+            }`}
           >
             <LogOut size={16} />
-            Keluar
+            {!isCollapsed && <span>Keluar</span>}
           </button>
 
         </div>
@@ -192,25 +232,33 @@ export default function AdminLayout({ children, headerAction }) {
 
       {/* Content */}
 
-      <div className="flex flex-1 flex-col">
+      <div className="flex flex-1 flex-col min-w-0 h-full overflow-hidden">
 
-        <header className="flex h-20 items-center justify-between border-b bg-white px-8">
+        <header className="flex h-20 items-center justify-between border-b bg-white px-6 md:px-8 shrink-0">
 
-          <div>
-            <h2 className="text-2xl font-bold">
-              Dashboard Administrator
-            </h2>
-
-            <p className="text-sm text-slate-500">
-              Sistem Manajemen Simulasi OSCE
-            </p>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="rounded-xl border border-slate-200 bg-slate-50 p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition shadow-2xs cursor-pointer"
+              title={isCollapsed ? "Buka Sidebar" : "Kecilkan Sidebar"}
+            >
+              {isCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+            </button>
+            <div>
+              <h2 className="text-2xl font-bold">
+                Dashboard Administrator
+              </h2>
+              <p className="text-sm text-slate-500 hidden md:block">
+                Sistem Manajemen Simulasi OSCE
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
             {headerAction ? (
               headerAction
             ) : (
-              <button className="relative rounded-xl bg-slate-100 p-2.5 transition hover:bg-slate-200">
+              <button className="relative rounded-xl bg-slate-100 p-2.5 transition hover:bg-slate-200 cursor-pointer">
                 <Bell size={20} className="text-slate-600" />
                 <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500" />
               </button>
@@ -219,7 +267,7 @@ export default function AdminLayout({ children, headerAction }) {
 
         </header>
 
-        <main className="flex-1 overflow-y-auto p-8">
+        <main className="flex-1 overflow-y-auto min-w-0 p-6 md:p-8">
 
           {children}
 

@@ -178,7 +178,7 @@ export default function SessionRotationScheduleView({ sessionId, activeRound = n
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-w-0 max-w-full">
       {/* Top Header & Quick Metrics Banner */}
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
@@ -352,8 +352,8 @@ export default function SessionRotationScheduleView({ sessionId, activeRound = n
       {/* VIEW MODE 1: MATRIX TABLE VIEW */}
       {/* ------------------------------------------------------------- */}
       {viewMode === "table" && (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
-          <div className="overflow-x-auto">
+        <div className="w-full max-w-full min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
+          <div className="w-full max-w-full overflow-x-auto min-w-0">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-600">
