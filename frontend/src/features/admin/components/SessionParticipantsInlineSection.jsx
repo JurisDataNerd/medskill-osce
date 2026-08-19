@@ -188,8 +188,7 @@ export default function SessionParticipantsInlineSection({
       {/* Section Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
         <div>
-          <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-            <UserCheck size={18} className="text-blue-600" />
+          <h2 className="text-base font-bold text-slate-900">
             Penugasan & Verifikasi Peserta Ujian Sesi Ini
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">

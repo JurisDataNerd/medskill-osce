@@ -1457,7 +1457,7 @@ export default function LiveMonitorPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    setBroadcastMessage("⚠️ Sisa waktu stase 2 menit lagi! Persiapkan penyelesaian dan instruksi penunjang.");
+                    setBroadcastMessage("Sisa waktu stase 2 menit lagi! Persiapkan penyelesaian dan instruksi penunjang.");
                     setBroadcastTarget("all");
                   }}
                   className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100 transition flex items-center gap-1.5"
@@ -1469,7 +1469,7 @@ export default function LiveMonitorPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    setBroadcastMessage("🔔 Waktu stase ronde selesai! Dokter penguji dan peserta dipersilakan melakukan rotasi pos.");
+                    setBroadcastMessage("Waktu stase ronde selesai! Dokter penguji dan peserta dipersilakan melakukan rotasi pos.");
                     setBroadcastTarget("all");
                   }}
                   className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-900 hover:bg-blue-100 transition flex items-center gap-1.5"
@@ -1481,7 +1481,7 @@ export default function LiveMonitorPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    setBroadcastMessage("📢 Pengumuman: Waktu istirahat ronde sedang berlangsung (Break Sesi).");
+                    setBroadcastMessage("Pengumuman: Waktu istirahat ronde sedang berlangsung (Break Sesi).");
                     setBroadcastTarget("all");
                   }}
                   className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-900 hover:bg-emerald-100 transition flex items-center gap-1.5"

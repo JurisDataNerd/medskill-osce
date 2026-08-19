@@ -459,28 +459,26 @@ export default function SessionRotationScheduleView({ sessionId, activeRound = n
                                 {/* Case Name */}
                                 {stObj?.case_title && !isBreak && (
                                   <div className="text-[11px] font-semibold text-slate-800 truncate" title={stObj.case_title}>
-                                    📖 {stObj.case_title}
+                                    {stObj.case_title}
                                   </div>
                                 )}
 
                                 {/* Doctor Examiner */}
                                 {isBreak ? (
                                   <div className="text-[10px] font-bold text-amber-800 flex items-center gap-1">
-                                    ☕ ISTIRAHAT
+                                    ISTIRAHAT
                                   </div>
                                 ) : exInfo.isAssigned ? (
                                   <div className="pt-1 border-t border-slate-100">
                                     <div className="flex items-center gap-1 text-[11px] font-bold text-slate-900 truncate" title={exInfo.doctorName}>
-                                      <Stethoscope size={12} className="text-blue-600 shrink-0" />
                                       <span className="truncate">{exInfo.doctorName}</span>
                                     </div>
-                                    <div className="text-[10px] text-slate-500 truncate pl-4">
+                                    <div className="text-[10px] text-slate-500 truncate">
                                       {exInfo.doctorSpecialty}
                                     </div>
                                   </div>
                                 ) : (
                                   <div className="pt-1 border-t border-amber-200 text-[10px] font-bold text-amber-700 flex items-center gap-1">
-                                    <AlertCircle size={11} className="shrink-0 text-amber-600" />
                                     <span>Belum Ada Dokter</span>
                                   </div>
                                 )}
@@ -573,15 +571,14 @@ export default function SessionRotationScheduleView({ sessionId, activeRound = n
                             </div>
 
                             {isBreak ? (
-                              <div className="text-[10px] font-bold text-amber-800 pt-1">☕ ISTIRAHAT</div>
+                              <div className="text-[10px] font-bold text-amber-800 pt-1">ISTIRAHAT</div>
                             ) : (
                               <div className="pt-1 text-[11px] text-slate-600">
                                 <div className="font-bold text-slate-900 flex items-center gap-1 truncate">
-                                  <Stethoscope size={12} className="text-blue-600 shrink-0" />
                                   <span className="truncate">{exInfo.doctorName || "Belum ada penguji"}</span>
                                 </div>
                                 {exInfo.doctorSpecialty && (
-                                  <span className="text-[10px] text-slate-400 block pl-4 truncate">{exInfo.doctorSpecialty}</span>
+                                  <span className="text-[10px] text-slate-400 block truncate">{exInfo.doctorSpecialty}</span>
                                 )}
                               </div>
                             )}
@@ -681,17 +678,16 @@ export default function SessionRotationScheduleView({ sessionId, activeRound = n
                   <div className="rounded-xl border border-slate-100 bg-blue-50/40 p-3 text-xs space-y-1">
                     <span className="text-[10px] font-bold text-blue-700 uppercase block">Dokter Penguji Pos</span>
                     {isBreak ? (
-                      <span className="font-bold text-amber-800 block">☕ Stase Istirahat</span>
+                      <span className="font-bold text-amber-800 block">Stase Istirahat</span>
                     ) : exInfo.isAssigned ? (
                       <div>
                         <span className="font-bold text-slate-900 flex items-center gap-1">
-                          <Stethoscope size={14} className="text-blue-600 shrink-0" />
                           {exInfo.doctorName}
                         </span>
-                        <span className="text-[10px] text-slate-500 block pl-4">{exInfo.doctorSpecialty}</span>
+                        <span className="text-[10px] text-slate-500 block">{exInfo.doctorSpecialty}</span>
                       </div>
                     ) : (
-                      <span className="font-bold text-amber-700 block">⚠️ Belum Ditugaskan</span>
+                      <span className="font-bold text-amber-700 block">Belum Ditugaskan</span>
                     )}
                   </div>
 

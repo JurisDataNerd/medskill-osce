@@ -193,8 +193,7 @@ export default function SessionDetailPage() {
 
       {/* OSCE Rules Summary Badge */}
       <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
-        <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-          <Sliders size={16} className="text-blue-600" />
+        <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3">
           Aturan Pelaksanaan Sesi
         </h2>
 
@@ -225,8 +224,7 @@ export default function SessionDetailPage() {
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
           <div>
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <Building2 size={18} className="text-blue-600" />
+            <h2 className="text-base font-bold text-slate-900">
               Urutan Stase Sirkuit ({totalStationCount} Stase)
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
@@ -440,7 +438,7 @@ export default function SessionDetailPage() {
                                     rel="noreferrer"
                                     className="inline-flex items-center gap-1 text-[10px] font-extrabold text-blue-700 hover:underline mt-0.5"
                                   >
-                                    🔗 Lihat Lampiran Gambar / Drive
+                                    Lihat Lampiran Gambar / Drive
                                   </a>
                                 )}
                               </div>
