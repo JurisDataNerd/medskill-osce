@@ -405,12 +405,12 @@ export default function ExaminerPage() {
                             {isOngoing ? (
                               <>
                                 <PlayCircle size={16} />
-                                Masuk Sesi Live Ujian
+                                Masuk Sesi Live
                               </>
                             ) : (
                               <>
                                 <Play size={15} />
-                                Buka Kiosk Standby Sesi
+                                Masuk Sesi
                               </>
                             )}
                           </button>

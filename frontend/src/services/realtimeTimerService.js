@@ -508,11 +508,11 @@ export const sendBroadcastMessage = sendBroadcast;
  */
 export async function sendBellBroadcast(sessionId, bellType = "warning") {
   const bellNames = {
-    start: "🔔 BEL AUDIO MANUAL: Sesi Ujian / Reading Time Dimulai!",
-    warning: "🔔 BEL AUDIO MANUAL: Peringatan! Sisa Waktu Stase 2 Menit!",
-    rotation: "🔔 BEL AUDIO MANUAL: Waktu Stase Selesai! Segera Berpindah Pos Rotasi.",
+    start: "BEL AUDIO MANUAL: Sesi Ujian / Reading Time Dimulai!",
+    warning: "BEL AUDIO MANUAL: Peringatan! Sisa Waktu Stase 2 Menit!",
+    rotation: "BEL AUDIO MANUAL: Waktu Stase Selesai! Segera Berpindah Pos Rotasi.",
   };
-  const message = bellNames[bellType] || "🔔 BEL AUDIO MANUAL";
+  const message = bellNames[bellType] || "BEL AUDIO MANUAL";
 
   await sendBroadcast(sessionId, message, "warning", "all");
 

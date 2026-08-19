@@ -105,18 +105,18 @@ export default function Footer() {
             </p>
 
             <form onSubmit={handleSubscribe} className="mt-4 flex flex-col gap-2">
-              <div className="relative">
+              <div className="flex items-center rounded-2xl border border-white/20 bg-white/10 p-1.5 transition-all focus-within:border-[#C9A227] focus-within:ring-2 focus-within:ring-[#C9A227]/20">
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Masukkan email kedokteran..."
                   required
-                  className="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-xs text-white placeholder-blue-200/60 outline-none focus:border-[#C9A227] transition"
+                  className="w-full min-w-0 bg-transparent px-3 py-2 text-xs text-white placeholder-blue-200/60 outline-none"
                 />
                 <button
                   type="submit"
-                  className="absolute right-1.5 top-1.5 flex h-9 items-center gap-1.5 rounded-lg bg-[#C9A227] px-3 text-xs font-extrabold text-[#0D3A68] shadow transition hover:bg-amber-400 cursor-pointer"
+                  className="shrink-0 flex items-center justify-center gap-1.5 rounded-xl bg-[#C9A227] px-4 py-2 text-xs font-extrabold text-[#0D3A68] shadow-md transition hover:bg-amber-400 active:scale-95 cursor-pointer"
                 >
                   {subscribed ? (
                     <>

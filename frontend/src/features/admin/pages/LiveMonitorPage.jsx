@@ -1087,26 +1087,6 @@ export default function LiveMonitorPage() {
 
               {/* Master Control Buttons */}
               <div className="flex flex-wrap items-center gap-2.5">
-                {/* Total Session Overall Timer Badge */}
-                <div className="inline-flex items-center gap-2 rounded-xl border border-cyan-500/40 bg-slate-900/90 px-3.5 py-2 text-white shadow-sm">
-                  <Clock size={16} className={isTimerRunning ? "text-cyan-400 animate-pulse" : "text-amber-400"} />
-                  <div className="text-left">
-                    <div className="flex items-center gap-1">
-                      <span className="text-[9px] font-black uppercase tracking-wider text-cyan-300 block leading-tight">
-                        Total Timer
-                      </span>
-                      {!isTimerRunning && (
-                        <span className="text-[8px] font-black uppercase text-amber-400 bg-amber-400/20 px-1 rounded">
-                          PAUSED
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-xs font-black font-mono text-white">
-                      {formatHoursMinutesSeconds(totalRemainingSec)} ({totalSessionMinutes} Mnt)
-                    </span>
-                  </div>
-                </div>
-
                 <div className="relative">
                   <button
                     onClick={() => setIsBellMenuOpen(!isBellMenuOpen)}
@@ -1516,7 +1496,7 @@ export default function LiveMonitorPage() {
                 >
                   <option value="all">Semua Layar (Peserta & Dokter Penguji)</option>
                   <option value="examiners">Layar Dokter Penguji Saja</option>
-                  <option value="participants">Layar Kiosk Peserta Saja</option>
+                  <option value="participants">Layar Peserta Saja</option>
                 </select>
               </div>
 

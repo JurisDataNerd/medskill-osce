@@ -962,7 +962,7 @@ export default function ParticipantSessionPage() {
                   : "bg-amber-500/20 text-amber-300 border border-amber-500/30"
               }`}
             >
-              Akses Kiosk Ujian Terkunci
+              Akses Sesi Ujian Terkunci
             </span>
             <h2 className="text-xl font-extrabold text-white">
               {candidateApprovalStatus === "rejected"
@@ -972,7 +972,7 @@ export default function ParticipantSessionPage() {
             <p className="text-xs text-slate-400 leading-relaxed font-medium">
               {candidateApprovalStatus === "rejected"
                 ? "Maaf, pendaftaran Anda pada sesi ini tidak disetujui oleh Panitia Ujian OSCE."
-                : "Status pendaftaran Anda pada sesi ini saat ini adalah MENUNGGU VERIFIKASI ADMIN. Anda belum dapat mengakses Kiosk Ujian sampai Admin menyetujui pendaftaran Anda di Dashboard Administrator."}
+                : "Status pendaftaran Anda pada sesi ini saat ini adalah MENUNGGU VERIFIKASI ADMIN. Anda belum dapat mengakses sesi ujian sampai Admin menyetujui pendaftaran Anda di Dashboard Administrator."}
             </p>
           </div>
 

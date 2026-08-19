@@ -11,6 +11,7 @@ import {
   Layers,
   ChevronRight,
   User,
+  Coffee,
 } from "lucide-react";
 import { fetchSessionById } from "@/services/sessionService";
 import { getSessionParticipants, getSessionExaminers } from "@/services/session.service";
@@ -236,7 +237,10 @@ export default function ParticipantPersonalScheduleWidget({
                 <div>
                   <span className="text-[10px] font-bold text-slate-400 uppercase block">Dokter Penguji</span>
                   {item.isBreak ? (
-                    <p className="font-bold text-amber-800 text-xs mt-0.5">☕ Stase Istirahat</p>
+                    <p className="font-bold text-amber-800 text-xs mt-0.5 flex items-center gap-1">
+                      <Coffee size={13} className="text-amber-700 shrink-0" />
+                      <span>Stase Istirahat</span>
+                    </p>
                   ) : item.isAssigned ? (
                     <div className="mt-0.5">
                       <p className="font-bold text-slate-900 text-xs flex items-center gap-1 truncate" title={item.doctorName}>

@@ -226,7 +226,7 @@ export default function ParticipantDashboardPage() {
                 </h2>
 
                 <p className="text-xs text-slate-300 font-medium leading-relaxed">
-                  Sesi ujian sirkuit telah diaktifkan oleh Admin Control Room. Silakan segera masuk ke Kiosk Ujian untuk melihat posisi stase awal dan petunjuk skenario klinis.
+                  Sesi ujian sirkuit telah diaktifkan oleh Admin Control Room. Silakan segera masuk ke sesi ujian untuk melihat posisi stase awal dan petunjuk skenario klinis.
                 </p>
 
                 <div className="flex flex-wrap items-center gap-4 pt-2 text-xs font-semibold text-slate-300">
@@ -248,7 +248,7 @@ export default function ParticipantDashboardPage() {
                   className="flex items-center gap-2 rounded-2xl bg-emerald-500 hover:bg-emerald-400 px-6 py-4 text-sm font-black text-slate-950 shadow-xl transition active:scale-95 animate-bounce"
                 >
                   <PlayCircle size={20} />
-                  Masuk ke Kiosk Ujian OSCE Live
+                  Masuk Sesi Live
                 </button>
               </div>
             </div>
@@ -460,12 +460,12 @@ export default function ParticipantDashboardPage() {
                           {sess.status === "ongoing" || sess.status === "running" ? (
                             <>
                               <PlayCircle size={16} />
-                              Masuk Sesi Live Ujian
+                              Masuk Sesi Live
                             </>
                           ) : (
                             <>
                               <Play size={15} />
-                              Buka Kiosk Standby Sesi
+                              Masuk Sesi
                             </>
                           )}
                         </button>
@@ -610,7 +610,7 @@ export default function ParticipantDashboardPage() {
                     <span className="font-bold text-slate-800">{pendingModalSession.total_stations || 6} Pos Stase Aktif</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-500">Akses Kiosk Live</span>
+                    <span className="text-slate-500">Akses Sesi Ujian</span>
                     <span className="inline-flex items-center gap-1 text-amber-800 font-black uppercase bg-amber-100 border border-amber-300 rounded-md px-2 py-0.5 text-[10px]">
                       <Hourglass size={11} className="animate-spin" />
                       Pending Approval Admin
@@ -620,7 +620,7 @@ export default function ParticipantDashboardPage() {
               </div>
 
               <div className="rounded-xl bg-blue-50 border border-blue-200 p-3 text-xs text-blue-900 font-medium leading-relaxed">
-                ℹ️ <strong>Informasi Tambahan:</strong> Kiosk Ujian dan instruksi pengerjaan stase akan secara otomatis terbuka setelah Admin Control Room menyetujui pendaftaran Anda di Dashboard Administrator.
+                <strong>Informasi Tambahan:</strong> Sesi ujian dan instruksi pengerjaan stase akan secara otomatis terbuka setelah Admin Control Room menyetujui pendaftaran Anda di Dashboard Administrator.
               </div>
             </div>
 

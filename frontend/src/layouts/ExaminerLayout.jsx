@@ -47,35 +47,17 @@ export default function ExaminerLayout({ children }) {
   const [isCollapsed, setIsCollapsed] = useState(() => {
     return localStorage.getItem("examiner_sidebar_collapsed") === "true";
   });
-  const [activeSession, setActiveSession] = useState(null);
 
   useEffect(() => {
     localStorage.setItem("examiner_sidebar_collapsed", String(isCollapsed));
   }, [isCollapsed]);
 
-  useEffect(() => {
-    async function checkActiveSession() {
-      try {
-        const { data } = await supabase
-          .schema("osce")
-          .from("sessions")
-          .select("id, title, status")
-          .in("status", ["ongoing", "waiting_room", "scheduled", "paused"])
-          .order("created_at", { ascending: false });
-
-        if (data && data.length > 0) {
-          const ongoing = data.find((s) => s.status === "ongoing" || s.status === "waiting_room");
-          setActiveSession(ongoing || data[0]);
-        } else {
-          setActiveSession(null);
-        }
-      } catch (err) {
-        console.error("Error checking active session for ExaminerLayout header:", err);
-      }
-    }
-
-    checkActiveSession();
-  }, [location.pathname]);
+  const getPageTitle = () => {
+    if (location.pathname.startsWith("/examiner/stage")) return "Pengujian Live Stase OSCE";
+    if (location.pathname.startsWith("/examiner/history")) return "Riwayat Pengujian OSCE";
+    if (location.pathname.startsWith("/examiner/profile")) return "Profil Dokter Penguji";
+    return "Dashboard Penguji OSCE";
+  };
 
   function handleLogout() {
     logout();
@@ -223,36 +205,9 @@ export default function ExaminerLayout({ children }) {
               {isCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
             </button>
 
-            {activeSession ? (
-              <>
-                {["ongoing", "running", "waiting_room", "paused"].includes(activeSession.status?.toLowerCase()) ? (
-                  <span className="rounded-full bg-emerald-100 border border-emerald-300 px-3 py-1 text-xs font-bold text-emerald-900 flex items-center gap-1.5">
-                    <span className="h-2 w-2 rounded-full bg-emerald-600 animate-pulse" />
-                    Sesi Live Berlangsung
-                  </span>
-                ) : ["completed", "finished", "selesai"].includes(activeSession.status?.toLowerCase()) ? (
-                  <span className="rounded-full bg-slate-100 border border-slate-300 px-3 py-1 text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                    <span className="h-2 w-2 rounded-full bg-slate-500" />
-                    Sesi Ujian Selesai
-                  </span>
-                ) : (
-                  <span className="rounded-full bg-blue-100 border border-blue-300 px-3 py-1 text-xs font-bold text-blue-900 flex items-center gap-1.5">
-                    <span className="h-2 w-2 rounded-full bg-blue-600" />
-                    Sesi Terjadwal
-                  </span>
-                )}
-                <span className="text-xs text-slate-600 font-medium truncate max-w-md hidden sm:inline">
-                  Sesi: <strong className="text-slate-900">{activeSession.title}</strong>
-                </span>
-              </>
-            ) : (
-              <>
-                <span className="rounded-full bg-amber-100 border border-amber-300 px-3 py-1 text-xs font-bold text-amber-900 flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-amber-500" />
-                  Sistem Standby
-                </span>
-              </>
-            )}
+            <h1 className="text-base font-extrabold text-slate-900 tracking-tight">
+              {getPageTitle()}
+            </h1>
           </div>
 
           <div className="flex items-center gap-3">

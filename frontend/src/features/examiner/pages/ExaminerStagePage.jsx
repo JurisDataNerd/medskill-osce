@@ -28,6 +28,7 @@ import {
   Play,
   PlayCircle,
   Megaphone,
+  ExternalLink,
   BellRing,
   X,
   LogOut,
@@ -1041,12 +1042,12 @@ export default function ExaminerStagePage() {
                         {isOngoing ? (
                           <>
                             <PlayCircle size={16} />
-                            Masuk Sesi Live Ujian
+                            Masuk Sesi Live
                           </>
                         ) : (
                           <>
                             <Play size={15} />
-                            Buka Kiosk Standby Sesi
+                            Masuk Sesi
                           </>
                         )}
                       </button>
@@ -1455,7 +1456,8 @@ export default function ExaminerStagePage() {
                               rel="noreferrer"
                               className="inline-flex items-center gap-1.5 text-[11px] font-extrabold text-blue-700 hover:underline mt-1 bg-white border border-blue-200 px-2.5 py-1 rounded-lg shadow-2xs"
                             >
-                              🔗 Lihat Lampiran Hasil / Drive
+                              <ExternalLink size={13} className="text-blue-600" />
+                              <span>Lihat Lampiran Hasil / Drive</span>
                             </a>
                           )}
                         </div>
@@ -1814,7 +1816,7 @@ export default function ExaminerStagePage() {
               {/* Step Progress Badge Bar */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between text-[11px] font-bold text-slate-600">
-                  <span>Tahapan Pengerjaan Kiosk:</span>
+                  <span>Tahapan Pengerjaan Stase:</span>
                   <span className="text-blue-600 font-extrabold">Tahap 4 dari 4 (Diagnosis & Resep)</span>
                 </div>
                 <div className="grid grid-cols-4 gap-1">
@@ -1844,7 +1846,7 @@ export default function ExaminerStagePage() {
                   Diagnosis Kerja Utama (WDx):
                 </label>
                 <div className="rounded-xl border border-slate-200 bg-white p-3 text-xs font-bold text-slate-900 shadow-2xs">
-                  {liveAnswer?.working_diagnosis || (currentParticipant ? "Peserta belum mengisi WDx pada kiosk" : "Belum ada peserta di stase ini")}
+                  {liveAnswer?.working_diagnosis || (currentParticipant ? "Peserta belum mengisi WDx" : "Belum ada peserta di stase ini")}
                 </div>
               </div>
 

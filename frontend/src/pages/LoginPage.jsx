@@ -37,7 +37,36 @@ export default function LoginPage() {
     onConfirm: null,
   });
 
-  // Auto redirect active session users (including Google OAuth return)
+function formatAuthErrorMessage(error) {
+  if (!error) return "Terjadi kesalahan pada sistem. Silakan coba beberapa saat lagi.";
+  const msg = String(error.message || error || "").toLowerCase();
+
+  if (msg.includes("invalid login credentials") || msg.includes("invalid email or password")) {
+    return "Email atau kata sandi yang Anda masukkan salah. Silakan periksa kembali data Anda.";
+  }
+  if (msg.includes("user already registered") || msg.includes("already registered") || msg.includes("email already in use")) {
+    return "Email ini sudah terdaftar. Silakan gunakan menu Masuk atau gunakan email lain.";
+  }
+  if (msg.includes("email not confirmed")) {
+    return "Email Anda belum dikonfirmasi. Harap periksa pesan di kotak masuk email Anda untuk melakukan verifikasi.";
+  }
+  if (msg.includes("password should be at least")) {
+    return "Kata sandi terlalu pendek. Kata sandi minimal harus terdiri dari 6 karakter.";
+  }
+  if (msg.includes("user not found")) {
+    return "Akun dengan email tersebut tidak ditemukan. Silakan lakukan registrasi akun baru terlebih dahulu.";
+  }
+  if (msg.includes("too many requests") || msg.includes("rate limit")) {
+    return "Terlalu banyak percobaan masuk secara berurutan. Silakan tunggu 1-2 menit sebelum mencoba lagi demi keamanan.";
+  }
+  if (msg.includes("network") || msg.includes("failed to fetch")) {
+    return "Gagal terhubung ke jaringan server. Periksa koneksi internet Anda dan coba lagi.";
+  }
+
+  return error.message || "Terjadi kesalahan saat memproses permintaan masuk Anda.";
+}
+
+// Auto redirect active session users (including Google OAuth return)
   useEffect(() => {
     async function autoRedirect() {
       if (session && user) {
@@ -61,7 +90,7 @@ export default function LoginPage() {
           setConfirmModal({
             isOpen: true,
             title: "Gagal Registrasi",
-            message: "Gagal melakukan pendaftaran: " + error.message,
+            message: formatAuthErrorMessage(error),
             confirmText: "Mengerti",
             variant: "danger",
             isAlert: true,
@@ -95,7 +124,7 @@ export default function LoginPage() {
         setConfirmModal({
           isOpen: true,
           title: "Gagal Masuk",
-          message: "Gagal masuk: " + error.message,
+          message: formatAuthErrorMessage(error),
           confirmText: "Mengerti",
           variant: "danger",
           isAlert: true,
