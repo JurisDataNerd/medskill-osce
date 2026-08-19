@@ -276,7 +276,7 @@ export default function LiveMonitorPage() {
 
       if (activeId) {
         const fullDetail = await fetchSessionById(activeId);
-        if (fullDetail) {
+        if (fullDetail && fullDetail.status !== "completed" && fullDetail.status !== "finished") {
           setActiveSession(fullDetail);
 
           const { stations: fetchedStations } = await getLiveStations(fullDetail.id);
@@ -298,6 +298,8 @@ export default function LiveMonitorPage() {
         } else {
           setActiveSession(null);
           setLiveStations([]);
+          setTimerState(null);
+          setSearchParams({});
         }
       } else {
         setActiveSession(null);
@@ -350,7 +352,9 @@ export default function LiveMonitorPage() {
           setActiveSession(null);
           setTimerState(null);
           setOnlineUsers([]);
-          loadLiveMonitorData();
+          setSearchParams({});
+          navigate("/admin/live", { replace: true });
+          loadLiveMonitorData("");
           return;
         }
         setActiveSession((prev) => (prev ? { ...prev, ...sess } : sess));
@@ -517,9 +521,10 @@ export default function LiveMonitorPage() {
   async function handleStartOsce() {
     if (!activeSession) return;
     try {
-      const duration = activeSession.station_duration_minutes || 12;
-      const res = await startOsceSession(activeSession.id, duration);
-      addLog("success", "Admin memulai Sesi Ujian OSCE! Timer global berjalan.");
+      const stationDuration = activeSession.station_duration_minutes || 12;
+      const transitionDuration = activeSession.transition_duration_minutes || 2;
+      const res = await startOsceSession(activeSession.id, stationDuration, transitionDuration);
+      addLog("success", "Admin memulai Sesi Ujian OSCE! Memasuki Fase Transisi Persiapan Pos Stase 1.");
       if (res?.timer) {
         setTimerState(res.timer);
         const rem = calcRemaining(res.timer.target_end_time, null, false);
@@ -555,12 +560,15 @@ export default function LiveMonitorPage() {
       onConfirm: async () => {
         setConfirmModal((prev) => ({ ...prev, isOpen: false }));
         try {
-          await finishSession(activeSession.id);
-          addLog("success", "Sesi OSCE telah diselesaikan di Supabase dan koneksi realtime diputuskan.");
+          const targetId = activeSession.id;
           setActiveSession(null);
           setTimerState(null);
           setOnlineUsers([]);
-          await loadLiveMonitorData();
+          setSearchParams({});
+          navigate("/admin/live", { replace: true });
+          await finishSession(targetId);
+          toast.success("Sesi OSCE telah diakhiri. Seluruh pengguna telah dialihkan kembali ke Dashboard.");
+          await loadLiveMonitorData("");
         } catch (err) {
           console.error("Failed to finish session:", err);
         }

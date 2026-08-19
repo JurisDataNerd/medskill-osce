@@ -301,8 +301,9 @@ export async function openWaitingRoom(sessionId) {
  * Phase 2: Admin starts the OSCE exam. Timer begins.
  * Session status → 'ongoing', timer state upserted with target_end_time.
  */
-export async function startOsceSession(sessionId, durationMinutes = 12) {
-  const targetEndTime = new Date(Date.now() + durationMinutes * 60 * 1000).toISOString();
+export async function startOsceSession(sessionId, durationMinutes = 12, transitionMinutes = 2) {
+  const initMinutes = transitionMinutes || 2;
+  const targetEndTime = new Date(Date.now() + initMinutes * 60 * 1000).toISOString();
 
   const [sessionRes, timerRes] = await Promise.all([
     supabase
@@ -323,7 +324,7 @@ export async function startOsceSession(sessionId, durationMinutes = 12) {
       .upsert(
         [{
           session_id: sessionId,
-          phase: "action",
+          phase: "transition",
           target_end_time: targetEndTime,
           paused_remaining_ms: null,
           round_number: 1,

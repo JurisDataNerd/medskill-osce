@@ -534,6 +534,40 @@ export default function ExaminerStagePage() {
     });
   }
 
+  function renderDifferentialDiagnosis(answer) {
+    if (!answer) return <span className="text-slate-400 italic font-medium">Belum diisi oleh peserta</span>;
+
+    const d1 = answer.differential_dx_1?.trim();
+    const d2 = answer.differential_dx_2?.trim();
+    const d3 = answer.differential_dx_3?.trim();
+
+    if (d1 && (!d2 && !d3)) {
+      return (
+        <div className="whitespace-pre-line leading-relaxed text-xs font-medium text-slate-800">
+          {d1}
+        </div>
+      );
+    }
+
+    const items = [d1, d2, d3].filter(Boolean);
+    if (items.length > 0) {
+      return (
+        <div className="space-y-1 text-xs font-medium text-slate-800">
+          {items.map((item, idx) => {
+            const hasNumbering = /^\d+[\.\)]/.test(item);
+            return (
+              <p key={idx} className="leading-relaxed">
+                {hasNumbering ? item : `${idx + 1}. ${item}`}
+              </p>
+            );
+          })}
+        </div>
+      );
+    }
+
+    return <span className="text-slate-400 italic font-medium">Belum diisi oleh peserta</span>;
+  }
+
   // Realtime subscription & timer sync for active session (WebSocket + Future Timestamp)
   useEffect(() => {
     if (!activeSession?.id) return;
@@ -557,6 +591,11 @@ export default function ExaminerStagePage() {
       onTimerUpdate: (newTimerState) => {
         if (!newTimerState) return;
         setTimerState(newTimerState);
+        if (newTimerState.phase === "finished" || newTimerState.phase === "completed") {
+          toast.info("Sesi OSCE telah diakhiri oleh Admin Control Room. Dialihkan ke Dashboard.", { duration: 5000 });
+          navigate("/examiner");
+          return;
+        }
         const rem = calcRemaining(
           newTimerState.target_end_time,
           newTimerState.paused_remaining_ms,
@@ -566,6 +605,11 @@ export default function ExaminerStagePage() {
       },
       onSessionUpdate: (sess) => {
         if (sess) {
+          if (sess.status === "completed" || sess.status === "finished") {
+            toast.info("Sesi OSCE telah diakhiri oleh Admin Control Room. Dialihkan ke Dashboard.", { duration: 5000 });
+            navigate("/examiner");
+            return;
+          }
           setActiveSession((prev) => (prev ? { ...prev, ...sess } : null));
         }
       },
@@ -1599,7 +1643,7 @@ export default function ExaminerStagePage() {
       )}
 
       {/* Top Navbar */}
-      <header className="border-b border-slate-200 bg-white px-6 py-3.5 shadow-2xs sticky top-0 z-40">
+      <header className="-mt-6 md:-mt-8 -mx-6 md:-mx-8 mb-6 border-b border-slate-200 bg-white/95 backdrop-blur-md px-6 md:px-8 py-3.5 shadow-md sticky top-0 z-40">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
           <button
             onClick={handleExitExaminerWaitingRoom}
@@ -1840,32 +1884,30 @@ export default function ExaminerStagePage() {
                 </span>
               </div>
 
-              {/* Working Diagnosis WDx */}
+              {/* 1. Differential Diagnoses DDx */}
               <div className="space-y-1">
                 <label className="text-[10px] font-extrabold text-slate-500 uppercase block">
-                  Diagnosis Kerja Utama (WDx):
+                  1. Diagnosis Banding (DDx):
                 </label>
-                <div className="rounded-xl border border-slate-200 bg-white p-3 text-xs font-bold text-slate-900 shadow-2xs">
+                <div className="rounded-xl border border-slate-200 bg-white p-3 text-xs shadow-2xs">
+                  {renderDifferentialDiagnosis(liveAnswer)}
+                </div>
+              </div>
+
+              {/* 2. Working Diagnosis WDx */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-extrabold text-slate-500 uppercase block">
+                  2. Diagnosis Kerja Utama (WDx):
+                </label>
+                <div className="rounded-xl border border-slate-200 bg-white p-3 text-xs font-bold text-slate-900 leading-relaxed whitespace-pre-line shadow-2xs">
                   {liveAnswer?.working_diagnosis || (currentParticipant ? "Peserta belum mengisi WDx" : "Belum ada peserta di stase ini")}
                 </div>
               </div>
 
-              {/* Differential Diagnoses DDx */}
+              {/* 3. Prescription Text Area */}
               <div className="space-y-1">
                 <label className="text-[10px] font-extrabold text-slate-500 uppercase block">
-                  Diagnosis Banding (DDx 1 - 3):
-                </label>
-                <div className="rounded-xl border border-slate-200 bg-white p-3 text-xs font-medium text-slate-800 space-y-1 shadow-2xs">
-                  <p>1. {liveAnswer?.differential_dx_1 || "Belum diisi"}</p>
-                  <p>2. {liveAnswer?.differential_dx_2 || "Belum diisi"}</p>
-                  <p>3. {liveAnswer?.differential_dx_3 || "Belum diisi"}</p>
-                </div>
-              </div>
-
-              {/* Prescription Text Area */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-extrabold text-slate-500 uppercase block">
-                  Blangko Resep Obat (Farmakoterapi):
+                  3. Penulisan Resep Obat (Farmakoterapi / Rx):
                 </label>
                 <div className="rounded-xl border border-slate-200 bg-white p-3 text-xs font-mono text-slate-900 leading-relaxed whitespace-pre-line shadow-2xs">
                   {liveAnswer?.prescription_text || "Belum ada penulisan resep obat oleh peserta"}
