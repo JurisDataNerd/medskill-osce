@@ -1,76 +1,78 @@
-# 📋 Rangkuman Perbaikan UX & Copywriting (NEED_FIX.md)
+# 📌 Spesifikasi Perbaikan Flow Transisi Akhir Ujian OSCE (End-of-Exam State Spec)
 
-Dokumen ini berisi daftar inventarisasi seluruh kata, label form, tombol (CTA), dan deskripsi UI di proyek **MedSkill Praxis** yang masih **bertele-tele**, menggunakan **tanda kurung `()`**, **garis miring `/`**, atau **membocorkan informasi rahasia stase**, yang perlu disesuaikan berdasarkan panduan [rule_ux.md](file:///c:/KAIRAV/project/2026/medskill/praxis/rule_ux.md).
-
----
-
-## 📌 Ringkasan Prinsip UX Rules ([rule_ux.md](file:///c:/KAIRAV/project/2026/medskill/praxis/rule_ux.md))
-
-1. **Direct & Simple:** Gunakan frasa langsung pada intinya. Hindari kalimat penjelasan yang berulang/panjang pada header dan label.
-2. **Bebas Garis Miring (`/`):** Pilih 1 nama label utama yang paling presisi (misal: `Institusi / Universitas` ➔ `Institusi`).
-3. **Bebas Tanda Kurung (`()`):** Keterangan tambahan atau istilah teknis tidak perlu dimasukkan ke dalam tanda kurung pada label.
-4. **Single Primary Save Button:** Hanya 1 tombol simpan utama di bagian paling bawah form.
-5. **Kerahasiaan Topik Stase Peserta:** Sembunyikan judul topik medis (misal: *STEMI*) dari UI Peserta; tampilkan secara generik sebagai `Stase 1`, `Stase 2`.
+> **Dokumen Catatan & Perbaikan Logika Sistem**  
+> *Project: Praxis by MedSkill Indonesia*  
+> *Target Modul: Realtime Timer Engine, Participant Session Kiosk, Examiner Grading Room, Admin Live Control Room*
 
 ---
 
-## 🛑 1. Label Form dengan Garis Miring (`/`) & Tanda Kurung (`()`)
+## 🚨 Problem Statement (Masalah Saat Ini)
 
-| Lokasi File | Teks Lama (Perlu Diperbaiki) | Teks Rekomendasi (Simple & Clear) | Catatan Perbaikan |
-|---|---|---|---|
-| [`ParticipantSessionPage.jsx`](file:///c:/KAIRAV/project/2026/medskill/praxis/frontend/src/features/participant/pages/ParticipantSessionPage.jsx#L2178) | `1. Diagnosis Banding (Differential Diagnosis / DDx)` | `1. Diagnosis Banding` | Hapus tanda kurung, istilah bahasa inggris & `/ DDx` |
-| [`ParticipantSessionPage.jsx`](file:///c:/KAIRAV/project/2026/medskill/praxis/frontend/src/features/participant/pages/ParticipantSessionPage.jsx#L2192) | `2. Diagnosis Kerja (Working Diagnosis Utama / WDx)` | `2. Diagnosis Kerja` | Hapus tanda kurung & `/ WDx` |
-| [`ParticipantSessionPage.jsx`](file:///c:/KAIRAV/project/2026/medskill/praxis/frontend/src/features/participant/pages/ParticipantSessionPage.jsx#L2206) | `3. Lembar Penulisan Resep Obat (Prescription Sheet)` | `3. Penulisan Resep Obat` | Hapus tanda kurung `(Prescription Sheet)` |
-| [`FeedbackPage.jsx`](file:///c:/KAIRAV/project/2026/medskill/praxis/frontend/src/features/examiner/pages/FeedbackPage.jsx#L137) | `Diagnosis (WDx & DDx)` | `Diagnosis` | Hapus tanda kurung `(WDx & DDx)` |
-| [`UserProfilePage.jsx`](file:///c:/KAIRAV/project/2026/medskill/praxis/frontend/src/features/profile/pages/UserProfilePage.jsx) | `Informasi Profil / Data Diri` | `Informasi Profil` | Bebas garis miring `/` |
-| [`UserProfilePage.jsx`](file:///c:/KAIRAV/project/2026/medskill/praxis/frontend/src/features/profile/pages/UserProfilePage.jsx) | `Spesialisasi / Program Studi` | `Program Studi` | Gunakan 1 istilah paling presisi |
-| [`UserProfilePage.jsx`](file:///c:/KAIRAV/project/2026/medskill/praxis/frontend/src/features/profile/pages/UserProfilePage.jsx) | `Institusi / Universitas` | `Institusi` | Bebas garis miring `/` |
-| [`UserProfilePage.jsx`](file:///c:/KAIRAV/project/2026/medskill/praxis/frontend/src/features/profile/pages/UserProfilePage.jsx) | `Nomor Telepon / WhatsApp` | `Nomor Telepon` | Bebas garis miring `/` |
-| [`ExaminerStagePage.jsx`](file:///c:/KAIRAV/project/2026/medskill/praxis/frontend/src/features/examiner/pages/ExaminerStagePage.jsx#L1237) | `NIM / ID` | `NIM` | Bebas garis miring `/` |
-| [`ExaminerStagePage.jsx`](file:///c:/KAIRAV/project/2026/medskill/praxis/frontend/src/features/examiner/pages/ExaminerStagePage.jsx#L1131) | `Durasi / Pos Stase` | `Durasi Stase` | Bebas garis miring `/` |
-| [`AuxiliaryExamResultModal.jsx`](file:///c:/KAIRAV/project/2026/medskill/praxis/frontend/src/components/AuxiliaryExamResultModal.jsx#L223) | `Laporan Ekspertise Radiologi / Lab:` | `Laporan Ekspertise` | Bebas garis miring `/` |
-| [`SessionRegistrationModal.jsx`](file:///c:/KAIRAV/project/2026/medskill/praxis/frontend/src/components/landing/SessionRegistrationModal.jsx#L133) | `Institusi / Fakultas:` | `Institusi:` | Bebas garis miring `/` |
+Saat timer ujian OSCE mencapai `00:00` pada **transisi/ronde terakhir** (misalnya Ronde 6 dari 6 Stase):
+1. Sistem auto-rolling timer berisiko melakukan *looping* kembali ke Ronde 1 atau bernilai negatif.
+2. Tampilan peserta belum konsisten mengunci form dan mengalihkan ke halaman penutup.
+3. Dokter Penguji berisiko terganggu atau terkunci sebelum selesai memasukkan penilaian stase terakhir.
+4. Admin membutuhkan kepastian indikator bahwa semua ronde telah selesai sebelum mengklik **Akhiri Sesi OSCE**.
 
 ---
 
-## 🔘 2. Teks Tombol Aksi (CTA) & Istilah Teknis Backend
+## 🎯 Expected Behavior (Perilaku yang Diharapkan)
 
-| Lokasi File | Teks Tombol Lama (Perlu Diperbaiki) | Teks Tombol Rekomendasi (Ringkas) | Catatan Perbaikan |
-|---|---|---|---|
-| [`ExaminerStagePage.jsx`](file:///c:/KAIRAV/project/2026/medskill/praxis/frontend/src/features/examiner/pages/ExaminerStagePage.jsx#L1522) | `Submit & Kunci Penilaian (Supabase)` | `Simpan Penilaian` | Sembunyikan istilah teknis backend `(Supabase)` |
-| [`ParticipantSessionPage.jsx`](file:///c:/KAIRAV/project/2026/medskill/praxis/frontend/src/features/participant/pages/ParticipantSessionPage.jsx#L2278) | `Batal / Periksa Kembali` | `Batal` | Fokus pada kata kerja aksi tunggal |
-| [`AuxiliaryExamResultModal.jsx`](file:///c:/KAIRAV/project/2026/medskill/praxis/frontend/src/components/AuxiliaryExamResultModal.jsx#L244) | `Kembali / Tutup Berkas` | `Tutup Berkas` | Bebas garis miring `/` |
-| [`ConfirmModal.jsx`](file:///c:/KAIRAV/project/2026/medskill/praxis/frontend/src/components/ConfirmModal.jsx#L113) | `Mengerti / Tutup` | `Mengerti` | Singkat & presisi |
-| [`MediaEmbedViewer.jsx`](file:///c:/KAIRAV/project/2026/medskill/praxis/frontend/src/components/MediaEmbedViewer.jsx#L95) | `Buka di Tab Baru / Drive` | `Buka di Tab Baru` | Bebas garis miring `/` |
-| [`ParticipantSessionPage.jsx`](file:///c:/KAIRAV/project/2026/medskill/praxis/frontend/src/features/participant/pages/ParticipantSessionPage.jsx#L1419) | `Lanjut Masuk Ronde 2 (Kardiovaskular STEMI)` | `Lanjut Masuk Ronde 2` | Sembunyikan judul topik medis stase dari peserta |
-| [`SessionParticipantsPage.jsx`](file:///c:/KAIRAV/project/2026/medskill/praxis/frontend/src/features/admin/pages/SessionParticipantsPage.jsx#L210) | `Setujui Semua Pending (5)` | `Setujui Semua` | Ringkas tanpa angka berulang dalam kurung |
+Ketika timer pada ronde/transisi terakhir habis (`remaining_seconds <= 0` pada `current_round == total_rounds`):
 
----
+### 1. 🎓 Layar Peserta (Participant Flow)
+* **Tampilan Halaman Terima Kasih**: Peserta otomatis dialihkan ke halaman ucapan terima kasih (*OSCE Completion / Thank You Screen*).
+* **Kunci Total Form Answer (Locking)**: 
+  * Seluruh input pengerjaan (Anamnesis, Pemeriksaan Fisik, Penunjang, Diagnosis WDx/DDx, dan Blangko Resep) dikunci total (*read-only*).
+  * Peserta tidak dapat kembali ke halaman stase atau mengubah jawaban.
+* **Informasi Rangkuman Kehadiran**: Menampilkan status stase yang telah diselesaikan peserta selama sirkuit berlangsung.
 
-## 🔒 3. Kerahasiaan Topik Medis Stase pada UI Peserta (Aturan 3.A)
+### 2. 🩺 Layar Dokter Penguji (Examiner Flow)
+* **Fleksibilitas Penilaian (Grading Grace Period)**: Layar penguji **TIDAK** boleh dikunci paksa atau di-redirect secara mendadak saat timer 00:00.
+* **Penguji Tetap Bisa Input Skor**:
+  * Penguji tetap dapat mengeklik skor rubrik (0-3), memilih *Global Rating Scale* (GRS), dan mengisi *feedback* untuk peserta di ronde terakhir.
+  * Tombol `Submit & Lock Score` tetap aktif sampai penguji secara sadar mengunci nilai.
+* **Indikator Banner Warn**: Menampilkan banner status:  
+  `⏱️ Waktu Ronde Habis — Silakan selesaikan penilaian & submit skor peserta ronde terakhir.`
 
-| Lokasi Komponen | Teks Lama (Membocorkan Rahasia Kasus) | Teks Rekomendasi (Generik & Aman) |
-|---|---|---|
-| **Halaman Transisi Peserta** | `Stase 2 (Kardiovaskular - STEMI)` | `Stase 2` |
-| **Badge Header Peserta** | `Ronde 1: Kardiovaskular` | `Ronde 1: Stase 1` |
-| **Modal Konfirmasi Peserta** | `Apakah Anda yakin ingin menyelesaikan Stase Anamnesis STEMI?` | `Apakah Anda yakin ingin menyelesaikan stase ini?` |
+### 3. 🏛️ Layar Control Room Admin (Admin Flow)
+* **Monitoring Kelengkapan Nilai**: Admin dapat memantau status penguncian nilai dari seluruh stase (contoh: *6/6 Penguji Sudah Submit Nilai*).
+* **Tombol Kontrol "Akhiri Sesi OSCE" (`Finish Session`)**:
+  * Admin memegang wewenang penuh untuk menekan tombol **"Akhiri Sesi OSCE"**.
+  * Setelah ditekan, status sesi di database berubah menjadi `completed`/`finished`, saluran WebSocket diputuskan, dan data siap diproses untuk kalkulasi NBL (Borderline Regression Method).
 
----
-
-## 📝 4. Kalimat Penjelasan UI yang Bertele-tele (Header & Subtext)
-
-| Lokasi File | Kalimat Lama (Bertele-tele) | Kalimat Rekomendasi (Simple & Clear) |
-|---|---|---|
-| [`ParticipantSessionPage.jsx`](file:///c:/KAIRAV/project/2026/medskill/praxis/frontend/src/features/participant/pages/ParticipantSessionPage.jsx#L2169) | `Isi formulir diagnosis dan resep obat di bawah ini sebagai lembar jawaban final stase.` | `Isi lembar jawaban diagnosis dan resep obat di bawah ini.` |
-| [`ParticipantSessionPage.jsx`](file:///c:/KAIRAV/project/2026/medskill/praxis/frontend/src/features/participant/pages/ParticipantSessionPage.jsx#L1974) | `Sampaikan permintaan pemeriksaan atau pertanyaan hasil temuan fisik secara lisan langsung kepada Pasien Standar / Penguji di ruangan.` | `Sampaikan permintaan pemeriksaan fisik kepada Pasien Standar di ruangan.` |
-| [`ExaminerStagePage.jsx`](file:///c:/KAIRAV/project/2026/medskill/praxis/frontend/src/features/examiner/pages/ExaminerStagePage.jsx#L1731) | `Belum ada berkas penunjang yang diminta oleh peserta pada stase ini.` | `Belum ada berkas penunjang yang dibuka.` |
+### 4. ⏱️ Tampilan Timer Engine (Global Timer Display)
+* **Reset & Freeze di 00:00**: Timer berhenti tepat di angka `00:00` (atau `00:00:00`), tidak bernilai minus (`-00:01`) dan tidak me-reset paksa ke Ronde 1.
+* **Label Status Timer**: Berubah menjadi badge transisi:  
+  `SESI SELESAI — Menunggu Pengajuan Nilai Penguji & Penutupan Admin`
 
 ---
 
-## 🛠️ Checklist Action Items (Status Perbaikan Selesai)
+## ⚙️ Rencana Teknis Implementasi (Technical Blueprint)
 
-- [x] **Langkah 1:** Perbarui label form diagnosis di `ParticipantSessionPage.jsx` & `FeedbackPage.jsx` agar bebas dari `()`, `/`, dan kata-kata bertele-tele.
-- [x] **Langkah 2:** Sembunyikan judul topik medis stase pada seluruh UI Peserta (ganti dengan `Stase N` generik).
-- [x] **Langkah 3:** Bersihkan istilah teknis backend (`Supabase`, `Akun Auth`) dari tombol UI Penguji dan Peserta.
-- [x] **Langkah 4:** Ringkaskan kalimat deskripsi header pada form profil, login, dan dashboard admin.
-- [x] **Langkah 5:** Verifikasi seluruh form agar menggunakan 1 Tombol Simpan Utama (Single Primary CTA).
+```mermaid
+graph TD
+    A[Timer Ronde Akhir Reach 00:00] --> B{Pengecekan current_round >= total_rounds?}
+    B -- Ya --> C[Set Timer Phase: completed_waiting & Freeze Timer 00:00]
+    C --> D[Broadcast Event: TIMER_FINAL_EXPIRED]
+    
+    D --> E[Participant: Redirection ke Halaman Terima Kasih & Lock Form]
+    D --> F[Examiner: Izinkan Form Tetap Buka & Tampilkan Banner Waktu Habis]
+    D --> G[Admin: Tampilkan Banner Ronde Selesai & Aktifkan Tombol Akhiri Sesi]
+    
+    G --> H[Admin Klik Tombol Akhiri Sesi OSCE]
+    H --> I[Status Sesi Update: completed & Trigger Auto-Calculate NBL]
+```
+
+### Detail Perubahan Berkas Utama:
+
+| File / Component | Lokasi | Perubahan yang Dilakukan |
+| :--- | :--- | :--- |
+| **`realtimeTimerService.js`** | `@/services/realtimeTimerService.js` | Mencegah `advanceRound` me-reset ke Ronde 1 saat `roundNumber === totalRounds`. Set phase ke `completed_waiting`. |
+| **`LiveMonitorPage.jsx`** | `@/features/admin/pages/LiveMonitorPage.jsx` | Menonaktifkan auto-rolling ronde di akhir sesi. Menampilkan status *Ready to Finish* dan tombol *Akhiri Sesi OSCE*. |
+| **`ParticipantSessionPage.jsx`** | `@/features/participant/pages/ParticipantSessionPage.jsx` | Menambahkan pengecekan phase `completed_waiting` untuk merender tampilan Terima Kasih dan mengunci seluruh input. |
+| **`ExaminerStagePage.jsx`** | `@/features/examiner/pages/ExaminerStagePage.jsx` | Memastikan `is_locked` tidak otomatis `true` hanya karena timer 00:00, sehingga Penguji tetap bisa menyelesaikan grading. |
+
+---
+
+> **Status Catatan**: *Telah diperbaiki & dijabarkan. Siap diimplementasikan pada codebase Praxis.*
