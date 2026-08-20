@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, Info, Trash2, X } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
 
 export default function ConfirmModal({
   isOpen,
@@ -29,7 +29,7 @@ export default function ConfirmModal({
         return {
           iconBg: "bg-red-100 text-red-600 border-red-200",
           buttonBg: "bg-red-600 hover:bg-red-700 text-white shadow-red-200",
-          icon: <Trash2 size={24} />,
+          icon: <AlertCircle size={24} />,
         };
       case "warning":
         return {
@@ -110,7 +110,7 @@ export default function ConfirmModal({
             disabled={loading}
             className={`inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs font-bold shadow-md active:scale-95 transition disabled:opacity-50 ${style.buttonBg}`}
           >
-            {loading ? "Memproses..." : isAlert ? (confirmText === "Ya, Lanjutkan" ? "Mengerti / Tutup" : confirmText) : confirmText}
+            {loading ? "Memproses..." : isAlert ? (confirmText === "Ya, Lanjutkan" ? "Mengerti" : confirmText) : confirmText}
           </button>
         </div>
       </div>

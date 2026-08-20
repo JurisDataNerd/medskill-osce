@@ -32,7 +32,11 @@ export default function ParticipantHistoryPage() {
   const [historyList, setHistoryList] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const participantName = user?.user_metadata?.full_name || user?.email || "Peserta Ujian";
+  const participantName =
+    user?.user_metadata?.full_name ||
+    user?.user_metadata?.name ||
+    user?.email ||
+    "Tidak ada data";
 
   useEffect(() => {
     async function loadHistory() {
@@ -116,7 +120,12 @@ export default function ParticipantHistoryPage() {
             </span>
             <div className="flex items-baseline gap-2">
               <span className="text-2xl font-black text-blue-600">
-                {historyList.length > 0 ? "85.5%" : "-"}
+                {(() => {
+                  const evs = historyList.filter((i) => i.has_evaluations);
+                  if (evs.length === 0) return "-";
+                  const avg = evs.reduce((acc, curr) => acc + Number(curr.final_score || 0), 0) / evs.length;
+                  return `${avg.toFixed(1)}%`;
+                })()}
               </span>
               <span className="text-xs text-slate-500 font-bold">Kumulatif</span>
             </div>
@@ -127,16 +136,28 @@ export default function ParticipantHistoryPage() {
               Status Kelulusan OSCE
             </span>
             <div className="flex items-center gap-2 pt-0.5">
-              {historyList.length > 0 ? (
-                <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-100 border border-emerald-300 px-3 py-1 text-xs font-black text-emerald-900">
-                  <CheckCircle2 size={15} />
-                  LULUS
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-100 border border-amber-300 px-3 py-1 text-xs font-bold text-amber-900">
-                  Belum Ada Sesi Dipublikasikan
-                </span>
-              )}
+              {(() => {
+                const evs = historyList.filter((i) => i.has_evaluations);
+                if (evs.length === 0) {
+                  return (
+                    <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-100 border border-amber-300 px-3 py-1 text-xs font-bold text-amber-900">
+                      Belum Ada Evaluasi
+                    </span>
+                  );
+                }
+                const isPassedAll = evs.every((i) => i.passed);
+                return isPassedAll ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-100 border border-emerald-300 px-3 py-1 text-xs font-black text-emerald-900">
+                    <CheckCircle2 size={15} />
+                    LULUS
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-rose-100 border border-rose-300 px-3 py-1 text-xs font-black text-rose-900">
+                    <XCircle size={15} />
+                    PERLU REMIDI
+                  </span>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -234,10 +255,10 @@ export default function ParticipantHistoryPage() {
               </div>
               <div className="space-y-1">
                 <h4 className="text-base font-extrabold text-slate-900">
-                  Belum Ada Riwayat Ujian OSCE
+                  Belum Ada Riwayat Ujian
                 </h4>
                 <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed font-medium">
-                  Transkrip nilai dan rekapitulasi evaluasi 6 stase akan secara otomatis tersimpan di sini setelah Admin mempublikasikan hasil resmi sesi ujian Anda.
+                  Transkrip nilai akan tampil di sini setelah hasil ujian dipublikasikan.
                 </p>
               </div>
               <div className="pt-2 flex items-center justify-center gap-3">
@@ -246,14 +267,14 @@ export default function ParticipantHistoryPage() {
                   className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-5 py-2.5 text-xs font-bold text-white shadow-md transition active:scale-95"
                 >
                   <ArrowLeft size={16} />
-                  Kembali ke Dashboard Ujian
+                  Kembali ke Dashboard
                 </button>
                 <button
                   onClick={() => window.location.reload()}
                   className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-4 py-2.5 text-xs font-bold text-slate-700 transition active:scale-95"
                 >
                   <Activity size={15} />
-                  Refresh Data Transkrip
+                  Muat Ulang
                 </button>
               </div>
             </div>

@@ -75,12 +75,12 @@ export default function StaseModal({
               </label>
 
               <input
-                type="number"
-                min={1}
+                type="text"
+                inputMode="numeric"
                 className="w-full rounded-xl border p-3"
                 value={stationNumber}
                 onChange={(e) =>
-                  setStationNumber(e.target.value)
+                  setStationNumber(e.target.value.replace(/\D/g, ""))
                 }
                 required
               />
@@ -92,12 +92,12 @@ export default function StaseModal({
               </label>
 
               <input
-                type="number"
-                min={1}
+                type="text"
+                inputMode="numeric"
                 className="w-full rounded-xl border p-3"
                 value={durationMinutes}
                 onChange={(e) =>
-                  setDurationMinutes(e.target.value)
+                  setDurationMinutes(e.target.value.replace(/\D/g, ""))
                 }
                 required
               />

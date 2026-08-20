@@ -152,8 +152,8 @@ export default function CreateSessionPage() {
       {
         is_break: false,
         case_title: "Sindrom Koroner Akut (STEMI Anteroseptal)",
-        assigned_examiner: "dr. Alexander Budiman, Sp.JP",
-        examiner_specialty: "Sp.JP (Kardiovaskular)",
+        assigned_examiner: "",
+        examiner_specialty: "",
         scenario:
           "Pasien laki-laki 52 tahun datang ke UGD dengan keluhan nyeri dada kiri menjalar ke lengan kiri sejak 2 jam lalu.",
         participant_instructions:
@@ -204,8 +204,8 @@ export default function CreateSessionPage() {
       {
         is_break: false,
         case_title: "Eksaserbasi Akut Asma Bronkial Derajat Sedang-Berat",
-        assigned_examiner: "dr. Faisal Hasibuan, Sp.P",
-        examiner_specialty: "Sp.P (Respirasi/Pulmonologi)",
+        assigned_examiner: "",
+        examiner_specialty: "",
         scenario:
           "Pasien perempuan 28 tahun datang dengan sesak napas berat berbunyi ngik-ngik dan bentuk dada cembung di sisi kanan.",
         participant_instructions:
@@ -957,14 +957,14 @@ export default function CreateSessionPage() {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-bold text-slate-900">
-                {isEdit ? "Edit Sesi OSCE & Soal Rubrik" : "Buat Sesi OSCE Baru"}
+                {isEdit ? "Edit Sesi Ujian" : "Buat Sesi Ujian"}
               </h1>
               <span className="rounded-full bg-blue-100 px-3 py-0.5 text-xs font-bold text-blue-800">
-                {isEdit ? "Mode Edit" : "Mode Buat Baru"}
+                {isEdit ? "Edit Sesi" : "Sesi Baru"}
               </span>
             </div>
             <p className="mt-1 text-sm text-slate-500">
-              Formulir terstruktur: Navigasi Ringkas (Panel Kiri) & Form Pengaturan Sesi (Panel Kanan).
+              Atur jadwal pelaksanaan, konfigurasi stase sirkuit, paket soal, dan aturan penilaian.
             </p>
           </div>
 
@@ -972,7 +972,7 @@ export default function CreateSessionPage() {
             {!isPublishedSession && (
               <button
                 onClick={() => handleSaveCurrentSection(true)}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-50 active:scale-95"
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-50 active:scale-95 cursor-pointer"
               >
                 <Save size={15} />
                 Simpan Draft
@@ -982,7 +982,7 @@ export default function CreateSessionPage() {
             {isEdit && (
               <button
                 onClick={() => navigate(`/admin/sessions/${id}`)}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-50 active:scale-95"
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-50 active:scale-95 cursor-pointer"
               >
                 <Eye size={15} />
                 Preview Sesi
@@ -991,7 +991,7 @@ export default function CreateSessionPage() {
 
             <button
               onClick={() => handleSaveCurrentSection(false)}
-              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-blue-600/30 transition hover:bg-blue-700 active:scale-95"
+              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-blue-600/30 transition hover:bg-blue-700 active:scale-95 cursor-pointer"
             >
               <CheckCircle2 size={15} />
               {isEdit ? "Simpan Perubahan" : "Terbitkan Sesi"}
@@ -1006,13 +1006,13 @@ export default function CreateSessionPage() {
         <div className="lg:col-span-4 space-y-4">
           <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-xs space-y-1.5">
             <div className="px-3 py-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-              Navigasi Formulir OSCE
+              Tahapan Formulir
             </div>
 
             <SidebarMenuTabBtn
               active={activeTab === 1}
               title="1. Detail Utama Sesi"
-              subtitle="Nama, Jadwal, Lokasi & Kuota Peserta"
+              subtitle="Informasi & Jadwal Ujian"
               icon={<FileText size={18} />}
               onClick={() => setActiveTab(1)}
             />
@@ -1020,7 +1020,7 @@ export default function CreateSessionPage() {
             <SidebarMenuTabBtn
               active={activeTab === 2}
               title="2. Stase & Timer Rotasi"
-              subtitle="Pengaturan Timer & Slot Pos Sirkuit"
+              subtitle="Durasi & Sirkuit Stase"
               icon={<RotateCw size={18} />}
               onClick={() => setActiveTab(2)}
             />
@@ -1028,14 +1028,14 @@ export default function CreateSessionPage() {
             <SidebarMenuTabBtn
               active={activeTab === 3}
               title="3. Soal & Kunci Jawaban Rubrik"
-              subtitle="Kasus Medis, Skenario & Kunci Rubrik"
+              subtitle="Paket Soal & Rubrik"
               icon={<BookOpen size={18} />}
               onClick={() => setActiveTab(3)}
             />
 
             <SidebarMenuTabBtn
               active={activeTab === 4}
-              title="4. Rule & Otomatisasi"
+              title="4. Aturan & Penilaian"
               subtitle="Aturan Live & Penguncian Nilai"
               icon={<Sliders size={18} />}
               onClick={() => setActiveTab(4)}
@@ -1051,31 +1051,31 @@ export default function CreateSessionPage() {
 
             <div className="space-y-2 text-xs">
               <div className="flex justify-between border-b border-slate-200/60 pb-1.5 text-slate-600">
-                <span>Total Slot Sirkuit:</span>
+                <span>Total Stase:</span>
                 <span className="font-bold text-slate-900">
-                  {stationsConfig.length} Slot ({examCount} Stase + {breakCount} Istirahat)
+                  {stationsConfig.length} Stase
                 </span>
               </div>
               <div className="flex justify-between border-b border-slate-200/60 pb-1.5 text-slate-600">
-                <span>Waktu Stase Ujian:</span>
+                <span>Durasi Stase:</span>
                 <span className="font-bold text-slate-900">
                   {stationDurationMinutes} Menit
                 </span>
               </div>
               <div className="flex justify-between border-b border-slate-200/60 pb-1.5 text-slate-600">
-                <span>Waktu Stase Istirahat:</span>
+                <span>Durasi Istirahat:</span>
                 <span className="font-bold text-amber-950">
                   {breakSlotDurationMinutes} Menit
                 </span>
               </div>
               <div className="flex justify-between border-b border-slate-200/60 pb-1.5 text-slate-600">
-                <span>Waktu Transisi Rotasi:</span>
+                <span>Durasi Transisi:</span>
                 <span className="font-bold text-emerald-800">
                   {transitionDurationMinutes} Menit
                 </span>
               </div>
               <div className="flex justify-between text-slate-600">
-                <span>Maks. Peserta:</span>
+                <span>Kapasitas Peserta:</span>
                 <span className="font-bold text-slate-900">
                   {maxParticipants} Peserta
                 </span>
@@ -1092,17 +1092,17 @@ export default function CreateSessionPage() {
               <div className="border-b border-slate-100 pb-3">
                 <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
                   <FileText size={19} className="text-blue-600" />
-                  1. Informasi & Detail Utama Sesi OSCE
+                  1. Informasi Sesi Ujian
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Isi judul sesi, deskripsi, tanggal, jam pelaksanaan, serta kuota peserta.
+                  Lengkapi judul, jadwal pelaksanaan, dan kapasitas peserta.
                 </p>
               </div>
 
               <div className="grid gap-5 sm:grid-cols-2">
                 <div className="sm:col-span-2">
                   <label className="mb-1.5 block text-xs font-bold text-slate-700">
-                    Nama / Judul Sesi OSCE <span className="text-rose-500">*</span>
+                    Judul Sesi Ujian <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -1142,7 +1142,7 @@ export default function CreateSessionPage() {
                 <div>
                   <label className="mb-1.5 block text-xs font-bold text-slate-700 flex items-center gap-1">
                     <MapPin size={14} className="text-slate-400" />
-                    Lokasi Gedung / Ruangan
+                    Lokasi Ruangan
                   </label>
                   <input
                     type="text"
@@ -1182,12 +1182,16 @@ export default function CreateSessionPage() {
                 <div className="sm:col-span-2">
                   <label className="mb-1.5 block text-xs font-bold text-slate-700 flex items-center gap-1">
                     <Users size={14} className="text-slate-400" />
-                    Maksimal Peserta per Gelombang
+                    Kapasitas Peserta per Gelombang
                   </label>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
                     value={maxParticipants}
-                    onChange={(e) => setMaxParticipants(Number(e.target.value))}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, "");
+                      setMaxParticipants(val === "" ? "" : Number(val));
+                    }}
                     className="w-full rounded-xl border border-slate-200 p-3 text-xs font-bold text-slate-800 focus:border-blue-500 focus:outline-none"
                   />
                 </div>
@@ -1199,27 +1203,27 @@ export default function CreateSessionPage() {
                   <button
                     type="button"
                     onClick={() => handleSaveCurrentSection(true)}
-                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition"
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
                   >
                     <Save size={15} />
-                    Simpan Draft Bagian Ini
+                    Simpan Draft
                   </button>
                 ) : (
                   <button
                     type="button"
                     onClick={() => handleSaveCurrentSection(false)}
-                    className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-5 py-2.5 text-xs font-bold text-blue-700 shadow-2xs hover:bg-blue-100 transition"
+                    className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-5 py-2.5 text-xs font-bold text-blue-700 shadow-2xs hover:bg-blue-100 transition cursor-pointer"
                   >
                     <Save size={15} />
-                    Simpan Perubahan Bagian Ini
+                    Simpan Perubahan
                   </button>
                 )}
                 <button
                   type="button"
                   onClick={handleNextTab}
-                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-xs font-bold text-white shadow-md hover:bg-blue-700 active:scale-95 transition"
+                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-xs font-bold text-white shadow-md hover:bg-blue-700 active:scale-95 transition cursor-pointer"
                 >
-                  Lanjutkan: Stase & Timer Rotasi
+                  Lanjutkan: Stase & Durasi
                   <ChevronRight size={16} />
                 </button>
               </div>
@@ -1232,10 +1236,10 @@ export default function CreateSessionPage() {
               <div className="border-b border-slate-100 pb-3">
                 <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
                   <RotateCw size={19} className="text-blue-600" />
-                  2. Konfigurasi Stase & Timer Rotasi Sirkuit
+                  2. Durasi & Sirkuit Stase
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Atur durasi waktu stase, waktu istirahat, jeda transisi pergerakan, dan susunan slot pos ruangan stase di dalam sirkuit.
+                  Atur durasi stase, waktu istirahat, jeda transisi, dan susunan stase dalam sirkuit.
                 </p>
               </div>
 
@@ -1243,87 +1247,90 @@ export default function CreateSessionPage() {
               <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-5 space-y-4">
                 <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
                   <Clock size={16} className="text-blue-600" />
-                  Pengaturan Durasi Waktu Timer OSCE
+                  Pengaturan Waktu Ujian
                 </h3>
 
                 <div className="grid gap-4 sm:grid-cols-3">
                   <div>
                     <label className="mb-1.5 block text-xs font-bold text-slate-700 flex items-center gap-1.5">
                       <span className="h-2 w-2 rounded-full bg-blue-600"></span>
-                      Waktu Stase Ujian (Menit)
+                      Durasi Stase (Menit)
                     </label>
                     <input
-                      type="number"
-                      min="1"
+                      type="text"
+                      inputMode="numeric"
                       value={stationDurationMinutes}
-                      onChange={(e) => setStationDurationMinutes(Number(e.target.value))}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "");
+                        setStationDurationMinutes(val === "" ? "" : Number(val));
+                      }}
                       className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs font-bold text-slate-900 focus:border-blue-500 focus:outline-none"
                     />
-                    <span className="text-[11px] text-slate-500 mt-1 block">
-                      Durasi pengerjaan tindakan medis oleh peserta per stase aktif.
-                    </span>
                   </div>
 
                   <div>
                     <label className="mb-1.5 block text-xs font-bold text-amber-950 flex items-center gap-1.5">
                       <span className="h-2 w-2 rounded-full bg-amber-500"></span>
-                      Waktu Stase Istirahat (Menit)
+                      Durasi Istirahat (Menit)
                     </label>
                     <input
-                      type="number"
-                      min="1"
+                      type="text"
+                      inputMode="numeric"
                       value={breakSlotDurationMinutes}
-                      onChange={(e) => setBreakSlotDurationMinutes(Number(e.target.value))}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "");
+                        setBreakSlotDurationMinutes(val === "" ? "" : Number(val));
+                      }}
                       className="w-full rounded-xl border border-amber-300 bg-amber-50/50 p-3 text-xs font-bold text-amber-950 focus:border-amber-500 focus:outline-none"
                     />
-                    <span className="text-[11px] text-amber-800 mt-1 block">
-                      Durasi peserta yang menempati slot stase istirahat di ronde tersebut.
-                    </span>
                   </div>
 
                   <div>
                     <label className="mb-1.5 block text-xs font-bold text-slate-800 flex items-center gap-1.5">
                       <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
-                      Waktu Transisi Rotasi (Menit)
+                      Durasi Transisi (Menit)
                     </label>
                     <input
-                      type="number"
-                      min="0"
+                      type="text"
+                      inputMode="numeric"
                       value={transitionDurationMinutes}
-                      onChange={(e) => setTransitionDurationMinutes(Number(e.target.value))}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "");
+                        setTransitionDurationMinutes(val === "" ? "" : Number(val));
+                      }}
                       className="w-full rounded-xl border border-emerald-300 bg-emerald-50/40 p-3 text-xs font-bold text-emerald-950 focus:border-emerald-500 focus:outline-none"
                     />
-                    <span className="text-[11px] text-emerald-800 mt-1 block">
-                      Jeda pergerakan fisik peserta antar-ruang saat bel berbunyi.
-                    </span>
                   </div>
                 </div>
 
                 {/* Ringkasan Kalkulasi Sirkuit */}
-                <div className="rounded-xl border border-blue-200 bg-blue-100/50 p-3.5 text-xs grid gap-3 sm:grid-cols-3">
+                <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-4 text-xs grid gap-4 sm:grid-cols-3">
                   <div>
-                    <span className="text-slate-500 block text-[11px]">Total Slot Sirkuit:</span>
-                    <span className="font-extrabold text-slate-900 text-sm">
-                      {stationsConfig.length} Slot
-                    </span>
-                    <span className="text-[10px] text-blue-700 block mt-0.5 font-medium">
-                      ({examCount} Stase Ujian + {breakCount} Stase Istirahat)
-                    </span>
+                    <span className="text-slate-500 block text-[11px] font-medium">Total Stase Sirkuit</span>
+                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                      <span className="font-black text-slate-900 text-sm">
+                        {stationsConfig.length} Stase
+                      </span>
+                      <span className="rounded-md bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 border border-blue-200">
+                        {examCount} Ujian
+                      </span>
+                      {breakCount > 0 && (
+                        <span className="rounded-md bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 border border-amber-200">
+                          {breakCount} Istirahat
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div>
-                    <span className="text-slate-500 block text-[11px]">Total Ronde Rotasi:</span>
-                    <span className="font-extrabold text-blue-800 text-sm">
+                    <span className="text-slate-500 block text-[11px] font-medium">Total Ronde Rotasi</span>
+                    <span className="font-black text-blue-800 text-base block mt-0.5">
                       {totalRounds} Ronde
                     </span>
-                    <span className="text-[10px] text-slate-500 block mt-0.5">(1 Ronde per Slot Sirkuit)</span>
                   </div>
                   <div>
-                    <span className="text-slate-500 block text-[11px]">Estimasi Total 1 Rotasi:</span>
-                    <span className="font-extrabold text-emerald-800 text-sm">
+                    <span className="text-slate-500 block text-[11px] font-medium">Estimasi Waktu Rotasi</span>
+                    <span className="font-black text-emerald-800 text-base block mt-0.5">
                       {(stationDurationMinutes + transitionDurationMinutes) * totalRounds} Menit
-                    </span>
-                    <span className="text-[10px] text-emerald-700 block mt-0.5">
-                      ({stationsConfig.length} peserta berputar bersamaan)
                     </span>
                   </div>
                 </div>
@@ -1333,12 +1340,17 @@ export default function CreateSessionPage() {
               <div className="space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
                   <div>
-                    <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                      <Building2 size={16} className="text-blue-600" />
-                      Daftar Pos Ruangan & Slot Sirkuit ({stationsConfig.length} Slot: {examCount} Stase + {breakCount} Istirahat)
-                    </h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                        <Building2 size={16} className="text-blue-600" />
+                        Susunan Stase Sirkuit
+                      </h3>
+                      <span className="rounded-full bg-blue-50 border border-blue-200 px-2.5 py-0.5 text-[11px] font-bold text-blue-700">
+                        {stationsConfig.length} Stase
+                      </span>
+                    </div>
                     <p className="text-[11px] text-slate-500 mt-0.5">
-                      Penamaan stase terkonfigurasi otomatis (<span className="font-bold text-slate-700">Stase 1, Stase 2, Stase Istirahat 1, dst.</span>). Tarik (<span className="font-bold text-slate-700">⠿ Drag</span>) untuk mengubah posisi.
+                      Tarik kartu stase untuk mengatur urutan rotasi peserta.
                     </p>
                   </div>
 
@@ -1697,12 +1709,12 @@ export default function CreateSessionPage() {
                       />
                     </div>
 
-                    {/* Penugasan Dokter Penguji Stase (Examiner Assignment) */}
+                    {/* Penugasan Dokter Penguji Stase */}
                     <div className="sm:col-span-2 rounded-2xl border border-blue-200 bg-blue-50/70 p-4 space-y-3 shadow-2xs">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-bold text-blue-950 flex items-center gap-2">
                           <UserCheck size={16} className="text-blue-600" />
-                          Penugasan Dokter Penguji Stase (Examiner Assignment)
+                          Penugasan Dokter Penguji
                         </label>
                         <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-extrabold border inline-flex items-center gap-1 ${
                           activeStation.assigned_examiner || activeStation.examiner_name
@@ -1712,7 +1724,7 @@ export default function CreateSessionPage() {
                           {activeStation.assigned_examiner || activeStation.examiner_name ? (
                             <>
                               <CheckCircle2 size={13} className="text-emerald-700" />
-                              Dokter Penguji Terpenuhi
+                              Penguji Ditugaskan
                             </>
                           ) : (
                             <>
@@ -1736,7 +1748,7 @@ export default function CreateSessionPage() {
                         return (
                           <div>
                             <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                              Pilih Dokter Penguji Spesialis
+                              Pilih Dokter Penguji
                             </label>
                             <select
                               value={selectValue}
@@ -1757,9 +1769,9 @@ export default function CreateSessionPage() {
                                   )
                                 );
                               }}
-                              className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-bold text-slate-900 focus:border-blue-500 focus:outline-none"
+                              className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-bold text-slate-900 focus:border-blue-500 focus:outline-none cursor-pointer"
                             >
-                              <option value="">-- Pilih Dokter Penguji Spesialis --</option>
+                              <option value="">-- Pilih Dokter Penguji --</option>
                               {doctorList.map((doc) => (
                                 <option key={doc.id} value={doc.name}>
                                   {doc.name} ({doc.specialty || "Spesialis Medis"}){doc.institution ? ` - ${doc.institution}` : ""}
@@ -1884,15 +1896,17 @@ export default function CreateSessionPage() {
                                     Bobot:
                                   </span>
                                   <input
-                                    type="number"
+                                    type="text"
+                                    inputMode="numeric"
                                     value={item.max_points}
-                                    onChange={(e) =>
+                                    onChange={(e) => {
+                                      const val = e.target.value.replace(/\D/g, "");
                                       handleUpdateChecklistItem(
                                         item.id,
                                         "max_points",
-                                        Number(e.target.value)
-                                      )
-                                    }
+                                        val === "" ? "" : Number(val)
+                                      );
+                                    }}
                                     className="w-12 rounded-md border border-slate-200 text-center py-0.5 text-xs font-bold text-slate-900"
                                   />
                                   <span className="text-slate-500">Poin</span>
@@ -2111,7 +2125,7 @@ export default function CreateSessionPage() {
                 <button
                   type="button"
                   onClick={() => handleSaveCurrentSection(true)}
-                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition"
+                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
                 >
                   <Save size={15} />
                   Simpan Draft
@@ -2119,9 +2133,9 @@ export default function CreateSessionPage() {
                 <button
                   type="button"
                   onClick={handleNextTab}
-                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-xs font-bold text-white shadow-md hover:bg-blue-700 active:scale-95 transition"
+                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-xs font-bold text-white shadow-md hover:bg-blue-700 active:scale-95 transition cursor-pointer"
                 >
-                  Lanjutkan: Rule & Otomatisasi
+                  Lanjutkan: Aturan Ujian
                   <ChevronRight size={16} />
                 </button>
               </div>
@@ -2134,17 +2148,17 @@ export default function CreateSessionPage() {
               <div className="border-b border-slate-100 pb-3">
                 <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
                   <Sliders size={19} className="text-blue-600" />
-                  4. Aturan Pelaksanaan & Otomatisasi OSCE
+                  4. Aturan Pelaksanaan Ujian
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Konfigurasi aturan eksekusi live, rolling rotasi, dan penguncian lembar nilai.
+                  Konfigurasi aturan sesi live, rotasi sirkuit, dan penguncian nilai otomatis.
                 </p>
               </div>
 
               <div className="space-y-3.5">
                 <RuleToggleItem
-                  title="Aturan Sesi Live Eksklusif (Single Live Session)"
-                  description="Memastikan hanya 1 sesi OSCE yang dapat berjalan secara live dalam 1 waktu. Sesi lain diblokir dari start bersamaan."
+                  title="Sesi Live Eksklusif"
+                  description="Memastikan hanya 1 sesi ujian yang dapat berjalan secara live dalam 1 waktu."
                   checked={singleLiveSessionRule}
                   onChange={setSingleLiveSessionRule}
                 />
@@ -2179,9 +2193,13 @@ export default function CreateSessionPage() {
                   </p>
                   <div className="flex items-center gap-2">
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
                       value={lateToleranceMinutes}
-                      onChange={(e) => setLateToleranceMinutes(Number(e.target.value))}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "");
+                        setLateToleranceMinutes(val === "" ? "" : Number(val));
+                      }}
                       className="w-28 rounded-xl border border-slate-200 p-2.5 text-xs font-bold text-center bg-white"
                     />
                     <span className="text-xs font-semibold text-slate-600">Menit</span>

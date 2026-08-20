@@ -481,10 +481,10 @@ export default function CreateCasePage() {
           </button>
           <div>
             <h1 className="text-2xl font-black tracking-tight text-slate-900">
-              {isEdit ? "Edit Kasus Medis (Bank Soal)" : "Buat Kasus Medis Baru (Bank Soal)"}
+              {isEdit ? "Edit Kasus Medis" : "Buat Kasus Medis"}
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
-              Repository soal medis terstandarisasi untuk 1-click auto-fill stase sirkuit OSCE.
+              Kelola skenario klinis, rubrik penilaian, dan berkas penunjang.
             </p>
           </div>
         </div>
@@ -492,7 +492,7 @@ export default function CreateCasePage() {
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate("/admin/cases")}
-            className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-bold text-slate-600 shadow-2xs hover:bg-slate-50 transition"
+            className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-bold text-slate-600 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
           >
             Batal
           </button>
@@ -500,10 +500,10 @@ export default function CreateCasePage() {
             type="button"
             onClick={() => setSaveModalOpen(true)}
             disabled={saving}
-            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-xs font-bold text-white shadow-md hover:bg-blue-700 active:scale-95 transition disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-xs font-bold text-white shadow-md hover:bg-blue-700 active:scale-95 transition disabled:opacity-50 cursor-pointer"
           >
             <CheckCircle2 size={16} />
-            {saving ? "Menyimpan..." : "Simpan Kasus Medis ke Supabase"}
+            {saving ? "Menyimpan..." : "Simpan Kasus"}
           </button>
         </div>
       </div>
@@ -531,7 +531,7 @@ export default function CreateCasePage() {
           }`}
         >
           <Award size={16} />
-          2. Kunci Jawaban Baku (Gold Standard)
+          2. Kunci Jawaban
         </button>
 
         <button
@@ -543,7 +543,7 @@ export default function CreateCasePage() {
           }`}
         >
           <Layers size={16} />
-          3. Rubrik Penilaian SKDI ({rubricItems.length})
+          3. Rubrik Penilaian ({rubricItems.length})
         </button>
 
         <button
@@ -604,10 +604,10 @@ export default function CreateCasePage() {
                   onChange={(e) => setSkdiLevel(e.target.value)}
                   className="w-full rounded-xl border border-slate-200 p-3 text-xs font-medium text-slate-800 bg-white"
                 >
-                  <option value="4A (Tuntas Mandiri)">4A (Tuntas Mandiri)</option>
-                  <option value="3B (Gawat Darurat)">3B (Gawat Darurat)</option>
-                  <option value="3A (Non Gawat Darurat)">3A (Non Gawat Darurat)</option>
-                  <option value="2">Level 2</option>
+                  <option value="4A (Tuntas Mandiri)">Tingkat 4A</option>
+                  <option value="3B (Gawat Darurat)">Tingkat 3B</option>
+                  <option value="3A (Non Gawat Darurat)">Tingkat 3A</option>
+                  <option value="2">Tingkat 2</option>
                 </select>
               </div>
             </div>
@@ -656,13 +656,13 @@ export default function CreateCasePage() {
           <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-4 text-xs text-blue-900 flex items-start gap-3">
             <Award size={20} className="shrink-0 text-blue-600 mt-0.5" />
             <div>
-              <span className="font-bold">Gold Standard Answer Key:</span> Kunci jawaban baku ini akan disandingkan secara *side-by-side* di layar dokter penguji berdampingan dengan ketikan realtime peserta.
+              <span className="font-bold">Kunci Jawaban:</span> Kunci jawaban ini akan tampil di layar dokter penguji berdampingan dengan jawaban peserta.
             </div>
           </div>
 
           <div>
             <label className="block text-xs font-bold text-slate-800 mb-1">
-              Kunci Jawaban Baku: Diagnosis Kerja (WDx) & Diagnosis Banding (DDx)
+              Kunci Jawaban Diagnosis
             </label>
             <textarea
               rows={4}
@@ -675,7 +675,7 @@ export default function CreateCasePage() {
 
           <div>
             <label className="block text-xs font-bold text-slate-800 mb-1">
-              Kunci Jawaban Baku: Resep Obat & Tatalaksana Farmakoterapi
+              Kunci Jawaban Resep Obat
             </label>
             <textarea
               rows={5}
@@ -757,7 +757,7 @@ export default function CreateCasePage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Pedoman Penskoran (Level 3 Sempurna)</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Pedoman Skor Maksimal</label>
                   <input
                     type="text"
                     value={item.answer_key}
@@ -771,12 +771,12 @@ export default function CreateCasePage() {
                 <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
                   <div className="text-xs font-bold text-slate-800 flex items-center gap-2">
                     <Info size={14} className="text-blue-600" />
-                    Deskriptor Kinerja 4-Level (Standar AIPKI)
+                    Deskriptor Kinerja Penilaian
                   </div>
 
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                     <div>
-                      <span className="block text-[11px] font-bold text-red-600 mb-1">Skor 0 (Tidak Dilakukan / Salah Total)</span>
+                      <span className="block text-[11px] font-bold text-red-600 mb-1">Skor 0 (Tidak Dilakukan)</span>
                       <input
                         type="text"
                         value={item.descriptors?.score_0 || ""}
@@ -787,7 +787,7 @@ export default function CreateCasePage() {
                     </div>
 
                     <div>
-                      <span className="block text-[11px] font-bold text-amber-600 mb-1">Skor 1 (Minimal / Kurang Tepat)</span>
+                      <span className="block text-[11px] font-bold text-amber-600 mb-1">Skor 1 (Kurang Lengkap)</span>
                       <input
                         type="text"
                         value={item.descriptors?.score_1 || ""}
@@ -798,7 +798,7 @@ export default function CreateCasePage() {
                     </div>
 
                     <div>
-                      <span className="block text-[11px] font-bold text-blue-600 mb-1">Skor 2 (Cukup / Sebagian Besar Tepat)</span>
+                      <span className="block text-[11px] font-bold text-blue-600 mb-1">Skor 2 (Cukup Lengkap)</span>
                       <input
                         type="text"
                         value={item.descriptors?.score_2 || ""}
@@ -809,7 +809,7 @@ export default function CreateCasePage() {
                     </div>
 
                     <div>
-                      <span className="block text-[11px] font-bold text-emerald-600 mb-1">Skor 3 (Sempurna / Tepat Total)</span>
+                      <span className="block text-[11px] font-bold text-emerald-600 mb-1">Skor 3 (Lengkap & Tepat)</span>
                       <input
                         type="text"
                         value={item.descriptors?.score_3 || ""}
@@ -844,9 +844,9 @@ export default function CreateCasePage() {
           setSaveModalOpen(false);
           handleSaveCase();
         }}
-        title="Konfirmasi Simpan Kasus Medis"
-        message={`Apakah Anda yakin ingin menyimpan seluruh perubahan paket soal "${title || "Kasus Baru"}" ke database Supabase?`}
-        confirmText="Ya, Simpan ke Supabase"
+        title="Simpan Kasus Medis"
+        message={`Apakah Anda yakin ingin menyimpan seluruh perubahan kasus medis "${title || "Kasus Baru"}"?`}
+        confirmText="Simpan Kasus"
         cancelText="Batal"
         variant="primary"
         loading={saving}
@@ -862,7 +862,7 @@ export default function CreateCasePage() {
         onConfirm={handleConfirmRemoveRubricItem}
         title="Hapus Indikator Rubrik Penilaian"
         message="Apakah Anda yakin ingin menghapus indikator rubrik penilaian ini dari paket soal?"
-        confirmText="Ya, Hapus Indikator"
+        confirmText="Hapus Indikator"
         cancelText="Batal"
         variant="danger"
       />
@@ -876,7 +876,7 @@ export default function CreateCasePage() {
         }}
         title={successModalTitle}
         message={successModalMessage}
-        actionText="Ke Repository Bank Soal"
+        actionText="Kembali ke Bank Soal"
         onAction={() => navigate("/admin/cases")}
       />
 

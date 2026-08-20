@@ -60,6 +60,8 @@ export default function ParticipantDashboardPage() {
   const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
   const [pendingModalSession, setPendingModalSession] = useState(null);
 
+  const [userProfileData, setUserProfileData] = useState(null);
+
   useEffect(() => {
     async function loadParticipantDashboard(isInitial = false) {
       try {
@@ -67,11 +69,26 @@ export default function ParticipantDashboardPage() {
         const data = await fetchSessions();
         setSessions(data || []);
 
+        const { data: authData } = await supabase.auth.getUser();
+        const currentUser = authData?.user || user;
+
+        if (currentUser) {
+          try {
+            const { data: prof } = await supabase
+              .from("profiles")
+              .select("full_name, nim, institution, university")
+              .eq("id", currentUser.id)
+              .maybeSingle();
+            if (prof) {
+              setUserProfileData(prof);
+            }
+          } catch (e) {
+            console.error("Error fetching participant profile:", e);
+          }
+        }
+
         const statusMap = {};
         if (data && data.length > 0) {
-          const { data: authData } = await supabase.auth.getUser();
-          const currentUser = authData?.user || user;
-
           for (const s of data) {
             try {
               const list = await getSessionParticipants(s.id);
@@ -121,7 +138,7 @@ export default function ParticipantDashboardPage() {
       setConfirmModal({
         isOpen: true,
         title: "Gagal Pendaftaran Sesi",
-        message: err.message || "Gagal mendaftar sesi ke database Supabase.",
+        message: err.message || "Gagal mendaftar sesi ujian.",
         confirmText: "Mengerti",
         variant: "warning",
         isAlert: true,
@@ -180,7 +197,7 @@ export default function ParticipantDashboardPage() {
     return (
       <div className="flex h-screen items-center justify-center bg-slate-100 text-xs font-semibold text-slate-500">
         <Loader2 size={24} className="animate-spin text-blue-600 mr-2" />
-        Memuat Portal Peserta Mahasiswa Supabase...
+        Memuat Portal Peserta...
       </div>
     );
   }
@@ -209,7 +226,7 @@ export default function ParticipantDashboardPage() {
                 </h2>
 
                 <p className="text-xs text-slate-300 font-medium leading-relaxed">
-                  Sesi ujian sirkuit telah diaktifkan oleh Admin Control Room. Silakan segera masuk ke Kiosk Ujian untuk melihat posisi stase awal dan petunjuk skenario klinis.
+                  Sesi ujian sirkuit telah diaktifkan oleh Admin Control Room. Silakan segera masuk ke sesi ujian untuk melihat posisi stase awal dan petunjuk skenario klinis.
                 </p>
 
                 <div className="flex flex-wrap items-center gap-4 pt-2 text-xs font-semibold text-slate-300">
@@ -231,7 +248,7 @@ export default function ParticipantDashboardPage() {
                   className="flex items-center gap-2 rounded-2xl bg-emerald-500 hover:bg-emerald-400 px-6 py-4 text-sm font-black text-slate-950 shadow-xl transition active:scale-95 animate-bounce"
                 >
                   <PlayCircle size={20} />
-                  Masuk ke Kiosk Ujian OSCE Live
+                  Masuk Sesi Live
                 </button>
               </div>
             </div>
@@ -371,7 +388,7 @@ export default function ParticipantDashboardPage() {
                               Live Berlangsung
                             </>
                           ) : (
-                            "Dipublikasikan (Terjadwal)"
+                            "Sesi Terjadwal"
                           )}
                         </span>
 
@@ -416,7 +433,7 @@ export default function ParticipantDashboardPage() {
                           <span className="font-black text-slate-900">{sess.total_stations || 6} Pos</span>
                         </div>
                         <div className="rounded-xl border border-slate-200 bg-white p-2.5 text-center">
-                          <span className="text-slate-400 text-[10px] block font-bold">Durasi / Pos</span>
+                          <span className="text-slate-400 text-[10px] block font-bold">Durasi Stase</span>
                           <span className="font-black text-slate-900">{sess.station_duration_minutes || 12} Mnt</span>
                         </div>
                       </div>
@@ -443,12 +460,12 @@ export default function ParticipantDashboardPage() {
                           {sess.status === "ongoing" || sess.status === "running" ? (
                             <>
                               <PlayCircle size={16} />
-                              Masuk Sesi Live Ujian
+                              Masuk Sesi Live
                             </>
                           ) : (
                             <>
                               <Play size={15} />
-                              Buka Kiosk Standby Sesi
+                              Masuk Sesi
                             </>
                           )}
                         </button>
@@ -489,19 +506,19 @@ export default function ParticipantDashboardPage() {
               </div>
               <div className="space-y-1">
                 <h4 className="text-base font-extrabold text-slate-900">
-                  Belum Ada Sesi Ujian Aktif / Terdaftar Saat Ini
+                  Belum Ada Sesi Ujian
                 </h4>
                 <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed font-medium">
-                  Sesi ujian sirkuit yang dipublikasikan oleh Admin Control Room akan secara otomatis muncul di sini saat sesi ujian diaktifkan. Silakan klik tombol di bawah ini untuk memuat ulang status jadwal.
+                  Sesi ujian aktif akan tampil di sini saat pendaftaran dibuka.
                 </p>
               </div>
               <div className="pt-2 flex items-center justify-center gap-3">
                 <button
                   onClick={() => window.location.reload()}
-                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 py-2.5 text-xs font-bold text-white shadow-md transition active:scale-95"
+                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-5 py-2.5 text-xs font-bold text-white shadow-md transition active:scale-95"
                 >
                   <Activity size={15} />
-                  Refresh Jadwal Ujian
+                  Muat Ulang
                 </button>
               </div>
             </div>
@@ -516,9 +533,21 @@ export default function ParticipantDashboardPage() {
         onConfirm={handleRegister}
         session={selectedSessionForModal}
         userProfile={{
-          name: user?.user_metadata?.full_name || user?.email || "dr. Kairav Mahardika",
-          nim: user?.user_metadata?.nim || "20200710042",
-          institution: "Fakultas Kedokteran - MedSkill Indonesia",
+          name:
+            userProfileData?.full_name ||
+            user?.user_metadata?.full_name ||
+            user?.user_metadata?.name ||
+            user?.email ||
+            "Tidak ada data",
+          nim:
+            userProfileData?.nim ||
+            user?.user_metadata?.nim ||
+            "Tidak ada data",
+          institution:
+            userProfileData?.institution ||
+            userProfileData?.university ||
+            user?.user_metadata?.institution ||
+            "Tidak ada data",
         }}
       />
 
@@ -581,7 +610,7 @@ export default function ParticipantDashboardPage() {
                     <span className="font-bold text-slate-800">{pendingModalSession.total_stations || 6} Pos Stase Aktif</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-500">Akses Kiosk Live</span>
+                    <span className="text-slate-500">Akses Sesi Ujian</span>
                     <span className="inline-flex items-center gap-1 text-amber-800 font-black uppercase bg-amber-100 border border-amber-300 rounded-md px-2 py-0.5 text-[10px]">
                       <Hourglass size={11} className="animate-spin" />
                       Pending Approval Admin
@@ -591,7 +620,7 @@ export default function ParticipantDashboardPage() {
               </div>
 
               <div className="rounded-xl bg-blue-50 border border-blue-200 p-3 text-xs text-blue-900 font-medium leading-relaxed">
-                ℹ️ <strong>Informasi Tambahan:</strong> Kiosk Ujian dan instruksi pengerjaan stase akan secara otomatis terbuka setelah Admin Control Room menyetujui pendaftaran Anda di Dashboard Administrator.
+                <strong>Informasi Tambahan:</strong> Sesi ujian dan instruksi pengerjaan stase akan secara otomatis terbuka setelah Admin Control Room menyetujui pendaftaran Anda di Dashboard Administrator.
               </div>
             </div>
 

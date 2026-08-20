@@ -13,15 +13,18 @@ export default function Footer() {
   return (
     <footer className="relative bg-[#0D3A68] text-white overflow-hidden pt-14 pb-8 border-t border-[#0A2B4E]">
       <div className="mx-auto max-w-7xl px-4 sm:px-8 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 pb-10 border-b border-white/10">
-          {/* Column 1: Brand & Overview */}
-          <div className="lg:col-span-4 flex flex-col items-start space-y-4">
-            <Link to="/" className="group flex items-center gap-2.5">
-              <div className="flex items-center justify-center rounded-xl bg-white/10 p-1.5 border border-white/20 shadow-xs">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-12 pb-12 border-b border-white/10">
+          {/* Column 1: Brand & Tagline with logo_biru.avif */}
+          <div className="md:col-span-5 flex flex-col items-start">
+            <Link to="/" className="flex items-center gap-3">
+              <div className="flex items-center justify-center rounded-xl bg-white p-1.5 shadow-md">
                 <img
-                  src="/favicon.svg"
-                  alt="Praxis Logo"
-                  className="h-8 w-8 object-contain rounded-md"
+                  src="/logo_biru.avif"
+                  alt="Praxis Logo Utama"
+                  className="h-8 w-auto object-contain"
+                  onError={(e) => {
+                    e.target.style.display = "none";
+                  }}
                 />
               </div>
               <div className="h-5 w-px bg-white/25" aria-hidden="true" />
@@ -81,29 +84,43 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Column 3: Location & Google Maps Embed */}
-          <div className="lg:col-span-5 flex flex-col">
-            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-[#C9A227]">
-              <MapPin size={15} />
-              <span>Lokasi On-Site (Yogyakarta)</span>
-            </div>
-            <p className="mt-1 text-xs text-blue-100/80 font-medium mb-3">
-              Kantor Medskill Indonesia — Yogyakarta, Indonesia
+          {/* Column 3: Newsletter */}
+          <div className="md:col-span-4 flex flex-col">
+            <h4 className="text-xs font-extrabold uppercase tracking-wider text-[#C9A227]">
+              Informasi & Updates Simulasi
+            </h4>
+            <p className="mt-4 text-xs text-blue-100/80 leading-relaxed font-normal">
+              Dapatkan info jadwal sesi ujian OSCE terbaru dan pembaruan fitur Pasien AI Anamnesis.
             </p>
 
-            {/* Responsive Google Maps Embed */}
-            <div className="w-full overflow-hidden rounded-2xl border border-white/20 shadow-md">
-              <iframe
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3953.3921934978134!2d110.37739227587834!3d-7.748159276821323!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e7a59884f82eb65%3A0x4189b841a8763d0!2sMedskill%20Bimbel%20Kedokteran!5e0!3m2!1sen!2sid!4v1786779940468!5m2!1sen!2sid"
-                width="100%"
-                height="170"
-                style={{ border: 0 }}
-                allowFullScreen=""
-                loading="lazy"
-                referrerPolicy="strict-origin-when-cross-origin"
-                title="Lokasi Kantor Medskill Indonesia Yogyakarta"
-              />
-            </div>
+            <form onSubmit={handleSubscribe} className="mt-4 flex flex-col gap-2">
+              <div className="flex items-center rounded-2xl border border-white/20 bg-white/10 p-1.5 transition-all focus-within:border-[#C9A227] focus-within:ring-2 focus-within:ring-[#C9A227]/20">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Masukkan email kedokteran..."
+                  required
+                  className="w-full min-w-0 bg-transparent px-3 py-2 text-xs text-white placeholder-blue-200/60 outline-none"
+                />
+                <button
+                  type="submit"
+                  className="shrink-0 flex items-center justify-center gap-1.5 rounded-xl bg-[#C9A227] px-4 py-2 text-xs font-extrabold text-[#0D3A68] shadow-md transition hover:bg-amber-400 active:scale-95 cursor-pointer"
+                >
+                  {subscribed ? (
+                    <>
+                      <Check size={14} />
+                      <span>Terdaftar</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Langganan</span>
+                      <ArrowRight size={14} />
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
 

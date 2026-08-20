@@ -6,8 +6,8 @@ import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/context/AuthProvider";
 
 export default function PillNav({
-  logo = "/favicon.svg",
-  logoAlt = "Praxis by Medskill Indonesia Logo",
+  logo = "/logo_biru.avif",
+  logoAlt = "Praxis by Medskill Logo",
   items = [
     { label: "Kenapa Praxis", href: "#why-praxis" },
     { label: "Simulasi OSCE", href: "#about" },
@@ -131,47 +131,30 @@ export default function PillNav({
   return (
     <header className={`fixed top-0 left-0 right-0 z-50 px-3 sm:px-6 pt-3 sm:pt-4 ${className}`}>
       <nav
-        className={`mx-auto max-w-7xl rounded-3xl transition-all duration-300 ${
-          scrolled
+        className={`mx-auto max-w-7xl rounded-3xl transition-all duration-300 ${scrolled
             ? "border border-[#C9A227]/50 shadow-2xl shadow-[#0D3A68]/40 backdrop-blur-md py-3 px-4 sm:px-8"
             : "border border-blue-100/90 shadow-xl shadow-slate-200/60 backdrop-blur-md py-3.5 px-4 sm:px-8"
-        }`}
+          }`}
         style={{
           backgroundColor: scrolled ? baseColor : "rgba(255, 255, 255, 0.96)",
         }}
       >
         <div className="flex items-center justify-between">
-          {/* Logo Anchor: (favicon.svg) | Praxis by Medskill Indonesia */}
-          <Link to="/" className="group flex items-center gap-2.5 sm:gap-3 shrink-0">
-            <div className="relative flex items-center justify-center rounded-xl bg-[#0D3A68] p-1.5 sm:p-2 shadow-xs border border-white/20 transition-transform duration-200 group-hover:scale-105">
+          {/* Logo Anchor Matching Footer Style */}
+          <Link to="/" className="group flex items-center gap-2.5 shrink-0 transition-transform duration-200 hover:scale-[1.02]">
+            <div className="flex items-center justify-center rounded-xl bg-white p-1.5 shadow-md border border-slate-200/80 shrink-0">
               <img
-                src={logo}
+                src="/logo_biru.avif"
                 alt={logoAlt}
-                className="h-7 w-7 sm:h-8 sm:w-8 object-contain rounded-md drop-shadow-xs"
+                className="h-7 sm:h-8 w-auto object-contain"
               />
             </div>
-
-            <div
-              className={`h-5 sm:h-6 w-px transition-colors duration-200 ${
-                scrolled ? "bg-white/30" : "bg-slate-300"
-              }`}
-              aria-hidden="true"
-            />
-
-            <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-1.5 text-left">
-              <span
-                className={`text-sm sm:text-base font-black tracking-tight leading-none transition-colors duration-200 ${
-                  scrolled ? "text-white" : "text-[#0D3A68]"
-                }`}
-              >
-                Praxis
-              </span>
-              <span
-                className={`text-[10px] sm:text-xs font-semibold tracking-tight transition-colors duration-200 ${
-                  scrolled ? "text-blue-100" : "text-slate-500"
-                }`}
-              >
+            <div className={`hidden sm:flex flex-col border-l pl-2.5 transition-colors duration-200 ${scrolled ? "border-white/25" : "border-slate-300/80"}`}>
+              <span className="text-[10px] font-black tracking-wider uppercase text-[#C9A227]">
                 by Medskill Indonesia
+              </span>
+              <span className={`text-[11px] font-extrabold leading-tight ${scrolled ? "text-white" : "text-slate-900"}`}>
+                Platform Ujian OSCE
               </span>
             </div>
           </Link>
@@ -193,8 +176,8 @@ export default function PillNav({
                     color: isHovered
                       ? hoveredPillTextColor
                       : scrolled
-                      ? "#FFFFFF"
-                      : "#0D3A68",
+                        ? "#FFFFFF"
+                        : "#0D3A68",
                   }}
                 >
                   {(isHovered || (hoveredIdx === null && isActive)) && (
@@ -239,9 +222,8 @@ export default function PillNav({
                   </span>
                   <ChevronDown
                     size={14}
-                    className={`text-slate-500 transition-transform ${
-                      dropdownOpen ? "rotate-180" : ""
-                    }`}
+                    className={`text-slate-500 transition-transform ${dropdownOpen ? "rotate-180" : ""
+                      }`}
                   />
                 </button>
 
@@ -267,7 +249,7 @@ export default function PillNav({
                         style={{ backgroundColor: baseColor }}
                       >
                         <LayoutDashboard size={14} />
-                        <span>Buka Dashboard ({getRoleLabel()})</span>
+                        <span>Buka Dashboard</span>
                       </Link>
 
                       <button
@@ -275,7 +257,7 @@ export default function PillNav({
                         className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-extrabold text-red-600 hover:bg-red-50 transition cursor-pointer"
                       >
                         <LogOut size={14} />
-                        <span>Keluar Sistem</span>
+                        <span>Keluar</span>
                       </button>
                     </motion.div>
                   )}

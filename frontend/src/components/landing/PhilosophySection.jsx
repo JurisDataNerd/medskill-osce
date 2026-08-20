@@ -45,7 +45,7 @@ export default function PhilosophySection() {
             {/* Logo Image without ANY frame/border, blending seamlessly into background */}
             <div className="relative flex items-center justify-center">
               <img
-                src="/praxis_0.png"
+                src="/logo_biru_teks.avif"
                 alt="Praxis by Medskill Logo"
                 className="w-full max-w-[360px] sm:max-w-[440px] object-contain drop-shadow-xl"
               />

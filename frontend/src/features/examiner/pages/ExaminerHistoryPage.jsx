@@ -103,7 +103,7 @@ export default function ExaminerHistoryPage() {
                   ? "bg-emerald-100 border-emerald-300 text-emerald-900"
                   : "bg-indigo-100 border-indigo-300 text-indigo-900"
               }`}>
-                {sess.status === "completed" ? "Selesai (Completed)" : "Dipublikasikan"}
+                {sess.status === "completed" ? "Selesai" : "Terjadwal"}
               </span>
               <span className="text-xs text-slate-500 font-bold inline-flex items-center gap-1">
                 <CalendarDays size={13} className="text-slate-400" />

@@ -214,7 +214,7 @@ export default function ParticipantAnswerPage() {
       <AdminLayout>
         <div className="flex h-[450px] flex-col items-center justify-center gap-2 text-xs font-semibold text-slate-500">
           <Loader2 size={32} className="animate-spin text-blue-600" />
-          <span>Memuat Lembar Jawaban & Evaluation Record dari Supabase...</span>
+          <span>Memuat Lembar Jawaban & Evaluasi...</span>
         </div>
       </AdminLayout>
     );
@@ -224,13 +224,13 @@ export default function ParticipantAnswerPage() {
     return (
       <AdminLayout>
         <div className="p-8 text-center text-xs text-slate-500 space-y-3">
-          <p className="font-bold text-slate-700">Data peserta atau sesi tidak ditemukan di Supabase database.</p>
+          <p className="font-bold text-slate-700">Data peserta atau sesi tidak ditemukan.</p>
           <button
             onClick={() => navigate("/admin/live")}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-xs"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-xs cursor-pointer"
           >
             <ArrowLeft size={16} />
-            Kembali ke Live Control Room
+            Kembali ke Monitor Langsung
           </button>
         </div>
       </AdminLayout>

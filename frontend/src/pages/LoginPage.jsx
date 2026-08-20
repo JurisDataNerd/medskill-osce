@@ -37,7 +37,36 @@ export default function LoginPage() {
     onConfirm: null,
   });
 
-  // Auto redirect active session users (including Google OAuth return)
+function formatAuthErrorMessage(error) {
+  if (!error) return "Terjadi kesalahan pada sistem. Silakan coba beberapa saat lagi.";
+  const msg = String(error.message || error || "").toLowerCase();
+
+  if (msg.includes("invalid login credentials") || msg.includes("invalid email or password")) {
+    return "Email atau kata sandi yang Anda masukkan salah. Silakan periksa kembali data Anda.";
+  }
+  if (msg.includes("user already registered") || msg.includes("already registered") || msg.includes("email already in use")) {
+    return "Email ini sudah terdaftar. Silakan gunakan menu Masuk atau gunakan email lain.";
+  }
+  if (msg.includes("email not confirmed")) {
+    return "Email Anda belum dikonfirmasi. Harap periksa pesan di kotak masuk email Anda untuk melakukan verifikasi.";
+  }
+  if (msg.includes("password should be at least")) {
+    return "Kata sandi terlalu pendek. Kata sandi minimal harus terdiri dari 6 karakter.";
+  }
+  if (msg.includes("user not found")) {
+    return "Akun dengan email tersebut tidak ditemukan. Silakan lakukan registrasi akun baru terlebih dahulu.";
+  }
+  if (msg.includes("too many requests") || msg.includes("rate limit")) {
+    return "Terlalu banyak percobaan masuk secara berurutan. Silakan tunggu 1-2 menit sebelum mencoba lagi demi keamanan.";
+  }
+  if (msg.includes("network") || msg.includes("failed to fetch")) {
+    return "Gagal terhubung ke jaringan server. Periksa koneksi internet Anda dan coba lagi.";
+  }
+
+  return error.message || "Terjadi kesalahan saat memproses permintaan masuk Anda.";
+}
+
+// Auto redirect active session users (including Google OAuth return)
   useEffect(() => {
     async function autoRedirect() {
       if (session && user) {
@@ -61,7 +90,7 @@ export default function LoginPage() {
           setConfirmModal({
             isOpen: true,
             title: "Gagal Registrasi",
-            message: "Gagal Registrasi Supabase: " + error.message,
+            message: formatAuthErrorMessage(error),
             confirmText: "Mengerti",
             variant: "danger",
             isAlert: true,
@@ -88,14 +117,14 @@ export default function LoginPage() {
         return;
       }
 
-      // Direct Login to Supabase database (auto detects role from raw_user_meta_data JSON)
+      // Direct Login (auto detects role from raw_user_meta_data JSON)
       const { data, error } = await login(email, password);
 
       if (error) {
         setConfirmModal({
           isOpen: true,
-          title: "Gagal Autentikasi Login",
-          message: "Gagal Login: " + error.message,
+          title: "Gagal Masuk",
+          message: formatAuthErrorMessage(error),
           confirmText: "Mengerti",
           variant: "danger",
           isAlert: true,
@@ -114,7 +143,7 @@ export default function LoginPage() {
       setConfirmModal({
         isOpen: true,
         title: "Kesalahan Koneksi",
-        message: "Terjadi kesalahan saat terhubung ke Supabase database.",
+        message: "Terjadi kesalahan saat menghubungkan ke server.",
         confirmText: "Mengerti",
         variant: "warning",
         isAlert: true,
@@ -166,7 +195,7 @@ export default function LoginPage() {
                 : "text-slate-500 hover:text-slate-800"
             }`}
           >
-            Masuk (Login)
+            Masuk
           </button>
           <button
             type="button"
@@ -177,16 +206,16 @@ export default function LoginPage() {
                 : "text-slate-500 hover:text-slate-800"
             }`}
           >
-            Daftar Akun Baru (Register)
+            Daftar
           </button>
         </div>
 
-        {/* Form Login / Register Direct to Supabase */}
+        {/* Form Login / Register */}
         <form onSubmit={handleSubmit} className="space-y-4">
           {mode === "register" && (
             <div>
               <label className="mb-1.5 block text-xs font-bold text-slate-700">
-                Nama Lengkap & Gelar
+                Nama Lengkap
               </label>
               <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 focus-within:border-blue-500 focus-within:bg-white transition">
                 <User size={16} className="text-slate-400" />
@@ -204,7 +233,7 @@ export default function LoginPage() {
 
           <div>
             <label className="mb-1.5 block text-xs font-bold text-slate-700">
-              Alamat Email Supabase
+              Email
             </label>
             <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 focus-within:border-blue-500 focus-within:bg-white transition">
               <Mail size={16} className="text-slate-400" />
@@ -221,7 +250,7 @@ export default function LoginPage() {
 
           <div>
             <label className="mb-1.5 block text-xs font-bold text-slate-700">
-              Kata Sandi (Password)
+              Kata Sandi
             </label>
             <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 focus-within:border-blue-500 focus-within:bg-white transition">
               <Lock size={16} className="text-slate-400" />
@@ -240,17 +269,17 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-xl bg-blue-600 py-3 text-xs font-bold text-white shadow-md shadow-blue-600/30 transition hover:bg-blue-700 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full rounded-xl bg-blue-600 py-3 text-xs font-bold text-white shadow-md shadow-blue-600/30 transition hover:bg-blue-700 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
           >
             {mode === "register" ? (
               <>
                 <UserPlus size={16} />
-                {loading ? "Mendaftarkan ke Supabase..." : `Daftar Akun Baru (User)`}
+                {loading ? "Memproses..." : "Daftar"}
               </>
             ) : (
               <>
                 <LogIn size={16} />
-                {loading ? "Menghubungkan Supabase..." : "Masuk ke Sistem"}
+                {loading ? "Memproses..." : "Masuk"}
               </>
             )}
           </button>
@@ -268,14 +297,14 @@ export default function LoginPage() {
           <button
             type="button"
             onClick={signIn}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition active:scale-95"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition active:scale-95 cursor-pointer"
           >
             <img
               src="https://www.svgrepo.com/show/475656/google-color.svg"
               alt="Google"
               className="h-4 w-4"
             />
-            Masuk dengan Google (Supabase Auth)
+            Masuk dengan Google
           </button>
         </div>
       </div>

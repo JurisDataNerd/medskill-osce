@@ -135,9 +135,28 @@ export function subscribeToSession(sessionId, {
     }
   );
 
+  const seenBroadcastKeys = new Set();
+  const triggerBroadcast = (rawPayload) => {
+    if (!onBroadcast || !rawPayload) return;
+    const msgData = rawPayload.payload || rawPayload;
+    const msgText = String(msgData.message || msgData.text || "").trim();
+    if (!msgText) return;
+
+    // Deduplicate strictly by message text to match WebSocket client ID (bcast_...) with DB server UUID
+    const dedupeKey = `text:${msgText.toLowerCase()}`;
+    if (seenBroadcastKeys.has(dedupeKey)) return;
+
+    seenBroadcastKeys.add(dedupeKey);
+    setTimeout(() => {
+      seenBroadcastKeys.delete(dedupeKey);
+    }, 6000);
+
+    onBroadcast(msgData);
+  };
+
   // Direct WebSocket Broadcast Event (Instant 0ms latency)
   channel.on("broadcast", { event: "announcement" }, (payload) => {
-    if (onBroadcast) onBroadcast(payload.payload || payload);
+    triggerBroadcast(payload);
   });
 
   // Direct WebSocket Session Finished Event (Instant 0ms latency)
@@ -146,12 +165,12 @@ export function subscribeToSession(sessionId, {
     if (onTimerUpdate) onTimerUpdate({ phase: "finished" });
   });
 
-  // broadcast_messages table (INSERT only)
+  // broadcast_messages table (INSERT fallback)
   channel.on(
     "postgres_changes",
     { event: "INSERT", schema: "osce", table: "broadcast_messages", filter: `session_id=eq.${sessionId}` },
     (payload) => {
-      if (onBroadcast) onBroadcast(payload.new);
+      triggerBroadcast(payload.new);
     }
   );
 
@@ -282,8 +301,9 @@ export async function openWaitingRoom(sessionId) {
  * Phase 2: Admin starts the OSCE exam. Timer begins.
  * Session status → 'ongoing', timer state upserted with target_end_time.
  */
-export async function startOsceSession(sessionId, durationMinutes = 12) {
-  const targetEndTime = new Date(Date.now() + durationMinutes * 60 * 1000).toISOString();
+export async function startOsceSession(sessionId, durationMinutes = 12, transitionMinutes = 2) {
+  const initMinutes = transitionMinutes || 2;
+  const targetEndTime = new Date(Date.now() + initMinutes * 60 * 1000).toISOString();
 
   const [sessionRes, timerRes] = await Promise.all([
     supabase
@@ -304,7 +324,7 @@ export async function startOsceSession(sessionId, durationMinutes = 12) {
       .upsert(
         [{
           session_id: sessionId,
-          phase: "action",
+          phase: "transition",
           target_end_time: targetEndTime,
           paused_remaining_ms: null,
           round_number: 1,
@@ -489,11 +509,11 @@ export const sendBroadcastMessage = sendBroadcast;
  */
 export async function sendBellBroadcast(sessionId, bellType = "warning") {
   const bellNames = {
-    start: "🔔 BEL AUDIO MANUAL: Sesi Ujian / Reading Time Dimulai!",
-    warning: "🔔 BEL AUDIO MANUAL: Peringatan! Sisa Waktu Stase 2 Menit!",
-    rotation: "🔔 BEL AUDIO MANUAL: Waktu Stase Selesai! Segera Berpindah Pos Rotasi.",
+    start: "BEL AUDIO MANUAL: Sesi Ujian / Reading Time Dimulai!",
+    warning: "BEL AUDIO MANUAL: Peringatan! Sisa Waktu Stase 2 Menit!",
+    rotation: "BEL AUDIO MANUAL: Waktu Stase Selesai! Segera Berpindah Pos Rotasi.",
   };
-  const message = bellNames[bellType] || "🔔 BEL AUDIO MANUAL";
+  const message = bellNames[bellType] || "BEL AUDIO MANUAL";
 
   await sendBroadcast(sessionId, message, "warning", "all");
 

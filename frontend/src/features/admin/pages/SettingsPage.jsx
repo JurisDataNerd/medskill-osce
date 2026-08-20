@@ -26,12 +26,12 @@ export default function SettingsPage() {
 
   // Form State
   const [settings, setSettings] = useState({
-    institution_name: "Fakultas Kedokteran & Kesehatan - Universitas Indonesia",
-    accreditation: "LAM-PTKes Unggul (A)",
-    institution_code: "FK-UI-2026",
-    address: "Jl. Salemba Raya No. 6, Jakarta Pusat, DKI Jakarta",
-    committee_lead: "Prof. dr. Ari Fahrial Syam, Sp.PD-KGEH, MMB",
-    logo_url: "https://images.unsplash.com/photo-1516549655169-df83a0774514?w=150&auto=format&fit=crop&q=80",
+    institution_name: "",
+    accreditation: "",
+    institution_code: "",
+    address: "",
+    committee_lead: "",
+    logo_url: "",
     
     // NBL Settings
     nbl_method: "borderline_regression",
@@ -135,7 +135,7 @@ export default function SettingsPage() {
           <div className="flex items-center gap-3">
             <CheckCircle2 size={22} className="text-white animate-bounce" />
             <span className="text-xs font-black uppercase tracking-wider">
-              Pengaturan Sistem Institusi Berhasil Diperbarui & Disimpan!
+              Pengaturan berhasil disimpan.
             </span>
           </div>
         </div>
@@ -145,10 +145,10 @@ export default function SettingsPage() {
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-900">
-            Pengaturan Sistem & Konfigurasi Institusi
+            Pengaturan Sistem
           </h1>
           <p className="text-xs text-slate-500 mt-0.5 font-medium">
-            Kelola profil institusi kedokteran, standar nilai NBL, durasi sirkuit, dan koneksi server Supabase.
+            Kelola profil institusi, standar kelulusan, dan durasi sirkuit ujian.
           </p>
         </div>
 
@@ -184,7 +184,7 @@ export default function SettingsPage() {
           }`}
         >
           <Sliders size={16} />
-          Standar Nilai (NBL)
+          Standar Kelulusan
         </button>
         <button
           onClick={() => setActiveTab("rotation")}
@@ -195,7 +195,7 @@ export default function SettingsPage() {
           }`}
         >
           <Clock size={16} />
-          Durasi & Sinyal Bel
+          Durasi & Bel Ujian
         </button>
         <button
           onClick={() => setActiveTab("server")}
@@ -206,7 +206,7 @@ export default function SettingsPage() {
           }`}
         >
           <Database size={16} />
-          Server Supabase Database
+          Koneksi Server
         </button>
         <button
           onClick={() => setActiveTab("notification")}
@@ -217,7 +217,7 @@ export default function SettingsPage() {
           }`}
         >
           <Mail size={16} />
-          Notifikasi Email & WA
+          Notifikasi
         </button>
       </div>
 
@@ -227,13 +227,13 @@ export default function SettingsPage() {
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
             <h2 className="text-sm font-black text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
               <Building2 size={18} className="text-blue-600" />
-              Identitas Institusi Kedokteran & Panitia Ujian
+              Identitas Institusi
             </h2>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Nama Institusi / Fakultas
+                  Nama Institusi
                 </label>
                 <input
                   type="text"
@@ -245,7 +245,7 @@ export default function SettingsPage() {
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Akreditasi Institusi
+                  Akreditasi
                 </label>
                 <input
                   type="text"
@@ -257,7 +257,7 @@ export default function SettingsPage() {
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Kode Lembaga Institusi
+                  Kode Lembaga
                 </label>
                 <input
                   type="text"
@@ -269,7 +269,7 @@ export default function SettingsPage() {
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Dekan / Ketua Panitia Ujian OSCE
+                  Ketua Panitia Ujian
                 </label>
                 <input
                   type="text"
@@ -281,7 +281,7 @@ export default function SettingsPage() {
 
               <div className="sm:col-span-2">
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Alamat Lengkap Kampus / RS Pendidikan
+                  Alamat Lengkap
                 </label>
                 <textarea
                   rows={2}
@@ -299,42 +299,45 @@ export default function SettingsPage() {
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
             <h2 className="text-sm font-black text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
               <Sliders size={18} className="text-purple-600" />
-              Konfigurasi Standar Nilai Batas Lulus (NBL)
+              Standar Nilai Kelulusan
             </h2>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Metode Standarisasi NBL Default
+                  Metode Penilaian
                 </label>
                 <select
                   value={settings.nbl_method}
                   onChange={(e) => setSettings({ ...settings, nbl_method: e.target.value })}
                   className="w-full rounded-xl border border-slate-200 p-2.5 text-xs font-bold text-slate-900 focus:border-blue-500 focus:outline-none"
                 >
-                  <option value="borderline_regression">Borderline Regression Method (Standar Nasional KIPDI)</option>
-                  <option value="angoff">Modified Angoff Method</option>
-                  <option value="fixed">Fixed Cutoff Standard (70.0 Pts)</option>
+                  <option value="borderline_regression">Borderline Regression (KIPDI)</option>
+                  <option value="angoff">Modified Angoff</option>
+                  <option value="fixed">Fixed Cutoff</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Angkat Batas NBL Default (%)
+                  Batas Nilai Lulus (%)
                 </label>
                 <input
-                  type="number"
-                  step="0.1"
+                  type="text"
+                  inputMode="decimal"
                   value={settings.default_nbl_cutoff}
-                  onChange={(e) => setSettings({ ...settings, default_nbl_cutoff: parseFloat(e.target.value) })}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9.]/g, "");
+                    setSettings({ ...settings, default_nbl_cutoff: val === "" ? "" : val });
+                  }}
                   className="w-full rounded-xl border border-slate-200 p-2.5 text-xs font-semibold text-slate-900 focus:border-blue-500 focus:outline-none"
                 />
               </div>
 
               <div className="sm:col-span-2 flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <div>
-                  <h4 className="text-xs font-bold text-slate-900">Mandatory Safety Item Pass (Resusitasi & Sterilitas)</h4>
-                  <p className="text-[11px] text-slate-500">Jika diaktifkan, peserta wajib lulus poin keselamatan kritis di stase gawat darurat.</p>
+                  <h4 className="text-xs font-bold text-slate-900">Poin Keselamatan Kritis Wajib Lulus</h4>
+                  <p className="text-[11px] text-slate-500">Peserta wajib lulus poin keselamatan kritis pada stase gawat darurat.</p>
                 </div>
                 <input
                   type="checkbox"
@@ -352,42 +355,54 @@ export default function SettingsPage() {
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
             <h2 className="text-sm font-black text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
               <Clock size={18} className="text-emerald-600" />
-              Durasi Stase & Pengujian Sinyal Bel Audio
+              Durasi Stase & Sinyal Bel
             </h2>
 
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Durasi Stase Ujian Default (Menit)
+                  Durasi Stase (Menit)
                 </label>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   value={settings.default_station_minutes}
-                  onChange={(e) => setSettings({ ...settings, default_station_minutes: parseInt(e.target.value) })}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "");
+                    setSettings({ ...settings, default_station_minutes: val === "" ? "" : parseInt(val) });
+                  }}
                   className="w-full rounded-xl border border-slate-200 p-2.5 text-xs font-semibold text-slate-900 focus:border-blue-500 focus:outline-none"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Durasi Jeda Istirahat / Break (Menit)
+                  Durasi Transisi (Menit)
                 </label>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   value={settings.default_break_minutes}
-                  onChange={(e) => setSettings({ ...settings, default_break_minutes: parseInt(e.target.value) })}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "");
+                    setSettings({ ...settings, default_break_minutes: val === "" ? "" : parseInt(val) });
+                  }}
                   className="w-full rounded-xl border border-slate-200 p-2.5 text-xs font-semibold text-slate-900 focus:border-blue-500 focus:outline-none"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Peringatan Waktu Tersisa (Menit)
+                  Peringatan Waktu (Menit)
                 </label>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   value={settings.warning_bell_offset_minutes}
-                  onChange={(e) => setSettings({ ...settings, warning_bell_offset_minutes: parseInt(e.target.value) })}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "");
+                    setSettings({ ...settings, warning_bell_offset_minutes: val === "" ? "" : parseInt(val) });
+                  }}
                   className="w-full rounded-xl border border-slate-200 p-2.5 text-xs font-semibold text-slate-900 focus:border-blue-500 focus:outline-none"
                 />
               </div>
@@ -397,33 +412,33 @@ export default function SettingsPage() {
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
               <h4 className="text-xs font-bold text-slate-900 flex items-center gap-2">
                 <Volume2 size={16} className="text-indigo-600" />
-                Uji Sinyal Bel Audio Synthesizer Web Audio API:
+                Uji Sinyal Bel Ujian:
               </h4>
 
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => playTestAudioBell("start")}
-                  className="rounded-xl border border-indigo-200 bg-white px-3.5 py-2 text-xs font-bold text-indigo-900 hover:bg-indigo-50 transition flex items-center gap-1.5"
+                  className="rounded-xl border border-indigo-200 bg-white px-3.5 py-2 text-xs font-bold text-indigo-900 hover:bg-indigo-50 transition flex items-center gap-1.5 cursor-pointer"
                 >
                   <Bell size={14} className="text-indigo-600" />
-                  Bel 1x (Mulai Stase / Reading Time)
+                  Bel 1x (Mulai Stase)
                 </button>
                 <button
                   type="button"
                   onClick={() => playTestAudioBell("warning")}
-                  className="rounded-xl border border-amber-200 bg-white px-3.5 py-2 text-xs font-bold text-amber-900 hover:bg-amber-50 transition flex items-center gap-1.5"
+                  className="rounded-xl border border-amber-200 bg-white px-3.5 py-2 text-xs font-bold text-amber-900 hover:bg-amber-50 transition flex items-center gap-1.5 cursor-pointer"
                 >
                   <AlertCircle size={14} className="text-amber-600" />
-                  Bel 2x (Peringatan 2 Menit Tersisa)
+                  Bel 2x (Peringatan Waktu)
                 </button>
                 <button
                   type="button"
                   onClick={() => playTestAudioBell("siren")}
-                  className="rounded-xl border border-rose-200 bg-white px-3.5 py-2 text-xs font-bold text-rose-900 hover:bg-rose-50 transition flex items-center gap-1.5"
+                  className="rounded-xl border border-rose-200 bg-white px-3.5 py-2 text-xs font-bold text-rose-900 hover:bg-rose-50 transition flex items-center gap-1.5 cursor-pointer"
                 >
                   <AlertCircle size={14} className="text-rose-600" />
-                  Bel 3x (Selesai & Rotasi Stase)
+                  Bel 3x (Selesai Stase)
                 </button>
               </div>
             </div>
@@ -435,23 +450,23 @@ export default function SettingsPage() {
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
             <h2 className="text-sm font-black text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
               <Database size={18} className="text-blue-600" />
-              Status Koneksi Server Supabase PostgreSQL
+              Status Koneksi Server
             </h2>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 space-y-1">
-                <span className="text-[10px] font-bold text-emerald-700 uppercase block">Status Supabase Realtime</span>
+                <span className="text-[10px] font-bold text-emerald-700 uppercase block">Status Realtime</span>
                 <span className="text-lg font-black text-emerald-950 flex items-center gap-2">
                   <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-ping" />
-                  CONNECTED & ACTIVE
+                  ONLINE
                 </span>
-                <span className="text-[11px] text-emerald-800 block font-mono">Reference: djigelqahkzfmwvpncvr</span>
+                <span className="text-[11px] text-emerald-800 block font-mono">ID Server: djigelqahkzfmwvpncvr</span>
               </div>
 
               <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-4 space-y-1">
-                <span className="text-[10px] font-bold text-blue-700 uppercase block">Target Database Schema</span>
+                <span className="text-[10px] font-bold text-blue-700 uppercase block">Skema Database</span>
                 <span className="text-lg font-black text-blue-950 font-mono">osce</span>
-                <span className="text-[11px] text-blue-800 block">Isolasi Tabel Simulation Active</span>
+                <span className="text-[11px] text-blue-800 block">Simulasi Aktif</span>
               </div>
             </div>
           </div>
@@ -462,14 +477,14 @@ export default function SettingsPage() {
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
             <h2 className="text-sm font-black text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
               <Mail size={18} className="text-purple-600" />
-              Integrasi Email & WhatsApp Notification Webhook
+              Notifikasi Email & WhatsApp
             </h2>
 
             <div className="space-y-4">
               <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <div>
-                  <h4 className="text-xs font-bold text-slate-900">Kirim Email Otomatis Ke Peserta Saat Hasil Dipublikasi</h4>
-                  <p className="text-[11px] text-slate-500">Kirim lembar hasil nilai transkrip dan berita acara ke email mahasiswa.</p>
+                  <h4 className="text-xs font-bold text-slate-900">Kirim Email Hasil Ujian Otomatis</h4>
+                  <p className="text-[11px] text-slate-500">Kirim transkrip nilai ke email peserta secara otomatis.</p>
                 </div>
                 <input
                   type="checkbox"
@@ -481,7 +496,7 @@ export default function SettingsPage() {
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  WhatsApp Broadcast Webhook URL
+                  URL Webhook WhatsApp
                 </label>
                 <input
                   type="text"

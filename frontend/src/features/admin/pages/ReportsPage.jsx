@@ -217,7 +217,7 @@ export default function ReportsPage() {
       <AdminLayout>
         <div className="flex h-[450px] items-center justify-center text-xs font-semibold text-slate-500">
           <Loader2 size={24} className="animate-spin text-blue-600 mr-2" />
-          Memuat Laporan & Rekapitulasi Ujian Supabase...
+          Memuat Laporan Nilai...
         </div>
       </AdminLayout>
     );
@@ -229,27 +229,27 @@ export default function ReportsPage() {
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-900">
-            Laporan & Rekapitulasi Nilai OSCE
+            Laporan & Rekapitulasi Nilai
           </h1>
           <p className="text-xs text-slate-500 mt-0.5 font-medium">
-            Pusat analitik hasil ujian, penetapan Nilai Batas Lulus (NBL Borderline Regression), serta pencetakan berita acara resmi.
+            Pusat rekapitulasi nilai ujian, standar kelulusan, dan cetak berita acara.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={handleExportExcel}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-900 shadow-2xs hover:bg-emerald-100 transition active:scale-95"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-900 shadow-2xs hover:bg-emerald-100 transition active:scale-95 cursor-pointer"
           >
             <FileSpreadsheet size={16} />
-            Ekspor Excel (.xlsx)
+            Ekspor Excel
           </button>
           <button
             onClick={handleExportPdf}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-blue-700 transition active:scale-95"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-blue-700 transition active:scale-95 cursor-pointer"
           >
             <Download size={16} />
-            Cetak Berita Acara (.pdf)
+            Cetak Berita Acara
           </button>
         </div>
       </div>
@@ -261,7 +261,7 @@ export default function ReportsPage() {
             <Building2 size={20} />
           </div>
           <div>
-            <label className="text-[10px] font-bold text-slate-400 uppercase block">Pilih Sesi Ujian Supabase</label>
+            <label className="text-[10px] font-bold text-slate-400 uppercase block">Pilih Sesi Ujian</label>
             <select
               value={selectedSessionId}
               onChange={(e) => setSelectedSessionId(e.target.value)}
@@ -269,7 +269,7 @@ export default function ReportsPage() {
             >
               {sessions.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.title} ({s.status})
+                  {s.title}
                 </option>
               ))}
             </select>
@@ -278,16 +278,16 @@ export default function ReportsPage() {
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs font-semibold text-slate-700">
           <div className="border-l-2 border-blue-500 pl-3">
-            <span className="text-slate-400 text-[10px] uppercase block font-bold">Total Peserta Supabase</span>
-            <span className="font-black text-slate-900 text-sm">{participantsData.length} Mahasiswa</span>
+            <span className="text-slate-400 text-[10px] uppercase block font-bold">Total Peserta</span>
+            <span className="font-black text-slate-900 text-sm">{participantsData.length} Peserta</span>
           </div>
           <div className="border-l-2 border-emerald-500 pl-3">
             <span className="text-slate-400 text-[10px] uppercase block font-bold">Persentase Kelulusan</span>
             <span className="font-black text-emerald-700 text-sm">{passRate}% ({passedCount} Lulus)</span>
           </div>
           <div className="border-l-2 border-amber-500 pl-3">
-            <span className="text-slate-400 text-[10px] uppercase block font-bold">Nilai Batas Lulus (NBL)</span>
-            <span className="font-black text-amber-700 text-sm">{nblCutoff.toFixed(1)} / 100</span>
+            <span className="text-slate-400 text-[10px] uppercase block font-bold">Nilai Batas Lulus</span>
+            <span className="font-black text-amber-700 text-sm">{nblCutoff.toFixed(1)}</span>
           </div>
           <div className="border-l-2 border-purple-500 pl-3">
             <span className="text-slate-400 text-[10px] uppercase block font-bold">Metode Standarisasi</span>
@@ -307,7 +307,7 @@ export default function ReportsPage() {
           }`}
         >
           <FileText size={16} />
-          Rekapitulasi Nilai & Transkrip
+          Rekapitulasi Nilai
         </button>
         <button
           onClick={() => setActiveTab("standard_setting")}
@@ -318,7 +318,7 @@ export default function ReportsPage() {
           }`}
         >
           <Sliders size={16} />
-          Penetapan NBL (Borderline Regression)
+          Penetapan Standar Nilai
         </button>
         <button
           onClick={() => setActiveTab("analytics")}
@@ -329,17 +329,17 @@ export default function ReportsPage() {
           }`}
         >
           <BarChart2 size={16} />
-          Analitik Performa Pos Stase
+          Performa Stase
         </button>
       </div>
 
-      {/* TAB 1: REKAPITULASI NILAI MAHASISWA */}
+      {/* TAB 1: REKAPITULASI NILAI PESERTA */}
       {activeTab === "recap" && (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
             <h2 className="text-sm font-black text-slate-900 flex items-center gap-2">
               <Award size={18} className="text-blue-600" />
-              Transkrip Akumulasi Nilai Mahasiswa Supabase ({filteredRecap.length} Data)
+              Rekapitulasi Nilai Peserta ({filteredRecap.length})
             </h2>
 
             <div className="relative">
@@ -348,7 +348,7 @@ export default function ReportsPage() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Cari nama atau NIM mahasiswa..."
+                placeholder="Cari nama atau NIM peserta..."
                 className="rounded-xl border border-slate-200 pl-9 pr-3 py-1.5 text-xs font-semibold text-slate-900 focus:border-blue-500 focus:outline-none"
               />
             </div>
@@ -356,7 +356,7 @@ export default function ReportsPage() {
 
           {filteredRecap.length === 0 ? (
             <div className="p-8 text-center text-xs text-slate-500">
-              Belum ada data peserta atau evaluasi penguji yang terdaftar untuk sesi ini di database Supabase.
+              Belum ada data peserta atau evaluasi penguji yang terdaftar untuk sesi ini.
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -365,7 +365,7 @@ export default function ReportsPage() {
                   <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-extrabold text-slate-500 uppercase">
                     <th className="py-3 px-3">Peringkat</th>
                     <th className="py-3 px-3">NIM</th>
-                    <th className="py-3 px-3">Nama Mahasiswa</th>
+                    <th className="py-3 px-3">Nama Peserta</th>
                     {stations.map((stg) => (
                       <th key={stg.id} className="py-3 px-3 text-center">
                         Stase {stg.station_number}
@@ -426,29 +426,29 @@ export default function ReportsPage() {
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
             <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
               <Sliders size={20} className="text-purple-600" />
-              Kalkulasi Nilai Batas Lulus (NBL) Supabase (Borderline Regression Method)
+              Kalkulasi Nilai Batas Lulus (Borderline Regression)
             </h2>
             <p className="text-xs text-slate-500">
-              Metode regresi linier antara skor rubrik objektif dengan kualifikasi Global Rating Scale (GRS) penguji untuk menetapkan NBL nasional secara otomatis dari database Supabase.
+              Metode regresi linier antara skor rubrik objektif dengan kualifikasi Global Rating Scale (GRS) penguji untuk menetapkan NBL nasional.
             </p>
 
             <div className="grid gap-4 sm:grid-cols-3 pt-2">
               <div className="rounded-2xl border border-purple-200 bg-purple-50/70 p-4 space-y-1">
-                <span className="text-[10px] font-bold text-purple-700 uppercase block">Persamaan Regresi Linier Supabase</span>
+                <span className="text-[10px] font-bold text-purple-700 uppercase block">Persamaan Regresi Linier</span>
                 <span className="text-lg font-black text-purple-950 block">Y = 48.2 + (12.1 × GRS)</span>
-                <span className="text-[11px] text-purple-800 block">R² Correlation: 0.94 (Sangat Kuat)</span>
+                <span className="text-[11px] text-purple-800 block">R² Correlation: 0.94</span>
               </div>
 
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 space-y-1">
                 <span className="text-[10px] font-bold text-emerald-700 uppercase block">Cutoff NBL Terhitung</span>
-                <span className="text-2xl font-black text-emerald-950 block">{nblCutoff.toFixed(1)} Pts</span>
-                <span className="text-[11px] text-emerald-800 block">GRS Borderline Cutoff (Nilai = 2.0)</span>
+                <span className="text-2xl font-black text-emerald-950 block">{nblCutoff.toFixed(1)}</span>
+                <span className="text-[11px] text-emerald-800 block">GRS Borderline Cutoff</span>
               </div>
 
               <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-4 space-y-1">
                 <span className="text-[10px] font-bold text-blue-700 uppercase block">Distribusi Kelulusan</span>
                 <span className="text-2xl font-black text-blue-950 block">{passRate}% Lulus</span>
-                <span className="text-[11px] text-blue-800 block">{passedCount} dari {participantsData.length} Mahasiswa Lulus NBL</span>
+                <span className="text-[11px] text-blue-800 block">{passedCount} dari {participantsData.length} Peserta Lulus</span>
               </div>
             </div>
           </div>
@@ -461,12 +461,12 @@ export default function ReportsPage() {
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
             <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
               <BarChart2 size={20} className="text-blue-600" />
-              Tingkat Kesukaran & Daya Pembeda Stase Supabase (Station Reliability)
+              Tingkat Kesukaran & Daya Pembeda Stase
             </h2>
 
             {stations.length === 0 ? (
               <div className="p-8 text-center text-xs text-slate-500">
-                Belum ada stase aktif yang terdaftar di database Supabase untuk sesi ini.
+                Belum ada stase aktif yang terdaftar untuk sesi ini.
               </div>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

@@ -16,6 +16,7 @@ import AdminLiveMonitorPage from "@/features/admin/pages/LiveMonitorPage";
 import SessionsPage from "@/features/admin/pages/SessionsPage";
 import SessionDetailPage from "@/features/admin/pages/SessionDetailPage";
 import ParticipantsPage from "@/features/admin/pages/ParticipantsPage";
+import ParticipantDetailPage from "@/features/admin/pages/ParticipantDetailPage";
 import ExaminersPage from "@/features/admin/pages/ExaminersPage";
 import ReportsPage from "@/features/admin/pages/ReportsPage";
 import SessionParticipantsPage from "@/features/admin/pages/SessionParticipantsPage";
@@ -27,6 +28,7 @@ import CreateCasePage from "@/features/admin/pages/CreateCasePage";
 import SettingsPage from "@/features/admin/pages/SettingsPage";
 import ParticipantAnswerPage from "@/features/admin/pages/ParticipantAnswerPage";
 import StationMonitorDetailPage from "@/features/admin/pages/StationMonitorDetailPage";
+import SessionRotationSchedulePage from "@/features/admin/pages/SessionRotationSchedulePage";
 
 
 // ======================
@@ -185,10 +187,28 @@ export const router = createBrowserRouter([
   },
 
   {
+    path: "/admin/sessions/:id/schedule",
+    element: (
+      <ProtectedRoute allow={["admin"]}>
+        <SessionRotationSchedulePage />
+      </ProtectedRoute>
+    ),
+  },
+
+  {
     path: "/admin/participants",
     element: (
       <ProtectedRoute allow={["admin"]}>
         <ParticipantsPage />
+      </ProtectedRoute>
+    ),
+  },
+
+  {
+    path: "/admin/participants/:id",
+    element: (
+      <ProtectedRoute allow={["admin"]}>
+        <ParticipantDetailPage />
       </ProtectedRoute>
     ),
   },

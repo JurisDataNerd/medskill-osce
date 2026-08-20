@@ -86,18 +86,7 @@ export default function StationMonitorDetailPage() {
                 ];
 
           const rawExName = examiner?.full_name || examiner?.name || examiner?.email || "";
-          let doctorName = "Belum ditugaskan";
-          if (rawExName) {
-            let clean = rawExName.trim();
-            if (clean.includes(".") && !clean.toLowerCase().startsWith("dr.") && !clean.toLowerCase().startsWith("prof.")) {
-              clean = clean.split(".").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
-              doctorName = `dr. ${clean}`;
-            } else if (!clean.toLowerCase().startsWith("dr.") && !clean.toLowerCase().startsWith("prof.")) {
-              doctorName = `dr. ${clean}`;
-            } else {
-              doctorName = clean;
-            }
-          }
+          let doctorName = rawExName ? rawExName.trim() : "Tidak ada data";
 
           setStationData({
             id: st.id,
@@ -173,7 +162,7 @@ export default function StationMonitorDetailPage() {
       <AdminLayout>
         <div className="flex h-[450px] items-center justify-center text-xs font-semibold text-slate-500">
           <Loader2 size={24} className="animate-spin text-blue-600 mr-2" />
-          Memuat Detail Stase Supabase...
+          Memuat Detail Stase...
         </div>
       </AdminLayout>
     );
@@ -183,13 +172,13 @@ export default function StationMonitorDetailPage() {
     return (
       <AdminLayout>
         <div className="p-8 text-center text-xs text-slate-500 space-y-3">
-          <p className="font-bold text-slate-700">Data stase tidak ditemukan di database Supabase.</p>
+          <p className="font-bold text-slate-700">Data stase tidak ditemukan.</p>
           <button
             onClick={() => navigate("/admin/live")}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-xs"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-xs cursor-pointer"
           >
             <ArrowLeft size={16} />
-            Kembali ke Live Control Room
+            Kembali ke Monitor Langsung
           </button>
         </div>
       </AdminLayout>
@@ -198,32 +187,16 @@ export default function StationMonitorDetailPage() {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
+      <div className="space-y-6 min-w-0 max-w-full">
         {/* Top Navigation & Header */}
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate("/admin/live")}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
-            >
-              <ArrowLeft size={16} />
-              <span>Kembali ke Live Control Room</span>
-            </button>
-
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="rounded-md bg-blue-600 px-2.5 py-0.5 text-[10px] font-extrabold text-white uppercase">
-                  STASE {stationData.station_number} MONITOR DETAIL
-                </span>
-                <span className="rounded-md bg-slate-100 border border-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-700">
-                  {stationData.system_organ} • SKDI {stationData.skdi_level}
-                </span>
-              </div>
-              <h1 className="text-xl font-black text-slate-900 tracking-tight pt-1">
-                {stationData.name}
-              </h1>
-            </div>
-          </div>
+        <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+          <button
+            onClick={() => navigate("/admin/live")}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs cursor-pointer"
+          >
+            <ArrowLeft size={16} />
+            <span>Kembali ke Live Control Room</span>
+          </button>
         </div>
 
         {/* Station Live Stats Overview Banner */}
@@ -231,7 +204,7 @@ export default function StationMonitorDetailPage() {
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
             <div>
               <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
-                Topik Kasus Medis:
+                Topik Kasus Medis (Stase {stationData.station_number}):
               </span>
               <h2 className="text-base font-black text-slate-900">{stationData.case_title}</h2>
             </div>

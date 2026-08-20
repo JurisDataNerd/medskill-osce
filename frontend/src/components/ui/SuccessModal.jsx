@@ -4,7 +4,7 @@ export default function SuccessModal({
   isOpen,
   onClose,
   title = "Berhasil Disimpan",
-  message = "Data telah berhasil diperbarui ke database Supabase.",
+  message = "Data telah berhasil disimpan.",
   actionText = "Selesai",
   onAction,
   secondaryActionText,

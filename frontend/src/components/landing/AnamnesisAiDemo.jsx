@@ -291,7 +291,7 @@ export default function AnamnesisAiDemo() {
                       disabled={isTyping}
                       className="text-[11px] font-semibold text-cyan-200 bg-cyan-950/40 border border-cyan-500/20 hover:border-cyan-400 hover:bg-cyan-900/50 rounded-lg px-3 py-1.5 transition text-left cursor-pointer disabled:opacity-50"
                     >
-                      💬 "{p}"
+                      "{p}"
                     </button>
                   ))}
                 </div>

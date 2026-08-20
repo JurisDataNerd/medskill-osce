@@ -12,8 +12,8 @@ export default function Navbar() {
 
   return (
     <PillNav
-      logo="/favicon.svg"
-      logoAlt="Praxis by Medskill Indonesia Logo"
+      logo="/logo_biru.avif"
+      logoAlt="Praxis by Medskill Logo"
       items={items}
       activeHref="#why-praxis"
       className="custom-nav"

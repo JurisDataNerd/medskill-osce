@@ -4,15 +4,9 @@ import {
   ArrowLeft,
   Award,
   CalendarDays,
-  CheckCircle2,
   ChevronDown,
   ChevronUp,
-  Download,
-  FileText,
-  Info,
   Printer,
-  Stethoscope,
-  UserCheck,
   Loader2,
   Building2,
 } from "lucide-react";
@@ -59,79 +53,94 @@ export default function ParticipantResultDetailPage() {
           if (partById) p = partById;
         }
 
-        let sessionTitle = "Ujian Komprehensif Dokter FK - Sirkuit Alfa";
-        let sessionDate = "15 Agustus 2026";
-        let targetSessionId = p ? p.session_id : resultId;
+        const targetSessionId = p ? p.session_id : resultId;
+        const targetUserId = p?.user_id || user?.id;
+        const targetPartId = p?.id || resultId;
 
+        // 1. Fetch Session Info
         const { data: sess } = await supabase
           .schema("osce")
           .from("sessions")
-          .select("title, session_date")
+          .select("*")
           .eq("id", targetSessionId)
           .maybeSingle();
 
-        if (sess) {
-          sessionTitle = sess.title;
-          sessionDate = sess.session_date || "15 Agustus 2026";
-        }
+        // 2. Fetch Stations of Session
+        const { data: stationsDb } = await supabase
+          .schema("osce")
+          .from("stations")
+          .select("*")
+          .eq("session_id", targetSessionId)
+          .order("station_number", { ascending: true });
 
-        // Query evaluations
-        const targetUserId = p ? p.user_id : user?.id || resultId;
+        // 3. Fetch Examiner Evaluations for Participant
         const { data: evals } = await supabase
           .schema("osce")
           .from("examiner_evaluations")
-          .select("*, stations(*)")
-          .eq("session_id", targetSessionId)
-          .or(`participant_id.eq.${targetUserId},participant_id.eq.${p?.id || resultId}`);
+          .select("*")
+          .eq("session_id", targetSessionId);
 
-        const stationsEvaluations = (evals || []).map((ev, idx) => ({
-          station_number: ev.stations?.station_number || idx + 1,
-          title: ev.stations?.title || `Stase ${ev.stations?.station_number || idx + 1}`,
-          examiner_name: "Dokter Penguji Terverifikasi",
-          score: Number(ev.final_score_percentage || ev.total_points_earned || 85),
-          global_rating: ev.grs_rating || "SATISFACTORY",
-          notes: ev.examiner_notes || "Kinerja klinis dan komunikasi sangat baik.",
-        }));
+        const userEvals = (evals || []).filter(
+          (ev) =>
+            ev.participant_id === targetUserId ||
+            ev.participant_id === targetPartId ||
+            (user?.id && ev.participant_id === user.id)
+        );
 
+        const baseStations = stationsDb && stationsDb.length > 0 
+          ? stationsDb 
+          : Array.from({ length: sess?.total_stations || 6 }, (_, i) => ({ station_number: i + 1, id: null }));
+
+        const stationsEvaluations = baseStations.map((st, idx) => {
+          const stNum = st.station_number || idx + 1;
+          const ev = userEvals.find(
+            (e) => (st.id && e.station_id === st.id) || Number(e.station_number) === Number(stNum)
+          );
+          return {
+            station_number: stNum,
+            title: `Stase ${stNum}`,
+            examiner_name: "Dokter Penguji Terverifikasi",
+            score: ev ? Number(ev.final_score_percentage || 0) : 0,
+            global_rating: ev?.grs_rating || "Belum Rating",
+            notes: ev?.examiner_notes || "Belum ada catatan feedback dari penguji.",
+            has_eval: Boolean(ev),
+          };
+        });
+
+        const evaluatedList = stationsEvaluations.filter((s) => s.has_eval);
         const avgScore =
-          stationsEvaluations.length > 0
-            ? (
-                stationsEvaluations.reduce((acc, curr) => acc + Number(curr.score || 0), 0) /
-                stationsEvaluations.length
-              ).toFixed(1)
-            : 85.0;
+          evaluatedList.length > 0
+            ? Number(
+                (
+                  evaluatedList.reduce((acc, curr) => acc + Number(curr.score || 0), 0) /
+                  evaluatedList.length
+                ).toFixed(1)
+              )
+            : 0;
+
+        const nblCutoff = Number(sess?.nbl_cutoff) || 70;
+        const isPassed = evaluatedList.length > 0 && avgScore >= nblCutoff;
 
         setResultItem({
           id: resultId,
-          title: sessionTitle,
-          date: sessionDate,
-          participant_name: p?.full_name || user?.user_metadata?.full_name || user?.email || "Peserta Ujian",
-          nim: p?.nim || (p?.email ? p.email.split("@")[0] : "20200710042"),
-          institution: "Fakultas Kedokteran - MedSkill LMS",
+          title: sess?.title || "Ujian OSCE MedSkill",
+          date: sess?.session_date || "Sesuai Jadwal",
+          participant_name:
+            p?.full_name ||
+            user?.user_metadata?.full_name ||
+            user?.user_metadata?.name ||
+            user?.email ||
+            "Tidak ada data",
+          institution:
+            p?.institution ||
+            p?.university ||
+            user?.user_metadata?.institution ||
+            user?.user_metadata?.university ||
+            "Tidak ada data",
           avg_score: avgScore,
-          final_status: Number(avgScore) >= 72.4 ? "LULUS" : "TIDAK LULUS",
-          global_rating: Number(avgScore) >= 72.4 ? "SATISFACTORY" : "BORDERLINE",
-          stations_evaluations:
-            stationsEvaluations.length > 0
-              ? stationsEvaluations
-              : [
-                  {
-                    station_number: 1,
-                    title: "Stase 1: Kardiovaskular",
-                    examiner_name: "dr. Alexander, Sp.JP",
-                    score: 88,
-                    global_rating: "SATISFACTORY",
-                    notes: "Anamnesis dan auskultasi jantung sangat terstruktur.",
-                  },
-                  {
-                    station_number: 2,
-                    title: "Stase 2: Pulmonologi",
-                    examiner_name: "dr. Diana, Sp.P",
-                    score: 82,
-                    global_rating: "SATISFACTORY",
-                    notes: "Pemeriksaan paru dan interpretasi Thorax tepat.",
-                  },
-                ],
+          final_status: evaluatedList.length === 0 ? "BELUM ADA EVALUASI" : (isPassed ? "LULUS" : "TIDAK LULUS"),
+          global_rating: avgScore >= 80 ? "SATISFACTORY" : avgScore >= nblCutoff ? "BORDERLINE PASS" : "UNSATISFACTORY",
+          stations_evaluations: stationsEvaluations,
         });
       } catch (err) {
         console.error("Error loading result detail from Supabase:", err);
@@ -147,7 +156,7 @@ export default function ParticipantResultDetailPage() {
     return (
       <div className="flex h-screen items-center justify-center bg-slate-100 text-xs font-semibold text-slate-500">
         <Loader2 size={24} className="animate-spin text-blue-600 mr-2" />
-        Memuat Transkrip Resmi Ujian OSCE Supabase...
+        Memuat Transkrip Ujian OSCE...
       </div>
     );
   }
@@ -169,18 +178,18 @@ export default function ParticipantResultDetailPage() {
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4">
           <button
             onClick={() => navigate("/participant")}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition cursor-pointer"
           >
             <ArrowLeft size={16} />
-            Kembali ke Dashboard Peserta
+            Kembali ke Dashboard Utama
           </button>
 
           <button
             onClick={() => window.print()}
-            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-blue-600/30 hover:bg-blue-700 active:scale-95 transition"
+            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-blue-600/30 hover:bg-blue-700 active:scale-95 transition cursor-pointer"
           >
             <Printer size={15} />
-            Unduh / Cetak Transkrip Nilai (PDF)
+            Cetak Transkrip PDF
           </button>
         </div>
       </header>
@@ -192,7 +201,7 @@ export default function ParticipantResultDetailPage() {
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-5">
             <div>
               <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-md border border-blue-200">
-                TRANSKRIP HASIL UJIAN RESMI SUPABASE
+                TRANSKRIP HASIL UJIAN RESMI
               </span>
               <h1 className="text-xl font-black text-slate-900 mt-2">
                 {resultItem.title}
@@ -205,21 +214,23 @@ export default function ParticipantResultDetailPage() {
 
             <div className="text-right">
               <span className="text-[10px] font-bold text-slate-400 uppercase block">Status Kelulusan</span>
-              <span className="text-lg font-black text-emerald-700 bg-emerald-50 border border-emerald-300 px-3 py-1 rounded-xl block mt-1">
+              <span className={`text-lg font-black px-3 py-1 rounded-xl block mt-1 border ${
+                resultItem.final_status === "LULUS"
+                  ? "text-emerald-700 bg-emerald-50 border-emerald-300"
+                  : resultItem.final_status === "TIDAK LULUS"
+                  ? "text-rose-700 bg-rose-50 border-rose-300"
+                  : "text-amber-700 bg-amber-50 border-amber-300"
+              }`}>
                 {resultItem.final_status}
               </span>
             </div>
           </div>
 
           {/* Student Info Card */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-xs font-semibold text-slate-700 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+          <div className="grid grid-cols-2 gap-4 text-xs font-semibold text-slate-700 bg-slate-50 p-4 rounded-2xl border border-slate-200">
             <div>
               <span className="text-[10px] font-bold text-slate-400 uppercase block">Nama Mahasiswa</span>
-              <span className="font-extrabold text-slate-900">{resultItem.participant_name}</span>
-            </div>
-            <div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase block">NIM Mahasiswa</span>
-              <span className="font-mono text-slate-900">{resultItem.nim}</span>
+              <span className="font-extrabold text-slate-900 text-sm">{resultItem.participant_name}</span>
             </div>
             <div>
               <span className="text-[10px] font-bold text-slate-400 uppercase block">Rata-Rata Nilai Akhir</span>
@@ -258,7 +269,7 @@ export default function ParticipantResultDetailPage() {
                         <span className="text-xs font-black text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg">
                           Skor: {stg.score.toFixed(1)} / 100
                         </span>
-                        <button className="text-slate-400 hover:text-slate-700">
+                        <button className="text-slate-400 hover:text-slate-700 cursor-pointer">
                           {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                         </button>
                       </div>

@@ -113,30 +113,16 @@ export default function ExaminerPage() {
             );
           });
 
-          if (match) {
-            const matchedSt = sessionSts.find(
-              (st) => Number(st.station_number) === Number(match.assigned_station_number)
-            );
-            assignedList.push({
-              session: s,
-              assignment: match,
-              station: matchedSt || sessionSts.find((st) => !st.is_break) || sessionSts[0],
-              stations: sessionSts,
-            });
-          }
-        }
+          const matchedSt = match
+            ? sessionSts.find((st) => Number(st.station_number) === Number(match.assigned_station_number))
+            : null;
 
-        // Fallback: If no explicit match in session_examiners, show active sessions for preview
-        if (assignedList.length === 0 && activeOnlySessions.length > 0) {
-          for (const s of activeOnlySessions) {
-            const sessionSts = (allStations || []).filter((st) => st.session_id === s.id);
-            assignedList.push({
-              session: s,
-              assignment: { assigned_station_number: 1 },
-              station: sessionSts.find((st) => !st.is_break) || sessionSts[0],
-              stations: sessionSts,
-            });
-          }
+          assignedList.push({
+            session: s,
+            assignment: match || { assigned_station_number: 1 },
+            station: matchedSt || sessionSts.find((st) => !st.is_break) || sessionSts[0],
+            stations: sessionSts,
+          });
         }
 
         setAssignedSessions(assignedList);
@@ -184,16 +170,16 @@ export default function ExaminerPage() {
 
   function formatDoctorDisplayName(fullName, email) {
     if (fullName && fullName.trim()) return fullName;
-    if (!email) return "dr. Penguji Medis";
+    if (!email) return "Tidak ada data";
     const username = email.split("@")[0].replace(/[._]/g, " ");
     const formatted = username.split(" ").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
-    return `dr. ${formatted}`;
+    return formatted || "Tidak ada data";
   }
 
   const examinerName = formatDoctorDisplayName(profile?.full_name || user?.user_metadata?.full_name, user?.email);
-  const examinerSpecialty = profile?.specialty || user?.user_metadata?.specialty || "Dokter Penguji Spesialis";
-  const examinerEmail = profile?.email || user?.email || "";
-  const examinerUniversity = profile?.university || user?.user_metadata?.university || "Fakultas Kedokteran SKDI";
+  const examinerSpecialty = profile?.specialty || user?.user_metadata?.specialty || "Tidak ada data";
+  const examinerEmail = profile?.email || user?.email || "-";
+  const examinerUniversity = profile?.university || profile?.institution || user?.user_metadata?.institution || user?.user_metadata?.university || "Tidak ada data";
 
   const assignedStationNum = assignedSessions[0]?.station?.station_number || assignedSessions[0]?.assignment?.assigned_station_number || 1;
 
@@ -275,7 +261,7 @@ export default function ExaminerPage() {
             <span className="text-2xl font-black text-slate-900">{evalStats.total}</span>
             <span className="text-xs font-bold text-emerald-600">Peserta</span>
           </div>
-          <p className="text-[11px] text-slate-400 font-medium">Evaluasi tersimpan di Supabase</p>
+          <p className="text-[11px] text-slate-400 font-medium">Evaluasi telah tersimpan</p>
         </div>
 
         {/* Stat 3: Station Assignment */}
@@ -349,18 +335,18 @@ export default function ExaminerPage() {
                           )}
                           {isPublished && (
                             <span className="rounded-md bg-blue-100 text-blue-900 border border-blue-300 px-2.5 py-0.5 text-[10px] font-black uppercase inline-flex items-center gap-1">
-                              Dipublikasikan (Terjadwal)
+                              Sesi Terjadwal
                             </span>
                           )}
                           {isCompleted && (
                             <span className="rounded-md bg-slate-200 text-slate-700 border border-slate-300 px-2.5 py-0.5 text-[10px] font-black uppercase inline-flex items-center gap-1">
                               <CheckCircle2 size={11} className="text-slate-600" />
-                              Selesai (Completed)
+                              Selesai
                             </span>
                           )}
                           {isDraft && (
                             <span className="rounded-md bg-amber-100 text-amber-900 border border-amber-300 px-2.5 py-0.5 text-[10px] font-black uppercase inline-flex items-center gap-1">
-                              Draft (Belum Dipublikasikan)
+                              Draft
                             </span>
                           )}
 
@@ -419,12 +405,12 @@ export default function ExaminerPage() {
                             {isOngoing ? (
                               <>
                                 <PlayCircle size={16} />
-                                Masuk Sesi Live Ujian
+                                Masuk Sesi Live
                               </>
                             ) : (
                               <>
                                 <Play size={15} />
-                                Buka Kiosk Standby Sesi
+                                Masuk Sesi
                               </>
                             )}
                           </button>

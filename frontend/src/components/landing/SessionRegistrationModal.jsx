@@ -21,9 +21,9 @@ export default function SessionRegistrationModal({
   onConfirm,
   session,
   userProfile = {
-    name: "Peserta Ujian",
-    nim: "20200710042",
-    institution: "Fakultas Kedokteran - MedSkill Indonesia",
+    name: "Tidak ada data",
+    nim: "Tidak ada data",
+    institution: "Tidak ada data",
   },
 }) {
   const [agreed, setAgreed] = useState(false);
@@ -112,7 +112,7 @@ export default function SessionRegistrationModal({
               </div>
               <div className="flex items-center gap-2">
                 <Timer size={15} className="text-blue-600" />
-                <span>Durasi: <strong>{session.station_duration_minutes || 15} Menit / Stase</strong></span>
+                <span>Durasi: <strong>{session.station_duration_minutes || 15} Menit per Stase</strong></span>
               </div>
             </div>
           </div>
@@ -129,12 +129,8 @@ export default function SessionRegistrationModal({
                 <span className="text-slate-500 font-medium">Nama Peserta:</span>
                 <span className="font-bold text-slate-900">{userProfile.name}</span>
               </div>
-              <div className="flex justify-between items-center border-b border-slate-200/60 pb-2">
-                <span className="text-slate-500 font-medium">NIM / NIP:</span>
-                <span className="font-mono font-bold text-blue-700">{userProfile.nim}</span>
-              </div>
               <div className="flex justify-between items-center">
-                <span className="text-slate-500 font-medium">Institusi / Fakultas:</span>
+                <span className="text-slate-500 font-medium">Institusi:</span>
                 <span className="font-semibold text-slate-800">{userProfile.institution}</span>
               </div>
             </div>

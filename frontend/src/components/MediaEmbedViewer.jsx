@@ -92,7 +92,7 @@ export default function MediaEmbedViewer({
             className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1 text-[11px] font-bold text-blue-300 hover:bg-slate-700 hover:text-white transition"
           >
             <ExternalLink size={13} />
-            Buka di Tab Baru / Drive
+            Buka di Tab Baru
           </a>
         </div>
       </div>

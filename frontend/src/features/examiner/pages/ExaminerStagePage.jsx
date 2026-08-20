@@ -28,6 +28,7 @@ import {
   Play,
   PlayCircle,
   Megaphone,
+  ExternalLink,
   BellRing,
   X,
   LogOut,
@@ -47,6 +48,7 @@ import {
 } from "@/services/realtimeTimerService";
 import AuxiliaryExamResultModal from "@/components/AuxiliaryExamResultModal";
 import ConfirmModal from "@/components/ConfirmModal";
+import ExaminerStationScheduleWidget from "@/features/examiner/components/ExaminerStationScheduleWidget";
 
 export default function ExaminerStagePage() {
   const { stageId, sessionId, id } = useParams();
@@ -107,6 +109,7 @@ export default function ExaminerStagePage() {
   const [liveAnswer, setLiveAnswer] = useState(null);
   const [assignedSessionsList, setAssignedSessionsList] = useState([]);
   const [allActiveSessions, setAllActiveSessions] = useState([]);
+  const [currentUserProfile, setCurrentUserProfile] = useState(null);
 
 
 
@@ -124,11 +127,23 @@ export default function ExaminerStagePage() {
           const { data: profData } = await supabase
             .schema("public")
             .from("profiles")
-            .select("full_name, email")
+            .select("full_name, email, university, specialty")
             .eq("id", user.id)
             .maybeSingle();
 
-          if (profData) userProf = profData;
+          if (profData) {
+            userProf = profData;
+            setCurrentUserProfile(profData);
+          } else {
+            const fallbackProf = {
+              full_name: user.user_metadata?.full_name || user.email?.split("@")[0],
+              email: user.email,
+              specialty: user.user_metadata?.specialty,
+              university: user.user_metadata?.institution || user.user_metadata?.university,
+            };
+            userProf = fallbackProf;
+            setCurrentUserProfile(fallbackProf);
+          }
         }
 
         const currentName = (userProf?.full_name || user?.user_metadata?.full_name || user?.email || "").toLowerCase();
@@ -169,7 +184,6 @@ export default function ExaminerStagePage() {
           .order("station_number");
 
         const assignedList = [];
-        let matchedStationNum = null;
 
         for (const s of sessList) {
           const sessionExs = (allExaminers || []).filter((e) => e.session_id === s.id);
@@ -187,28 +201,16 @@ export default function ExaminerStagePage() {
             );
           });
 
-          if (match) {
-            const matchedSt = sessionSts.find(
-              (st) => Number(st.station_number) === Number(match.assigned_station_number)
-            );
-            assignedList.push({
-              session: s,
-              assignment: match,
-              station: matchedSt || sessionSts.find((st) => !st.is_break) || sessionSts[0],
-            });
-          }
-        }
+          const matchedSt = match
+            ? sessionSts.find((st) => Number(st.station_number) === Number(match.assigned_station_number))
+            : null;
 
-        // Fallback if no explicit examiner match: include all active sessions
-        if (assignedList.length === 0 && sessList.length > 0) {
-          for (const s of sessList) {
-            const sessionSts = (allStations || []).filter((st) => st.session_id === s.id);
-            assignedList.push({
-              session: s,
-              assignment: { assigned_station_number: 1 },
-              station: sessionSts.find((st) => !st.is_break) || sessionSts[0],
-            });
-          }
+          assignedList.push({
+            session: s,
+            assignment: match || { assigned_station_number: 1 },
+            station: matchedSt || sessionSts.find((st) => !st.is_break) || sessionSts[0],
+            stations: sessionSts,
+          });
         }
 
         setAssignedSessionsList(assignedList);
@@ -459,6 +461,113 @@ export default function ExaminerStagePage() {
     loadStationDetail();
   }, [targetParamId]);
 
+  // Realtime subscription for session_participants list updates
+  useEffect(() => {
+    if (!activeSession?.id) return;
+
+    const fetchParticipantsList = async () => {
+      const { data: pList } = await supabase
+        .schema("osce")
+        .from("session_participants")
+        .select("*")
+        .eq("session_id", activeSession.id);
+      if (pList) setParticipants(pList);
+    };
+
+    const channel = supabase
+      .channel(`examiner_participants_${activeSession.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "osce",
+          table: "session_participants",
+          filter: `session_id=eq.${activeSession.id}`,
+        },
+        () => {
+          fetchParticipantsList();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [activeSession?.id]);
+
+  function safeParseAuxiliaryList(answer) {
+    if (!answer) return [];
+
+    let raw = answer.requested_auxiliary_json || answer.auxiliary_results || answer.requested_auxiliary_ids || [];
+    if (typeof raw === "string") {
+      try {
+        raw = JSON.parse(raw);
+      } catch (e) {
+        console.warn("Failed to parse requested_auxiliary_json:", e);
+        raw = [];
+      }
+    }
+
+    if (!Array.isArray(raw)) return [];
+
+    return raw.map((item) => {
+      if (typeof item === "string") {
+        return {
+          id: item,
+          name: item.toUpperCase().replace(/_/g, " "),
+          category: "PEMERIKSAAN PENUNJANG",
+          hasData: true,
+          imageUrl: "",
+          reportText: `Hasil pemeriksaan penunjang [${item}] dalam batas normal.`,
+        };
+      }
+      return {
+        id: item.id || item.code || "aux-item",
+        name: item.name || item.title || item.label || "Hasil Berkas Penunjang",
+        category: item.category || "PEMERIKSAAN",
+        hasData: item.hasData !== false && item.has_data !== false,
+        imageUrl: item.imageUrl || item.image_url || item.url || item.file_url || "",
+        reportText: item.reportText || item.report_text || item.description || "Hasil laboratorium/radiologi dalam batas normal.",
+        labResults: item.labResults || item.lab_results || null,
+        findings: item.findings || null,
+      };
+    });
+  }
+
+  function renderDifferentialDiagnosis(answer) {
+    if (!answer) return <span className="text-slate-400 italic font-medium">Belum diisi oleh peserta</span>;
+
+    const d1 = answer.differential_dx_1?.trim();
+    const d2 = answer.differential_dx_2?.trim();
+    const d3 = answer.differential_dx_3?.trim();
+
+    if (d1 && (!d2 && !d3)) {
+      return (
+        <div className="whitespace-pre-line leading-relaxed text-xs font-medium text-slate-800">
+          {d1}
+        </div>
+      );
+    }
+
+    const items = [d1, d2, d3].filter(Boolean);
+    if (items.length > 0) {
+      return (
+        <div className="space-y-1 text-xs font-medium text-slate-800">
+          {items.map((item, idx) => {
+            const hasNumbering = /^\d+[\.\)]/.test(item);
+            return (
+              <p key={idx} className="leading-relaxed">
+                {hasNumbering ? item : `${idx + 1}. ${item}`}
+              </p>
+            );
+          })}
+        </div>
+      );
+    }
+
+    return <span className="text-slate-400 italic font-medium">Belum diisi oleh peserta</span>;
+  }
+
   // Realtime subscription & timer sync for active session (WebSocket + Future Timestamp)
   useEffect(() => {
     if (!activeSession?.id) return;
@@ -482,6 +591,11 @@ export default function ExaminerStagePage() {
       onTimerUpdate: (newTimerState) => {
         if (!newTimerState) return;
         setTimerState(newTimerState);
+        if (newTimerState.phase === "finished" || newTimerState.phase === "completed") {
+          toast.info("Sesi OSCE telah diakhiri oleh Admin Control Room. Dialihkan ke Dashboard.", { duration: 5000 });
+          navigate("/examiner");
+          return;
+        }
         const rem = calcRemaining(
           newTimerState.target_end_time,
           newTimerState.paused_remaining_ms,
@@ -491,18 +605,22 @@ export default function ExaminerStagePage() {
       },
       onSessionUpdate: (sess) => {
         if (sess) {
+          if (sess.status === "completed" || sess.status === "finished") {
+            toast.info("Sesi OSCE telah diakhiri oleh Admin Control Room. Dialihkan ke Dashboard.", { duration: 5000 });
+            navigate("/examiner");
+            return;
+          }
           setActiveSession((prev) => (prev ? { ...prev, ...sess } : null));
         }
       },
       onBroadcast: (msg) => {
         if (!msg) return;
-        if (msg.target_role === "all" || msg.target_role === "examiners") {
+        const target = String(msg.target_role || "all").toLowerCase();
+        if (target === "all" || target === "examiners" || target === "penguji") {
           playBroadcastNotificationSound();
-          setActiveBroadcast({
-            id: msg.id || Date.now(),
-            message: msg.message,
-            priority: msg.priority || "info",
-            time: new Date(msg.created_at || Date.now()).toLocaleTimeString("id-ID"),
+          toast.info(msg.message || "Pemberitahuan Admin Control Room", {
+            description: `Pengumuman Admin • ${new Date().toLocaleTimeString("id-ID")}`,
+            duration: 8000,
           });
         }
       },
@@ -533,7 +651,7 @@ export default function ExaminerStagePage() {
           data: { user },
         } = await supabase.auth.getUser();
 
-        let full_name = user?.user_metadata?.full_name || user?.email || "dr. Penguji Medis";
+        let full_name = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || "Tidak ada data";
         let specialty = user?.user_metadata?.specialty || "";
 
         if (user?.id) {
@@ -763,16 +881,16 @@ export default function ExaminerStagePage() {
         is_locked: true,
       });
 
-      toast.success("Penilaian berhasil disimpan & dikunci ke database Supabase!");
+      toast.success("Penilaian berhasil disimpan & dikunci!");
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
-      console.error("Error saving examiner evaluation to Supabase:", err);
+      console.error("Error saving examiner evaluation:", err);
       toast.error(`Gagal menyimpan penilaian: ${err.message}`);
       setConfirmModal({
         isOpen: true,
         title: "Gagal Menyimpan Penilaian",
-        message: "Gagal menyimpan penilaian ke database Supabase: " + err.message,
+        message: "Gagal menyimpan penilaian: " + err.message,
         confirmText: "Mengerti",
         variant: "warning",
         isAlert: true,
@@ -793,25 +911,69 @@ export default function ExaminerStagePage() {
   }
 
   if (!activeSession || !stationData) {
+    const rawDoctorName = currentUserProfile?.full_name || "Dokter Penguji";
+    const doctorName = rawDoctorName.toLowerCase().startsWith("dr") ? rawDoctorName : `dr. ${rawDoctorName}`;
+    const doctorSpecialty = currentUserProfile?.specialty || "Spesialis Penguji OSCE";
+    const doctorInst = currentUserProfile?.university || "Fakultas Kedokteran";
+
     return (
-      <div className="space-y-6 max-w-6xl mx-auto py-4">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4">
+      <div className="space-y-6 max-w-7xl mx-auto py-2">
+        {/* Modern Hero Dashboard Banner */}
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-900 via-slate-900 to-indigo-950 p-6 sm:p-8 text-white shadow-xl">
+          <div className="relative z-10 flex flex-wrap items-center justify-between gap-6">
+            <div className="flex items-center gap-5">
+              <div className="h-16 w-16 rounded-2xl bg-blue-600/90 text-white flex items-center justify-center font-black text-2xl shadow-lg border-2 border-blue-400/30 shrink-0">
+                <Stethoscope size={30} />
+              </div>
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-blue-500/20 px-3 py-0.5 text-[10px] font-black text-blue-200 border border-blue-400/30 uppercase tracking-wider">
+                    Ruang Pengujian OSCE
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold text-emerald-300 border border-emerald-400/30">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
+                    Status: Standby Penugasan
+                  </span>
+                </div>
+                <h1 className="text-xl sm:text-2xl font-black text-white">
+                  {doctorName}
+                </h1>
+                <p className="text-xs text-slate-300 font-medium">
+                  {doctorSpecialty} • {doctorInst}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => window.location.reload()}
+                className="inline-flex items-center gap-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 px-4 py-2.5 text-xs font-bold text-white transition active:scale-95 cursor-pointer backdrop-blur-xs"
+              >
+                <Activity size={15} />
+                Muat Ulang
+              </button>
+              <button
+                onClick={() => navigate("/examiner")}
+                className="inline-flex items-center gap-2 rounded-xl bg-rose-600 hover:bg-rose-700 px-4 py-2.5 text-xs font-bold text-white transition active:scale-95 shadow-md shadow-rose-600/30 cursor-pointer"
+              >
+                <LogOut size={15} />
+                Kembali ke Dashboard
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Section Header */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
           <div>
-            <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
-              <CalendarDays className="text-blue-600" size={24} />
-              Pilih Sesi Ujian Penugasan Penguji ({assignedSessionsList.length} Sesi)
+            <h2 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
+              <CalendarDays className="text-blue-600" size={20} />
+              Daftar Sesi Ujian Penugasan ({assignedSessionsList.length})
             </h2>
             <p className="text-xs text-slate-500 font-medium mt-0.5">
-              Pilih kartu sesi ujian di bawah untuk masuk ke Waiting Room & Lembar Penilaian stase Anda.
+              Pilih kartu sesi ujian di bawah untuk masuk ke ruang pengujian stase Anda.
             </p>
           </div>
-          <button
-            onClick={handleExitExaminerWaitingRoom}
-            className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 transition shadow-2xs"
-          >
-            <LogOut size={15} />
-            Keluar ke Dashboard
-          </button>
         </div>
 
         {assignedSessionsList.length > 0 ? (
@@ -849,24 +1011,24 @@ export default function ExaminerStagePage() {
                       )}
                       {isPublished && (
                         <span className="rounded-md bg-blue-100 text-blue-900 border border-blue-300 px-2.5 py-0.5 text-[10px] font-black uppercase inline-flex items-center gap-1">
-                          Dipublikasikan (Terjadwal)
+                          Sesi Terjadwal
                         </span>
                       )}
                       {isCompleted && (
                         <span className="rounded-md bg-slate-200 text-slate-700 border border-slate-300 px-2.5 py-0.5 text-[10px] font-black uppercase inline-flex items-center gap-1">
                           <CheckCircle2 size={11} className="text-slate-600" />
-                          Selesai (Completed)
+                          Sesi Selesai
                         </span>
                       )}
                       {isDraft && (
                         <span className="rounded-md bg-amber-100 text-amber-900 border border-amber-300 px-2.5 py-0.5 text-[10px] font-black uppercase inline-flex items-center gap-1">
-                          Draft (Belum Dipublikasikan)
+                          Draft
                         </span>
                       )}
 
                       <span className="rounded-md bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-[10px] font-black text-emerald-900 inline-flex items-center gap-1 uppercase">
                         <CheckCircle2 size={11} className="text-emerald-700" />
-                        Penugasan Pos #{st?.station_number || a?.assigned_station_number || 1}
+                        Pos #{st?.station_number || a?.assigned_station_number || 1}
                       </span>
                     </div>
 
@@ -874,7 +1036,7 @@ export default function ExaminerStagePage() {
                       <h4 className="text-sm font-extrabold text-slate-900">{s.title}</h4>
                       <p className="text-xs text-slate-500 mt-1 line-clamp-2">
                         {st
-                          ? `Pos Penugasan Anda: Pos #${st.station_number} - ${st.case_title || st.title || "Kasus Medis"}`
+                          ? `Pos Penugasan: Pos #${st.station_number} - ${st.case_title || st.title || "Kasus Medis"}`
                           : s.description || "Sesi evaluasi sirkuit terpadu stase aktif."}
                       </p>
                     </div>
@@ -885,7 +1047,7 @@ export default function ExaminerStagePage() {
                         <span className="font-black text-slate-900">{s.total_stations || 8} Pos</span>
                       </div>
                       <div className="rounded-xl border border-slate-200 bg-white p-2.5 text-center">
-                        <span className="text-slate-400 text-[10px] block font-bold">Durasi / Pos</span>
+                        <span className="text-slate-400 text-[10px] block font-bold">Durasi Stase</span>
                         <span className="font-black text-slate-900">{s.station_duration_minutes || 12} Mnt</span>
                       </div>
                     </div>
@@ -899,10 +1061,10 @@ export default function ExaminerStagePage() {
                           e.stopPropagation();
                           navigate("/examiner/history");
                         }}
-                        className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 bg-slate-200 hover:bg-slate-300 transition active:scale-95 shadow-sm"
+                        className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 bg-slate-200 hover:bg-slate-300 transition active:scale-95 shadow-sm cursor-pointer"
                       >
                         <History size={16} />
-                        Lihat Riwayat & Rekap Evaluasi
+                        Lihat Riwayat & Rekap
                       </button>
                     ) : isDraft ? (
                       <button
@@ -910,12 +1072,12 @@ export default function ExaminerStagePage() {
                         disabled
                         className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-400 bg-slate-100 cursor-not-allowed border border-slate-200"
                       >
-                        Belum Dipublikasikan oleh Admin
+                        Belum Dipublikasikan
                       </button>
                     ) : (
                       <button
                         type="button"
-                        className={`w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold text-white shadow-md transition active:scale-95 ${
+                        className={`w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold text-white shadow-md transition active:scale-95 cursor-pointer ${
                           isOngoing
                             ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/30 animate-pulse"
                             : "bg-blue-600 hover:bg-blue-700 shadow-blue-600/30"
@@ -924,12 +1086,12 @@ export default function ExaminerStagePage() {
                         {isOngoing ? (
                           <>
                             <PlayCircle size={16} />
-                            Masuk Sesi Live Ujian
+                            Masuk Sesi Live
                           </>
                         ) : (
                           <>
                             <Play size={15} />
-                            Buka Kiosk Standby Sesi
+                            Masuk Sesi
                           </>
                         )}
                       </button>
@@ -940,15 +1102,24 @@ export default function ExaminerStagePage() {
             })}
           </div>
         ) : (
-          <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-12 text-center space-y-4 shadow-2xs">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 border border-blue-200 shadow-sm">
-              <Info size={32} />
+          <div className="rounded-3xl border border-dashed border-slate-200 bg-white p-10 text-center space-y-4 shadow-sm animate-in fade-in duration-200">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 border border-blue-200 shadow-xs">
+              <Stethoscope size={30} />
             </div>
-            <div>
+            <div className="space-y-1">
               <h3 className="text-base font-black text-slate-900">Belum Ada Sesi Ujian Penugasan</h3>
-              <p className="text-xs text-slate-500 max-w-md mx-auto mt-1 font-medium leading-relaxed">
-                Anda belum ditugaskan ke sesi ujian aktif. Penugasan dokter penguji akan dikonfigurasi oleh Admin Control Room.
+              <p className="text-xs text-slate-500 max-w-md mx-auto font-medium leading-relaxed">
+                Anda belum memiliki jadwal penugasan stase aktif saat ini. Penugasan akan muncul di sini saat sesi dibuka oleh Admin.
               </p>
+            </div>
+            <div className="pt-2 flex items-center justify-center gap-3">
+              <button
+                onClick={() => window.location.reload()}
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-5 py-2.5 text-xs font-bold text-white shadow-md transition active:scale-95 cursor-pointer"
+              >
+                <Activity size={15} />
+                Muat Ulang Jadwal
+              </button>
             </div>
           </div>
         )}
@@ -1055,9 +1226,9 @@ export default function ExaminerStagePage() {
               </span>
             </div>
             <div className="rounded-2xl bg-white/10 p-3.5 border border-white/10">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Durasi / Pos Stase</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Durasi Stase</span>
               <span className="font-extrabold text-white text-xs mt-0.5 block">
-                {activeSession.station_duration_minutes || 12} Menit / Rotasi
+                {activeSession.station_duration_minutes || 12} Menit per Stase
               </span>
             </div>
             <div className="rounded-2xl bg-white/10 p-3.5 border border-white/10">
@@ -1074,6 +1245,13 @@ export default function ExaminerStagePage() {
             </div>
           </div>
         </div>
+
+        {/* Embedded Examiner Station Rotation Schedule Widget */}
+        <ExaminerStationScheduleWidget
+          sessionId={activeSession.id}
+          stationNumber={stationData.station_number}
+          activeRound={currentRoundNum}
+        />
 
         {/* Live Presence Standby Participants & Examiners Card */}
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-md space-y-4">
@@ -1161,7 +1339,7 @@ export default function ExaminerStagePage() {
                     <tr>
                       <th className="px-4 py-3">No</th>
                       <th className="px-4 py-3">Nama Peserta</th>
-                      <th className="px-4 py-3">NIM / ID</th>
+                      <th className="px-4 py-3">NIM</th>
                       <th className="px-4 py-3">Stase Awalan Rotasi</th>
                       <th className="px-4 py-3">Status Presensi</th>
                     </tr>
@@ -1322,7 +1500,8 @@ export default function ExaminerStagePage() {
                               rel="noreferrer"
                               className="inline-flex items-center gap-1.5 text-[11px] font-extrabold text-blue-700 hover:underline mt-1 bg-white border border-blue-200 px-2.5 py-1 rounded-lg shadow-2xs"
                             >
-                              🔗 Lihat Lampiran Hasil / Drive
+                              <ExternalLink size={13} className="text-blue-600" />
+                              <span>Lihat Lampiran Hasil / Drive</span>
                             </a>
                           )}
                         </div>
@@ -1464,7 +1643,7 @@ export default function ExaminerStagePage() {
       )}
 
       {/* Top Navbar */}
-      <header className="border-b border-slate-200 bg-white px-6 py-3.5 shadow-2xs sticky top-0 z-40">
+      <header className="-mt-6 md:-mt-8 -mx-6 md:-mx-8 mb-6 border-b border-slate-200 bg-white/95 backdrop-blur-md px-6 md:px-8 py-3.5 shadow-md sticky top-0 z-40">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
           <button
             onClick={handleExitExaminerWaitingRoom}
@@ -1519,7 +1698,7 @@ export default function ExaminerStagePage() {
               className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2 text-xs font-bold text-white shadow-md hover:bg-emerald-700 active:scale-95 transition disabled:opacity-50"
             >
               {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-              Submit & Kunci Penilaian (Supabase)
+              Simpan Penilaian
             </button>
           </div>
         </div>
@@ -1527,17 +1706,36 @@ export default function ExaminerStagePage() {
 
       {/* Main Content Container */}
       <div className="max-w-7xl w-full mx-auto space-y-6">
+        {timerState?.phase === "transition" && (
+          <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-950 shadow-md flex items-center gap-3">
+            <Clock size={20} className="text-amber-600 animate-pulse shrink-0" />
+            <div className="text-xs font-bold">
+              <span className="font-extrabold uppercase text-amber-900 block">FASE TRANSISI PERGERAKAN PESERTA (2 MENIT):</span>
+              Peserta sedang melakukan perpindahan pos stase rotasi. Penguji dapat mempersiapkan lembar penilaian untuk peserta ronde berikutnya.
+            </div>
+          </div>
+        )}
+
+        {timerState?.phase === "paused" && (
+          <div className="rounded-2xl border border-rose-300 bg-rose-50 p-4 text-rose-950 shadow-md flex items-center gap-3">
+            <AlertCircle size={20} className="text-rose-600 shrink-0" />
+            <div className="text-xs font-bold">
+              <span className="font-extrabold uppercase text-rose-900 block">TIMER DI-PAUSE OLEH ADMIN CONTROL DESK:</span>
+              Jadwal timer sesi ujian di-pause sementara. Penilaian yang sudah diisi tetap tersimpan di draf.
+            </div>
+          </div>
+        )}
         {forceLiveView && activeSession.status !== "ongoing" && (
           <div className="flex items-center justify-between rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-950 shadow-xs">
             <div className="flex items-center gap-2.5 text-xs font-bold">
               <Clock size={18} className="text-amber-600 animate-pulse" />
-              <span>Mode Penilaian Mandiri / Preview: Admin Control Room belum memulai timer global. Penilaian Anda tetap dapat disubmit ke Supabase.</span>
+              <span>Mode Penilaian Mandiri: Waktu ujian belum dimulai. Penilaian tetap dapat disimpan.</span>
             </div>
             <button
               onClick={() => setForceLiveView(false)}
-              className="rounded-xl border border-amber-300 bg-white px-3 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100 transition shadow-2xs shrink-0"
+              className="rounded-xl border border-amber-300 bg-white px-3 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100 transition shadow-2xs shrink-0 cursor-pointer"
             >
-              Kembali ke Waiting Room
+              Kembali ke Ruang Tunggu
             </button>
           </div>
         )}
@@ -1606,20 +1804,30 @@ export default function ExaminerStagePage() {
           {/* Rotation Participants Switcher */}
           <div className="pt-1 flex items-center gap-2 overflow-x-auto">
             <span className="text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap">Ronde Rotasi Peserta:</span>
-            {participants.map((p, idx) => (
-              <button
-                key={p.id}
-                onClick={() => setActiveRotationIndex(idx)}
-                className={`rounded-xl px-3 py-1.5 text-xs font-bold transition flex items-center gap-1.5 border whitespace-nowrap ${
-                  activeRotationIndex === idx
-                    ? "bg-blue-600 text-white border-blue-600 shadow-sm"
-                    : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
-                }`}
-              >
-                <span>R{idx + 1}:</span>
-                <span className="font-extrabold">{p.full_name || p.name}</span>
-              </button>
-            ))}
+            {participants.map((p, idx) => {
+              const isCurrentRoundParticipant = Number(p.starting_station_number) === targetStartingStation;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => setActiveRotationIndex(idx)}
+                  className={`rounded-xl px-3 py-1.5 text-xs font-bold transition flex items-center gap-1.5 border whitespace-nowrap ${
+                    activeRotationIndex === idx
+                      ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                      : isCurrentRoundParticipant
+                      ? "bg-emerald-50 text-emerald-900 border-emerald-300 hover:bg-emerald-100"
+                      : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                  }`}
+                >
+                  <span>R{idx + 1}:</span>
+                  <span className="font-extrabold">{p.full_name || p.name}</span>
+                  {isCurrentRoundParticipant && (
+                    <span className="rounded-full bg-emerald-500 text-white px-1.5 py-0.5 text-[9px] font-black uppercase">
+                      Aktif
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -1652,7 +1860,7 @@ export default function ExaminerStagePage() {
               {/* Step Progress Badge Bar */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between text-[11px] font-bold text-slate-600">
-                  <span>Tahapan Pengerjaan Kiosk:</span>
+                  <span>Tahapan Pengerjaan Stase:</span>
                   <span className="text-blue-600 font-extrabold">Tahap 4 dari 4 (Diagnosis & Resep)</span>
                 </div>
                 <div className="grid grid-cols-4 gap-1">
@@ -1676,32 +1884,30 @@ export default function ExaminerStagePage() {
                 </span>
               </div>
 
-              {/* Working Diagnosis WDx */}
+              {/* 1. Differential Diagnoses DDx */}
               <div className="space-y-1">
                 <label className="text-[10px] font-extrabold text-slate-500 uppercase block">
-                  Diagnosis Kerja Utama (WDx):
+                  1. Diagnosis Banding (DDx):
                 </label>
-                <div className="rounded-xl border border-slate-200 bg-white p-3 text-xs font-bold text-slate-900 shadow-2xs">
-                  {liveAnswer?.working_diagnosis || (currentParticipant ? "Peserta belum mengisi WDx pada kiosk" : "Belum ada peserta di stase ini")}
+                <div className="rounded-xl border border-slate-200 bg-white p-3 text-xs shadow-2xs">
+                  {renderDifferentialDiagnosis(liveAnswer)}
                 </div>
               </div>
 
-              {/* Differential Diagnoses DDx */}
+              {/* 2. Working Diagnosis WDx */}
               <div className="space-y-1">
                 <label className="text-[10px] font-extrabold text-slate-500 uppercase block">
-                  Diagnosis Banding (DDx 1 - 3):
+                  2. Diagnosis Kerja Utama (WDx):
                 </label>
-                <div className="rounded-xl border border-slate-200 bg-white p-3 text-xs font-medium text-slate-800 space-y-1 shadow-2xs">
-                  <p>1. {liveAnswer?.differential_dx_1 || "Belum diisi"}</p>
-                  <p>2. {liveAnswer?.differential_dx_2 || "Belum diisi"}</p>
-                  <p>3. {liveAnswer?.differential_dx_3 || "Belum diisi"}</p>
+                <div className="rounded-xl border border-slate-200 bg-white p-3 text-xs font-bold text-slate-900 leading-relaxed whitespace-pre-line shadow-2xs">
+                  {liveAnswer?.working_diagnosis || (currentParticipant ? "Peserta belum mengisi WDx" : "Belum ada peserta di stase ini")}
                 </div>
               </div>
 
-              {/* Prescription Text Area */}
+              {/* 3. Prescription Text Area */}
               <div className="space-y-1">
                 <label className="text-[10px] font-extrabold text-slate-500 uppercase block">
-                  Blangko Resep Obat (Farmakoterapi):
+                  3. Penulisan Resep Obat (Farmakoterapi / Rx):
                 </label>
                 <div className="rounded-xl border border-slate-200 bg-white p-3 text-xs font-mono text-slate-900 leading-relaxed whitespace-pre-line shadow-2xs">
                   {liveAnswer?.prescription_text || "Belum ada penulisan resep obat oleh peserta"}
@@ -1710,25 +1916,38 @@ export default function ExaminerStagePage() {
 
               {/* Opened Auxiliary Tests List */}
               <div className="space-y-1 pt-1">
-                <label className="text-[10px] font-extrabold text-slate-500 uppercase block">
-                  Berkas Penunjang yang Diberikan ke Peserta:
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-extrabold text-slate-500 uppercase block">
+                    Berkas Penunjang yang Diberikan ke Peserta:
+                  </label>
+                  {safeParseAuxiliaryList(liveAnswer).length > 0 && (
+                    <button
+                      onClick={() => setSelectedAuxModalResults(safeParseAuxiliaryList(liveAnswer))}
+                      className="text-[10px] font-extrabold text-blue-600 hover:text-blue-800 underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <Eye size={12} /> Buka Semua ({safeParseAuxiliaryList(liveAnswer).length})
+                    </button>
+                  )}
+                </div>
+
                 <div className="flex flex-wrap gap-1.5">
-                  {liveAnswer?.requested_auxiliary_json && Array.isArray(liveAnswer.requested_auxiliary_json) && liveAnswer.requested_auxiliary_json.length > 0 ? (
-                    liveAnswer.requested_auxiliary_json.map((aux, aIdx) => (
+                  {safeParseAuxiliaryList(liveAnswer).length > 0 ? (
+                    safeParseAuxiliaryList(liveAnswer).map((aux, aIdx) => (
                       <button
                         key={aIdx}
-                        onClick={() => setSelectedAuxModalResults(liveAnswer.requested_auxiliary_json)}
+                        onClick={() => setSelectedAuxModalResults([aux])}
                         className="rounded-md bg-emerald-100 border border-emerald-300 px-2.5 py-1 text-[10px] font-extrabold text-emerald-900 inline-flex items-center gap-1 hover:bg-emerald-200 transition cursor-pointer active:scale-95 shadow-2xs"
-                        title="Klik untuk membuka pratinjau berkas penunjang (Iframe / Drive / Gambar)"
+                        title="Klik untuk membuka pratinjau berkas penunjang"
                       >
                         <CheckCircle2 size={12} className="text-emerald-700" />
-                        {aux.title || aux.name || "Berkas Penunjang"}
+                        {aux.name}
                         <Eye size={11} className="text-emerald-700 ml-0.5" />
                       </button>
                     ))
                   ) : (
-                    <span className="text-[11px] font-semibold text-slate-400">Belum ada berkas penunjang yang dibuka oleh peserta</span>
+                    <span className="text-[11px] font-semibold text-slate-400">
+                      Belum ada berkas penunjang yang diminta oleh peserta pada stase ini.
+                    </span>
                   )}
                 </div>
               </div>
@@ -1941,6 +2160,8 @@ export default function ExaminerStagePage() {
         onClose={() => setSelectedAuxModalResults(null)}
         results={selectedAuxModalResults || []}
       />
+
+
 
       <ConfirmModal
         isOpen={confirmModal.isOpen}

@@ -316,7 +316,7 @@ export default function InteractiveSimulatorsSection() {
                         disabled={isTyping}
                         className="text-[11px] font-semibold text-[#1E3A8A] bg-blue-50 border border-blue-200 hover:border-blue-400 hover:bg-blue-100 rounded-xl px-3 py-1.5 transition text-left cursor-pointer disabled:opacity-50"
                       >
-                        💬 "{p}"
+                        "{p}"
                       </button>
                     ))}
                   </div>
@@ -482,7 +482,7 @@ export default function InteractiveSimulatorsSection() {
                   >
                     <span className="text-xs font-bold">EKG 12-Lead (Kardiovaskular)</span>
                     <span className={`text-[11px] font-extrabold px-2 py-0.5 rounded-md ${selectedPenunjang.ekg ? "bg-[#1E3A8A] text-white" : "bg-slate-200"}`}>
-                      {selectedPenunjang.ekg ? "Hasil Rilis ✓" : "Tidak Dicentang"}
+                      {selectedPenunjang.ekg ? "Hasil Rilis" : "Tidak Dicentang"}
                     </span>
                   </label>
 
@@ -492,7 +492,7 @@ export default function InteractiveSimulatorsSection() {
                       animate={{ opacity: 1, height: "auto" }}
                       className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-xs font-mono text-[#1E3A8A]"
                     >
-                      ✓ Elevasi segmen ST di sadapan V1-V4 (STEMI Anteroseptal).
+                      Elevasi segmen ST di sadapan V1-V4 (STEMI Anteroseptal).
                     </motion.div>
                   )}
 
@@ -506,7 +506,7 @@ export default function InteractiveSimulatorsSection() {
                   >
                     <span className="text-xs font-bold">Enzim Jantung (Troponin I / CK-MB)</span>
                     <span className={`text-[11px] font-extrabold px-2 py-0.5 rounded-md ${selectedPenunjang.lab ? "bg-[#1E3A8A] text-white" : "bg-slate-200"}`}>
-                      {selectedPenunjang.lab ? "Hasil Rilis ✓" : "Tidak Dicentang"}
+                      {selectedPenunjang.lab ? "Hasil Rilis" : "Tidak Dicentang"}
                     </span>
                   </label>
 
@@ -516,7 +516,7 @@ export default function InteractiveSimulatorsSection() {
                       animate={{ opacity: 1, height: "auto" }}
                       className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-xs font-mono text-[#1E3A8A]"
                     >
-                      ✓ Troponin I: 4.8 ng/mL (Meningkat Signifikan).
+                      Troponin I: 4.8 ng/mL (Meningkat Signifikan).
                     </motion.div>
                   )}
                 </div>

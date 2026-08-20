@@ -53,7 +53,7 @@ export default function HeroSection() {
               className="inline-flex items-center gap-2 rounded-full border border-[#C9A227]/40 bg-amber-50/90 px-3.5 py-1.5 shadow-xs mb-5"
             >
               <img
-                src="/favicon.svg"
+                src="/logo_biru.avif"
                 alt="Praxis Logo"
                 className="h-4 w-4 object-contain rounded-xs"
               />

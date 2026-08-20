@@ -227,9 +227,7 @@ export default function UserProfilePage({ roleType = "participant" }) {
       const publicUrl = publicUrlData?.publicUrl || "";
 
       setFormData((prev) => ({ ...prev, avatar_url: publicUrl }));
-      setSuccessMessage(
-        `Foto profil berhasil diunggah ke Supabase Storage (${bucketName}) & dikompresi menjadi ${compressedKb} KB (Maks 500KB)!`
-      );
+      setSuccessMessage("Foto profil berhasil diperbarui.");
     } catch (err) {
       console.error("Error compressing/uploading image:", err);
       setErrorMessage(err.message || "Gagal memproses/mengunggah foto profil.");
@@ -410,24 +408,14 @@ export default function UserProfilePage({ roleType = "participant" }) {
 
       {/* Main Profile Edit Form Card */}
       <form onSubmit={handleSave} className="rounded-3xl border border-slate-200 bg-white p-7 shadow-xs space-y-6">
-        <div className="border-b border-slate-100 pb-4 flex items-center justify-between">
-          <div>
-            <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
-              <User size={18} className="text-blue-600" />
-              Pengaturan Profil & Data Diri
-            </h3>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">
-              Perbarui nama lengkap, foto avatar, serta kredensial institusi Anda.
-            </p>
-          </div>
-          <button
-            type="submit"
-            disabled={saving || uploadingImage}
-            className="hidden sm:inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-5 py-2.5 text-xs font-extrabold text-white shadow-md shadow-blue-600/20 transition active:scale-95 disabled:opacity-50 cursor-pointer"
-          >
-            {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            Simpan Perubahan
-          </button>
+        <div className="border-b border-slate-100 pb-4">
+          <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+            <User size={18} className="text-blue-600" />
+            Pengaturan Profil
+          </h3>
+          <p className="text-xs text-slate-500 font-medium mt-0.5">
+            Perbarui informasi profil Anda.
+          </p>
         </div>
 
         <div className="grid gap-6 sm:grid-cols-2">
@@ -435,7 +423,7 @@ export default function UserProfilePage({ roleType = "participant" }) {
           <div className="space-y-1.5">
             <label className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
               <User size={14} className="text-slate-400" />
-              Nama Lengkap & Gelar *
+              Nama Lengkap *
             </label>
             <input
               type="text"
@@ -443,16 +431,16 @@ export default function UserProfilePage({ roleType = "participant" }) {
               value={formData.full_name}
               onChange={handleChange}
               required
-              placeholder="Contoh: dr. Kairav Mahardika, Sp.PD"
+              placeholder="Nama Lengkap"
               className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-xs font-semibold text-slate-900 focus:border-blue-500 focus:bg-white focus:outline-none transition"
             />
           </div>
 
-          {/* Email (Read Only) */}
+          {/* Email */}
           <div className="space-y-1.5">
             <label className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
               <Mail size={14} className="text-slate-400" />
-              Alamat Email (Akun Auth)
+              Email
             </label>
             <input
               type="email"
@@ -463,67 +451,52 @@ export default function UserProfilePage({ roleType = "participant" }) {
             />
           </div>
 
-          {/* NIM / NIP */}
-          {roleType === "participant" ? (
-            <div className="space-y-1.5">
-              <label className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
-                <GraduationCap size={14} className="text-slate-400" />
-                Nomor Induk Mahasiswa (NIM) *
-              </label>
-              <input
-                type="text"
-                name="nim"
-                value={formData.nim}
-                onChange={handleChange}
-                placeholder="20200710042"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-xs font-semibold text-slate-900 focus:border-blue-500 focus:bg-white focus:outline-none transition"
-              />
-            </div>
-          ) : (
+          {/* NIP */}
+          {roleType === "participant" ? null : (
             <div className="space-y-1.5">
               <label className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
                 <Shield size={14} className="text-slate-400" />
-                Nomor Induk Pegawai / NIP / STR *
+                NIP *
               </label>
               <input
                 type="text"
                 name="nip"
                 value={formData.nip}
                 onChange={handleChange}
-                placeholder="198504122010121001"
+                placeholder="NIP"
                 className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-xs font-semibold text-slate-900 focus:border-blue-500 focus:bg-white focus:outline-none transition"
               />
             </div>
           )}
 
-          {/* Spesialisasi / Program Studi */}
+          {/* Program Studi */}
           <div className="space-y-1.5">
             <label className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
               <Stethoscope size={14} className="text-slate-400" />
-              Spesialisasi / Program Studi
+              Program Studi
             </label>
             <input
               type="text"
               name="specialty"
               value={formData.specialty}
               onChange={handleChange}
-              placeholder="Program Studi Profesi Dokter (PSPD)"
+              placeholder="Program Studi Profesi Dokter"
               className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-xs font-semibold text-slate-900 focus:border-blue-500 focus:bg-white focus:outline-none transition"
             />
           </div>
 
-          {/* Institusi / Universitas */}
+          {/* Institusi */}
           <div className="space-y-1.5">
             <label className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
               <Building2 size={14} className="text-slate-400" />
-              Institusi / Universitas
+              Institusi
             </label>
             <input
               type="text"
               name="institution"
               value={formData.institution}
               onChange={handleChange}
-              placeholder="Fakultas Kedokteran - MedSkill LMS"
+              placeholder="Fakultas Kedokteran"
               className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-xs font-semibold text-slate-900 focus:border-blue-500 focus:bg-white focus:outline-none transition"
             />
           </div>
@@ -532,33 +505,31 @@ export default function UserProfilePage({ roleType = "participant" }) {
           <div className="space-y-1.5">
             <label className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
               <Phone size={14} className="text-slate-400" />
-              Nomor Telepon / WhatsApp
+              Nomor Telepon
             </label>
             <input
               type="text"
               name="phone"
               value={formData.phone}
               onChange={handleChange}
-              placeholder="0812-3456-7890"
+              placeholder="081234567890"
               className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-xs font-semibold text-slate-900 focus:border-blue-500 focus:bg-white focus:outline-none transition"
             />
           </div>
         </div>
 
-
-
-        {/* Bio / Catatan Informasi */}
+        {/* Bio */}
         <div className="space-y-1.5">
           <label className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
             <FileText size={14} className="text-slate-400" />
-            Bio / Catatan Informasi Pengguna
+            Bio
           </label>
           <textarea
             name="bio"
             rows={3}
             value={formData.bio}
             onChange={handleChange}
-            placeholder="Tuliskan ringkasan latar belakang akademis atau catatan tugas..."
+            placeholder="Tuliskan bio singkat..."
             className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3.5 text-xs font-semibold text-slate-900 focus:border-blue-500 focus:bg-white focus:outline-none transition"
           />
         </div>
@@ -571,7 +542,7 @@ export default function UserProfilePage({ roleType = "participant" }) {
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-7 py-3 text-xs font-extrabold text-white shadow-md shadow-blue-600/30 transition active:scale-95 disabled:opacity-50 cursor-pointer"
           >
             {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            Simpan Perubahan Profil
+            Simpan Perubahan
           </button>
         </div>
       </form>

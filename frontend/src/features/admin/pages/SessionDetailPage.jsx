@@ -21,11 +21,13 @@ import {
   ChevronUp,
   Activity,
   Award,
+  Layers,
 } from "lucide-react";
 
 import AdminLayout from "@/layouts/AdminLayout";
 import { fetchSessionById } from "@/services/sessionService";
 import SessionParticipantsInlineSection from "@/features/admin/components/SessionParticipantsInlineSection";
+import SessionRotationScheduleView from "@/features/admin/components/SessionRotationScheduleView";
 
 export default function SessionDetailPage() {
   const navigate = useNavigate();
@@ -102,10 +104,18 @@ export default function SessionDetailPage() {
             <p className="mt-1 text-sm text-slate-500">{session.description}</p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => navigate(`/admin/sessions/${session.id}/schedule`)}
+              className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-xs font-bold text-blue-700 shadow-2xs transition hover:bg-blue-100 active:scale-95 cursor-pointer"
+            >
+              <Layers size={15} />
+              Jadwal Mapping Rotasi
+            </button>
+
             <button
               onClick={() => navigate(`/admin/sessions/${session.id}/edit`)}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-50 active:scale-95"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-50 active:scale-95 cursor-pointer"
             >
               <Pencil size={15} />
               Edit Sesi Ini
@@ -114,23 +124,23 @@ export default function SessionDetailPage() {
             {getNormalizedStatus(session.status) === "running" ? (
               <button
                 onClick={() => navigate("/admin/live")}
-                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-md transition hover:bg-emerald-700 active:scale-95"
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-md transition hover:bg-emerald-700 active:scale-95 cursor-pointer"
               >
                 <Activity size={15} />
-                Buka Monitor Live
+                Buka Monitor Langsung
               </button>
             ) : getNormalizedStatus(session.status) === "published" ? (
               <button
                 onClick={() => navigate(`/admin/sessions/${session.id}/edit`)}
-                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-md transition hover:bg-blue-700 active:scale-95"
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-md transition hover:bg-blue-700 active:scale-95 cursor-pointer"
               >
                 <CheckCircle2 size={15} />
-                Sesi Dipublikasikan
+                Dipublikasikan
               </button>
             ) : (
               <button
                 onClick={() => navigate(`/admin/sessions/${session.id}/edit`)}
-                className="inline-flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2 text-xs font-bold text-white shadow-md transition hover:bg-amber-700 active:scale-95"
+                className="inline-flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2 text-xs font-bold text-white shadow-md transition hover:bg-amber-700 active:scale-95 cursor-pointer"
               >
                 <Pencil size={15} />
                 Selesaikan Draft
@@ -176,17 +186,21 @@ export default function SessionDetailPage() {
         />
       </div>
 
+      {/* Embedded Rotation Schedule Section */}
+      <div className="mb-6">
+        <SessionRotationScheduleView sessionId={session.id} />
+      </div>
+
       {/* OSCE Rules Summary Badge */}
       <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
-        <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-          <Sliders size={16} className="text-blue-600" />
-          Aturan Pelaksanaan & Otomatisasi Sesi Ini
+        <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3">
+          Aturan Pelaksanaan Sesi
         </h2>
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 text-xs">
           <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-            <span className="font-bold text-slate-900 block">Single Live Session</span>
-            <span className="text-slate-500 text-[11px]">Eksklusif 1 sesi live</span>
+            <span className="font-bold text-slate-900 block">Sesi Live Eksklusif</span>
+            <span className="text-slate-500 text-[11px]">1 sesi live dalam satu waktu</span>
           </div>
 
           <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
@@ -196,7 +210,7 @@ export default function SessionDetailPage() {
 
           <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
             <span className="font-bold text-slate-900 block">Penguncian Nilai</span>
-            <span className="text-slate-500 text-[11px]">Auto lock saat waktu habis</span>
+            <span className="text-slate-500 text-[11px]">Kunci otomatis saat waktu habis</span>
           </div>
 
           <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
@@ -210,17 +224,16 @@ export default function SessionDetailPage() {
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
           <div>
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <Building2 size={18} className="text-blue-600" />
-              Arsitektur Sirkuit {totalStationCount} Stase & Urutan Rotasi (Kanban Order)
+            <h2 className="text-base font-bold text-slate-900">
+              Urutan Stase Sirkuit ({totalStationCount} Stase)
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Urutan {activeExamCount} Stase Ujian Aktif yang disusun secara terstruktur untuk rotasi sirkuit peserta.
+              Daftar stase ujian aktif dan stase istirahat dalam rotasi sirkuit.
             </p>
           </div>
 
           <span className="rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-bold text-blue-700">
-            Sirkuit {activeExamCount} Stase Ujian Aktif
+            {activeExamCount} Stase Ujian Aktif
           </span>
         </div>
 
@@ -278,11 +291,11 @@ export default function SessionDetailPage() {
                         <h3 className="font-bold text-xs text-slate-900">{stage.title}</h3>
                         {isBreakStation ? (
                           <span className="rounded-md bg-amber-200/90 border border-amber-300 px-2 py-0.5 text-[10px] font-extrabold text-amber-900">
-                            STASE BREAK / ISTIRAHAT
+                            ISTIRAHAT
                           </span>
                         ) : (
                           <span className="rounded-md bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-[10px] font-extrabold text-emerald-800">
-                            STASE UJIAN AKTIF
+                            STASE UJIAN
                           </span>
                         )}
                       </div>
@@ -425,7 +438,7 @@ export default function SessionDetailPage() {
                                     rel="noreferrer"
                                     className="inline-flex items-center gap-1 text-[10px] font-extrabold text-blue-700 hover:underline mt-0.5"
                                   >
-                                    🔗 Lihat Lampiran Gambar / Drive
+                                    Lihat Lampiran Gambar / Drive
                                   </a>
                                 )}
                               </div>

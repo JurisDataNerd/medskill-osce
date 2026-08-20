@@ -121,7 +121,7 @@ export default function StageQuestionPage() {
   const [caseTitle, setCaseTitle] = useState("");
   const [systemOrgan, setSystemOrgan] = useState("Kardiovaskular");
   const [competencyLevel, setCompetencyLevel] = useState("4A (Tuntas Mandiri)");
-  const [assignedExaminer, setAssignedExaminer] = useState("dr. Alexander Budiman, Sp.JP");
+  const [assignedExaminer, setAssignedExaminer] = useState("");
   const [scenario, setScenario] = useState("");
   const [participantInstruction, setParticipantInstruction] = useState("");
   const [examinerInstruction, setExaminerInstruction] = useState("");
@@ -460,23 +460,22 @@ export default function StageQuestionPage() {
                   Durasi Stase (Menit)
                 </label>
                 <input
-                  type="number"
-                  min={5}
-                  max={30}
+                  type="text"
+                  inputMode="numeric"
                   value={durationMinutes}
-                  onChange={(e) => setDurationMinutes(e.target.value)}
+                  onChange={(e) => setDurationMinutes(e.target.value.replace(/\D/g, ""))}
                   className="w-full rounded-xl border border-slate-200 p-3 text-xs text-slate-800 font-bold focus:border-blue-500 focus:outline-none"
                 />
               </div>
             </div>
           </div>
 
-          {/* Penugasan Dokter Penguji Stase (Examiner Assignment) */}
+          {/* Penugasan Dokter Penguji */}
           <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-4 space-y-3 shadow-2xs">
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-blue-950 flex items-center gap-2">
                 <UserCheck size={16} className="text-blue-600" />
-                Penugasan Dokter Penguji Stase (Examiner Assignment)
+                Penugasan Dokter Penguji
               </label>
               <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-extrabold border inline-flex items-center gap-1 ${
                 assignedExaminer

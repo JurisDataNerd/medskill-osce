@@ -136,10 +136,11 @@ export default function SessionModal({
             </label>
 
             <input
-              type="number"
+              type="text"
+              inputMode="numeric"
               className="w-full rounded-lg border p-3"
               value={maxParticipants}
-              onChange={(e) => setMaxParticipants(e.target.value)}
+              onChange={(e) => setMaxParticipants(e.target.value.replace(/\D/g, ""))}
             />
           </div>
 
@@ -149,10 +150,11 @@ export default function SessionModal({
             </label>
 
             <input
-              type="number"
+              type="text"
+              inputMode="numeric"
               className="w-full rounded-lg border p-3"
               value={duration}
-              onChange={(e) => setDuration(e.target.value)}
+              onChange={(e) => setDuration(e.target.value.replace(/\D/g, ""))}
             />
           </div>
 
@@ -162,10 +164,11 @@ export default function SessionModal({
             </label>
 
             <input
-              type="number"
+              type="text"
+              inputMode="numeric"
               className="w-full rounded-lg border p-3"
               value={breakAfter}
-              onChange={(e) => setBreakAfter(e.target.value)}
+              onChange={(e) => setBreakAfter(e.target.value.replace(/\D/g, ""))}
             />
           </div>
 
@@ -175,10 +178,11 @@ export default function SessionModal({
             </label>
 
             <input
-              type="number"
+              type="text"
+              inputMode="numeric"
               className="w-full rounded-lg border p-3"
               value={breakDuration}
-              onChange={(e) => setBreakDuration(e.target.value)}
+              onChange={(e) => setBreakDuration(e.target.value.replace(/\D/g, ""))}
             />
           </div>
 
