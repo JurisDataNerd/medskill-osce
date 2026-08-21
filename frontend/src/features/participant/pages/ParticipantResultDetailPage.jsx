@@ -9,8 +9,10 @@ import {
   Printer,
   Loader2,
   Building2,
+  Download,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import ParticipantReportPdfModal from "@/features/admin/components/report/ParticipantReportPdfModal";
 
 export default function ParticipantResultDetailPage() {
   const navigate = useNavigate();
@@ -19,6 +21,11 @@ export default function ParticipantResultDetailPage() {
   const [loading, setLoading] = useState(true);
   const [resultItem, setResultItem] = useState(null);
   const [expandedStation, setExpandedStation] = useState(1);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [rawSession, setRawSession] = useState(null);
+  const [rawStations, setRawStations] = useState([]);
+  const [rawEvaluations, setRawEvaluations] = useState([]);
+  const [rawParticipant, setRawParticipant] = useState(null);
 
   useEffect(() => {
     async function loadResultDetail() {
@@ -121,6 +128,18 @@ export default function ParticipantResultDetailPage() {
         const nblCutoff = Number(sess?.nbl_cutoff) || 70;
         const isPassed = evaluatedList.length > 0 && avgScore >= nblCutoff;
 
+        setRawSession(sess);
+        setRawStations(baseStations);
+        setRawEvaluations(userEvals);
+        setRawParticipant({
+          id: p?.id || resultId,
+          nim: p?.nim || user?.user_metadata?.nim || "-",
+          name: p?.full_name || user?.user_metadata?.full_name || user?.email || "Peserta Ujian",
+          final_score: avgScore,
+          status: isPassed ? "Lulus" : "Tidak Lulus",
+          rank: 1,
+        });
+
         setResultItem({
           id: resultId,
           title: sess?.title || "Ujian OSCE MedSkill",
@@ -185,10 +204,10 @@ export default function ParticipantResultDetailPage() {
           </button>
 
           <button
-            onClick={() => window.print()}
+            onClick={() => setIsReportModalOpen(true)}
             className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-blue-600/30 hover:bg-blue-700 active:scale-95 transition cursor-pointer"
           >
-            <Printer size={15} />
+            <Download size={15} />
             Cetak Transkrip PDF
           </button>
         </div>
@@ -290,6 +309,16 @@ export default function ParticipantResultDetailPage() {
           </div>
         </div>
       </main>
+
+      <ParticipantReportPdfModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        participant={rawParticipant}
+        session={rawSession}
+        stations={rawStations}
+        evaluations={rawEvaluations}
+        nblCutoff={rawSession?.nbl_cutoff || 70}
+      />
     </div>
   );
 }

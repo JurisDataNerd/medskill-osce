@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FileText,
@@ -21,17 +21,22 @@ import {
 } from "lucide-react";
 import AdminLayout from "@/layouts/AdminLayout";
 import ConfirmModal from "@/components/ConfirmModal";
+import ParticipantReportPdfModal from "@/features/admin/components/report/ParticipantReportPdfModal";
 import { supabase } from "@/lib/supabaseClient";
 import { fetchSessions } from "@/services/sessionService";
+import { exportElementToPdf } from "@/services/pdfExportService";
 
 export default function ReportsPage() {
   const navigate = useNavigate();
+  const reportContainerRef = useRef(null);
 
   const [loading, setLoading] = useState(true);
+  const [downloadingReportPdf, setDownloadingReportPdf] = useState(false);
   const [sessions, setSessions] = useState([]);
   const [selectedSessionId, setSelectedSessionId] = useState("");
   const [activeTab, setActiveTab] = useState("recap"); // 'recap', 'standard_setting', 'analytics'
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedParticipantForReport, setSelectedParticipantForReport] = useState(null);
 
   const [confirmModal, setConfirmModal] = useState({
     isOpen: false,
@@ -208,8 +213,20 @@ export default function ReportsPage() {
     document.body.removeChild(link);
   }
 
-  function handleExportPdf() {
-    window.print();
+  async function handleExportPdf() {
+    if (!reportContainerRef.current) return;
+    try {
+      setDownloadingReportPdf(true);
+      await exportElementToPdf(reportContainerRef.current, {
+        filename: `Berita_Acara_Rekap_OSCE_${(activeSession?.title || "Sesi").replace(/\s+/g, "_")}.pdf`,
+        format: "a4",
+        orientation: "landscape",
+      });
+    } catch (err) {
+      console.error("Gagal mengunduh Berita Acara PDF:", err);
+    } finally {
+      setDownloadingReportPdf(false);
+    }
   }
 
   if (loading && sessions.length === 0) {
@@ -246,10 +263,20 @@ export default function ReportsPage() {
           </button>
           <button
             onClick={handleExportPdf}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-blue-700 transition active:scale-95 cursor-pointer"
+            disabled={downloadingReportPdf}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-blue-700 active:scale-95 transition cursor-pointer disabled:opacity-50"
           >
-            <Download size={16} />
-            Cetak Berita Acara
+            {downloadingReportPdf ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                Membuat PDF...
+              </>
+            ) : (
+              <>
+                <Download size={16} />
+                Cetak Berita Acara (PDF)
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -335,7 +362,7 @@ export default function ReportsPage() {
 
       {/* TAB 1: REKAPITULASI NILAI PESERTA */}
       {activeTab === "recap" && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
+        <div ref={reportContainerRef} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
             <h2 className="text-sm font-black text-slate-900 flex items-center gap-2">
               <Award size={18} className="text-blue-600" />
@@ -403,13 +430,23 @@ export default function ReportsPage() {
                         </span>
                       </td>
                       <td className="py-3 px-3 text-right">
-                        <button
-                          onClick={() => navigate(`/admin/live/participant/${row.id}`)}
-                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition"
-                        >
-                          Transkrip
-                          <ChevronRight size={14} />
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => setSelectedParticipantForReport(row)}
+                            className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-800 hover:bg-blue-100 hover:border-blue-300 transition cursor-pointer shadow-2xs"
+                            title="Pratinjau & Unduh Transkrip Nilai Resmi (PDF)"
+                          >
+                            <Download size={13} className="text-blue-600" />
+                            Cetak PDF
+                          </button>
+                          <button
+                            onClick={() => navigate(`/admin/live/participant/${row.id}`)}
+                            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition"
+                          >
+                            Transkrip
+                            <ChevronRight size={14} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -500,6 +537,16 @@ export default function ReportsPage() {
         confirmText={confirmModal.confirmText}
         variant={confirmModal.variant}
         isAlert={confirmModal.isAlert}
+      />
+
+      <ParticipantReportPdfModal
+        isOpen={Boolean(selectedParticipantForReport)}
+        onClose={() => setSelectedParticipantForReport(null)}
+        participant={selectedParticipantForReport}
+        session={activeSession}
+        stations={stations}
+        evaluations={evaluations}
+        nblCutoff={nblCutoff}
       />
     </AdminLayout>
   );

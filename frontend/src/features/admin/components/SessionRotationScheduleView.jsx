@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import {
   Table,
   LayoutGrid,
@@ -20,13 +20,18 @@ import {
   CheckCircle2,
   Hourglass,
   Pause,
+  Download,
+  Loader2,
 } from "lucide-react";
 import { fetchSessionById } from "@/services/sessionService";
 import { getSessionParticipants, getSessionExaminers } from "@/services/session.service";
 import { supabase } from "@/lib/supabaseClient";
+import { exportElementToPdf } from "@/services/pdfExportService";
 
 export default function SessionRotationScheduleView({ sessionId, activeRound = null, timerState = null }) {
+  const scheduleContainerRef = useRef(null);
   const [loading, setLoading] = useState(true);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [sessionData, setSessionData] = useState(null);
   const [stations, setStations] = useState([]);
   const [examiners, setExaminers] = useState([]);
@@ -321,8 +326,24 @@ export default function SessionRotationScheduleView({ sessionId, activeRound = n
     );
   }
 
+  async function handleDownloadSchedulePdf() {
+    if (!scheduleContainerRef.current) return;
+    try {
+      setDownloadingPdf(true);
+      await exportElementToPdf(scheduleContainerRef.current, {
+        filename: `Matriks_Rotasi_OSCE_${(sessionData?.title || "Jadwal").replace(/\s+/g, "_")}.pdf`,
+        format: "a4",
+        orientation: "landscape",
+      });
+    } catch (err) {
+      console.error("Gagal mengunduh PDF Jadwal:", err);
+    } finally {
+      setDownloadingPdf(false);
+    }
+  }
+
   return (
-    <div className="space-y-6 min-w-0 max-w-full">
+    <div ref={scheduleContainerRef} className="space-y-6 min-w-0 max-w-full">
       {/* Top Header & Quick Metrics Banner */}
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
@@ -398,15 +419,35 @@ export default function SessionRotationScheduleView({ sessionId, activeRound = n
               </button>
             </div>
 
-            {/* Print Button */}
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition active:scale-95 cursor-pointer"
-            >
-              <Printer size={15} className="text-slate-500" />
-              Cetak Jadwal
-            </button>
+            {/* Print & PDF Buttons */}
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition active:scale-95 cursor-pointer"
+              >
+                <Printer size={15} className="text-slate-500" />
+                Cetak
+              </button>
+              <button
+                type="button"
+                onClick={handleDownloadSchedulePdf}
+                disabled={downloadingPdf}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-md hover:bg-blue-700 active:scale-95 transition cursor-pointer disabled:opacity-50"
+              >
+                {downloadingPdf ? (
+                  <>
+                    <Loader2 size={15} className="animate-spin" />
+                    Membuat PDF...
+                  </>
+                ) : (
+                  <>
+                    <Download size={15} />
+                    Unduh PDF
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
 

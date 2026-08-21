@@ -17,7 +17,9 @@ import {
   BookOpen,
   Loader2,
   Sparkles,
+  Download,
 } from "lucide-react";
+import ParticipantReportPdfModal from "@/features/admin/components/report/ParticipantReportPdfModal";
 
 export default function ParticipantDetailPage() {
   const { id } = useParams();
@@ -27,6 +29,7 @@ export default function ParticipantDetailPage() {
   const [activeTab, setActiveTab] = useState("history"); // 'history' | 'breakdown' | 'transcript'
   const [selectedSessionId, setSelectedSessionId] = useState(null);
   const [expandedSessionId, setExpandedSessionId] = useState(null);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   useEffect(() => {
     load();
@@ -100,11 +103,11 @@ export default function ParticipantDetailPage() {
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => window.print()}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-md shadow-blue-600/20 hover:bg-blue-700 transition cursor-pointer"
+              onClick={() => setIsReportModalOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-md shadow-blue-600/20 hover:bg-blue-700 active:scale-95 transition cursor-pointer"
             >
-              <Printer size={15} />
-              Cetak Transkrip Resmi
+              <Download size={15} />
+              Cetak Transkrip Resmi (PDF)
             </button>
           </div>
         </div>
@@ -588,6 +591,27 @@ export default function ParticipantDetailPage() {
         )}
 
       </div>
+
+      {participant && (
+        <ParticipantReportPdfModal
+          isOpen={isReportModalOpen}
+          onClose={() => setIsReportModalOpen(false)}
+          participant={{
+            id: participant.id,
+            name: participant.full_name,
+            nim: participant.nim,
+            institution: participant.institution || participant.university || "Universitas Medika Indonesia",
+            study_program: participant.study_program || participant.major || "Pendidikan Profesi Dokter (PPD)",
+            final_score: Number(participant.overall_avg_score || 0),
+            status: Number(participant.overall_avg_score || 0) >= 70 ? "Lulus" : "Tidak Lulus",
+            rank: 1,
+          }}
+          session={participant.sessions?.[0] || { title: "Ujian OSCE Komprehensif Kedokteran" }}
+          stations={participant.sessions?.[0]?.stations || []}
+          evaluations={participant.sessions?.[0]?.evaluations || []}
+          nblCutoff={70}
+        />
+      )}
     </AdminLayout>
   );
 }

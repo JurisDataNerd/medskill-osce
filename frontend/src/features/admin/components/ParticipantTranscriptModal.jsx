@@ -17,12 +17,15 @@ import {
   ShieldCheck,
   Stethoscope,
   ChevronDown,
+  Download,
 } from "lucide-react";
+import ParticipantReportPdfModal from "@/features/admin/components/report/ParticipantReportPdfModal";
 
 export default function ParticipantTranscriptModal({ isOpen, onClose, participant }) {
   const [activeTab, setActiveTab] = useState("history"); // 'history' | 'breakdown' | 'official_transcript'
   const [selectedSessionId, setSelectedSessionId] = useState(null);
   const [expandedSessionId, setExpandedSessionId] = useState(null);
+  const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
 
   if (!isOpen || !participant) return null;
 
@@ -60,12 +63,12 @@ export default function ParticipantTranscriptModal({ isOpen, onClose, participan
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => window.print()}
+              onClick={() => setIsPdfModalOpen(true)}
               className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-200 hover:bg-slate-700 hover:text-white transition cursor-pointer"
-              title="Cetak Transkrip Nilai"
+              title="Pratinjau & Unduh Transkrip Nilai Resmi (PDF)"
             >
-              <Printer size={15} />
-              Cetak Transkrip
+              <Download size={15} />
+              Cetak Transkrip (PDF)
             </button>
             <button
               onClick={onClose}
@@ -522,6 +525,27 @@ export default function ParticipantTranscriptModal({ isOpen, onClose, participan
           </button>
         </div>
       </div>
+
+      {participant && (
+        <ParticipantReportPdfModal
+          isOpen={isPdfModalOpen}
+          onClose={() => setIsPdfModalOpen(false)}
+          participant={{
+            id: participant.id,
+            name: participant.full_name,
+            nim: participant.nim,
+            institution: participant.institution || participant.university || "Universitas Medika Indonesia",
+            study_program: participant.study_program || participant.major || "Pendidikan Profesi Dokter (PPD)",
+            final_score: Number(avgScore || 0),
+            status: Number(avgScore || 0) >= 70 ? "Lulus" : "Tidak Lulus",
+            rank: 1,
+          }}
+          session={activeSession || { title: "Ujian OSCE Komprehensif Kedokteran" }}
+          stations={activeSession?.stations || []}
+          evaluations={activeSession?.evaluations || []}
+          nblCutoff={activeSession?.nbl_cutoff || 70}
+        />
+      )}
     </div>
   );
 }
