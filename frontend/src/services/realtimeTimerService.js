@@ -33,7 +33,7 @@ export function playBroadcastNotificationSound() {
         synthesizeChimeSound();
       });
     }
-  } catch (e) {
+  } catch {
     synthesizeChimeSound();
   }
 }
@@ -109,10 +109,10 @@ export function subscribeToSession(sessionId, {
   onTimerUpdate,
   onBroadcast,
   onRotation,
-} = {}) {
+} = {}, channelSuffix = "") {
   if (!sessionId) return () => {};
 
-  const name = `osce-session:${sessionId}`;
+  const name = channelSuffix ? `osce-session:${sessionId}:${channelSuffix}` : `osce-session:${sessionId}`;
   cleanupChannel(name);
 
   const channel = supabase.channel(name);
@@ -160,7 +160,7 @@ export function subscribeToSession(sessionId, {
   });
 
   // Direct WebSocket Session Finished Event (Instant 0ms latency)
-  channel.on("broadcast", { event: "session_finished" }, (payload) => {
+  channel.on("broadcast", { event: "session_finished" }, () => {
     if (onSessionUpdate) onSessionUpdate({ status: "completed" });
     if (onTimerUpdate) onTimerUpdate({ phase: "finished" });
   });
@@ -282,28 +282,52 @@ export const trackSessionPresence = joinPresence;
  * Session status changes to 'waiting_room'. No timer starts yet.
  */
 export async function openWaitingRoom(sessionId) {
-  const { data, error } = await supabase
-    .schema("osce")
-    .from("sessions")
-    .update({
-      status: "waiting_room",
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", sessionId)
-    .select()
-    .single();
+  const [sessionRes] = await Promise.all([
+    supabase
+      .schema("osce")
+      .from("sessions")
+      .update({
+        status: "waiting_room",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", sessionId)
+      .select()
+      .single(),
 
-  if (error) throw error;
-  return data;
+    supabase
+      .schema("osce")
+      .from("session_timer_state")
+      .upsert(
+        [{
+          session_id: sessionId,
+          phase: "standby",
+          target_end_time: null,
+          paused_remaining_ms: null,
+          round_number: 1,
+          wave_number: 1,
+          updated_at: new Date().toISOString(),
+        }],
+        { onConflict: "session_id" }
+      ),
+  ]);
+
+  if (sessionRes.error) throw sessionRes.error;
+  return sessionRes.data;
 }
 
 /**
  * Phase 2: Admin starts the OSCE exam. Timer begins.
  * Session status → 'ongoing', timer state upserted with target_end_time.
  */
-export async function startOsceSession(sessionId, durationMinutes = 12, transitionMinutes = 2) {
-  const initMinutes = transitionMinutes || 2;
-  const targetEndTime = new Date(Date.now() + initMinutes * 60 * 1000).toISOString();
+export async function startOsceSession(sessionId, _durationMinutes = 12, transitionMinutes = 2) {
+  const parsedTrans = Number(transitionMinutes);
+  const transMin = !isNaN(parsedTrans) ? parsedTrans : 2;
+  const parsedStation = Number(_durationMinutes);
+  const stationMin = !isNaN(parsedStation) && parsedStation > 0 ? parsedStation : 12;
+  const hasTransition = transMin > 0;
+  const initPhase = hasTransition ? "initial_transition" : "action";
+  const initDuration = hasTransition ? transMin : stationMin;
+  const targetEndTime = new Date(Date.now() + initDuration * 60 * 1000).toISOString();
 
   const [sessionRes, timerRes] = await Promise.all([
     supabase
@@ -324,7 +348,7 @@ export async function startOsceSession(sessionId, durationMinutes = 12, transiti
       .upsert(
         [{
           session_id: sessionId,
-          phase: "transition",
+          phase: initPhase,
           target_end_time: targetEndTime,
           paused_remaining_ms: null,
           round_number: 1,
@@ -343,10 +367,13 @@ export async function startOsceSession(sessionId, durationMinutes = 12, transiti
 }
 
 /**
- * Update timer phase (e.g. action → break → action for next round).
+ * Update timer phase (e.g. action → break → action for next round, or completed_waiting).
  */
 export async function updateTimerPhase(sessionId, phase, durationMinutes = 12, extra = {}) {
-  const targetEndTime = new Date(Date.now() + durationMinutes * 60 * 1000).toISOString();
+  const isCompletedWaiting = phase === "completed_waiting";
+  const targetEndTime = isCompletedWaiting
+    ? null
+    : new Date(Date.now() + durationMinutes * 60 * 1000).toISOString();
 
   const { data, error } = await supabase
     .schema("osce")
@@ -356,7 +383,7 @@ export async function updateTimerPhase(sessionId, phase, durationMinutes = 12, e
         session_id: sessionId,
         phase,
         target_end_time: targetEndTime,
-        paused_remaining_ms: null,
+        paused_remaining_ms: isCompletedWaiting ? 0 : null,
         round_number: extra.roundNumber || 1,
         wave_number: extra.waveNumber || 1,
         updated_at: new Date().toISOString(),
@@ -374,9 +401,23 @@ export async function updateTimerPhase(sessionId, phase, durationMinutes = 12, e
 export const updateSessionTimerPhase = updateTimerPhase;
 
 /**
+ * Set session timer state to completed_waiting when final round timer expires.
+ */
+export async function setSessionCompletedWaiting(sessionId, totalRounds = 6) {
+  return updateTimerPhase(sessionId, "completed_waiting", 0, { roundNumber: totalRounds });
+}
+
+
+/**
  * Pause the global timer.
  */
-export async function pauseTimer(sessionId, remainingSeconds) {
+export async function pauseTimer(sessionId, remainingSeconds, extra = {}) {
+  let targetPhase = "paused";
+  if (extra?.activePhase && extra.activePhase !== "paused") {
+    const base = extra.activePhase.replace(/^paused_?/, "");
+    targetPhase = `paused_${base}`;
+  }
+
   const [timerRes] = await Promise.all([
     supabase
       .schema("osce")
@@ -384,9 +425,11 @@ export async function pauseTimer(sessionId, remainingSeconds) {
       .upsert(
         [{
           session_id: sessionId,
-          phase: "paused",
+          phase: targetPhase,
           target_end_time: null,
           paused_remaining_ms: Math.max(0, remainingSeconds * 1000),
+          round_number: extra?.roundNumber || 1,
+          wave_number: extra?.waveNumber || 1,
           updated_at: new Date().toISOString(),
         }],
         { onConflict: "session_id" }
@@ -411,8 +454,13 @@ export const pauseSessionTimer = pauseTimer;
 /**
  * Resume the global timer.
  */
-export async function resumeTimer(sessionId, remainingSeconds) {
+export async function resumeTimer(sessionId, remainingSeconds, extra = {}) {
   const targetEndTime = new Date(Date.now() + Math.max(1000, remainingSeconds * 1000)).toISOString();
+  let resumedPhase = extra?.resumedPhase;
+  if (!resumedPhase && extra?.activePhase) {
+    resumedPhase = extra.activePhase.replace(/^paused_?/, "") || "action";
+  }
+  if (!resumedPhase) resumedPhase = "action";
 
   const [timerRes] = await Promise.all([
     supabase
@@ -421,9 +469,11 @@ export async function resumeTimer(sessionId, remainingSeconds) {
       .upsert(
         [{
           session_id: sessionId,
-          phase: "action",
+          phase: resumedPhase,
           target_end_time: targetEndTime,
           paused_remaining_ms: null,
+          round_number: extra?.roundNumber || 1,
+          wave_number: extra?.waveNumber || 1,
           updated_at: new Date().toISOString(),
         }],
         { onConflict: "session_id" }
@@ -464,36 +514,48 @@ export async function sendBroadcast(sessionId, message, priority = "info", targe
 
   // 1. Send via Supabase Realtime WebSocket Channel (Instant 0ms latency)
   try {
-    const channelName = `osce-session:${sessionId}`;
-    let channel = supabase.getChannels().find((c) => c.topic === channelName || c.topic === `realtime:${channelName}`);
-    if (!channel) {
-      channel = supabase.channel(channelName);
+    const channels = supabase.getChannels().filter(
+      (c) => c.topic === `osce-session:${sessionId}` || 
+             c.topic === `realtime:osce-session:${sessionId}` ||
+             c.topic.startsWith(`osce-session:${sessionId}:`) ||
+             c.topic.startsWith(`realtime:osce-session:${sessionId}:`)
+    );
+    if (channels.length === 0) {
+      const channel = supabase.channel(`osce-session:${sessionId}`);
       await channel.subscribe();
+      await channel.send({ type: "broadcast", event: "announcement", payload });
+    } else {
+      await Promise.all(
+        channels.map((ch) =>
+          ch.send({ type: "broadcast", event: "announcement", payload }).catch(() => {})
+        )
+      );
     }
-    await channel.send({
-      type: "broadcast",
-      event: "announcement",
-      payload,
-    });
   } catch (err) {
     console.warn("Direct WebSocket broadcast notice:", err);
   }
 
   // 2. Persist to DB osce.broadcast_messages table
   try {
-    const { data } = await supabase
+    const insertRow = {
+      session_id: sessionId,
+      message,
+      priority: priority || "info",
+      target_role: targetRole || "all",
+    };
+    if (sentByUuid) {
+      insertRow.sent_by = sentByUuid;
+    }
+    const { data, error } = await supabase
       .schema("osce")
       .from("broadcast_messages")
-      .insert([{
-        session_id: sessionId,
-        message,
-        priority,
-        target_role: targetRole,
-        sent_by: sentByUuid,
-      }])
+      .insert([insertRow])
       .select()
       .maybeSingle();
 
+    if (error) {
+      console.warn("Broadcast DB fallback notice:", error.message);
+    }
     return data || payload;
   } catch (err) {
     console.warn("Broadcast DB fallback notice:", err.message);
@@ -518,18 +580,23 @@ export async function sendBellBroadcast(sessionId, bellType = "warning") {
   await sendBroadcast(sessionId, message, "warning", "all");
 
   try {
-    const channelName = `osce-session:${sessionId}`;
-    let channel = supabase.getChannels().find((c) => c.topic === channelName || c.topic === `realtime:${channelName}`);
-    if (channel) {
-      await channel.send({
-        type: "broadcast",
-        event: "play_bell",
-        payload: { bell_type: bellType, message },
-      });
+    const channels = supabase.getChannels().filter(
+      (c) => c.topic === `osce-session:${sessionId}` || 
+             c.topic === `realtime:osce-session:${sessionId}` ||
+             c.topic.startsWith(`osce-session:${sessionId}:`) ||
+             c.topic.startsWith(`realtime:osce-session:${sessionId}:`)
+    );
+    if (channels.length > 0) {
+      await Promise.all(
+        channels.map((ch) =>
+          ch.send({ type: "broadcast", event: "play_bell", payload: { bell_type: bellType, message } }).catch(() => {})
+        )
+      );
     }
   } catch (err) {
     console.warn("WebSocket bell broadcast notice:", err);
   }
+  return { success: true, bell_type: bellType, message };
 }
 
 /**
@@ -602,5 +669,5 @@ export async function finishSession(sessionId) {
     cleanupChannel(`osce-presence:${sessionId}`);
   }, 1500);
 
-  return sessionData || { id: sessionId, status: "completed" };
+  return sessionData || timerData || { id: sessionId, status: "completed" };
 }

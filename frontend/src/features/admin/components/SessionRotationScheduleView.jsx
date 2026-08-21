@@ -17,12 +17,15 @@ import {
   Layers,
   Award,
   RefreshCw,
+  CheckCircle2,
+  Hourglass,
+  Pause,
 } from "lucide-react";
 import { fetchSessionById } from "@/services/sessionService";
 import { getSessionParticipants, getSessionExaminers } from "@/services/session.service";
 import { supabase } from "@/lib/supabaseClient";
 
-export default function SessionRotationScheduleView({ sessionId, activeRound = null }) {
+export default function SessionRotationScheduleView({ sessionId, activeRound = null, timerState = null }) {
   const [loading, setLoading] = useState(true);
   const [sessionData, setSessionData] = useState(null);
   const [stations, setStations] = useState([]);
@@ -30,7 +33,7 @@ export default function SessionRotationScheduleView({ sessionId, activeRound = n
   const [participants, setParticipants] = useState([]);
 
   // Controls
-  const [viewMode, setViewMode] = useState("table"); // 'table' | 'cards_participant' | 'cards_round'
+  const [viewMode, setViewMode] = useState("timeline"); // 'timeline' | 'table' | 'cards_participant' | 'cards_round'
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("approved"); // 'all' | 'approved' | 'pending'
   const [selectedRoundTab, setSelectedRoundTab] = useState(activeRound ? Number(activeRound) : 1);
@@ -167,6 +170,147 @@ export default function SessionRotationScheduleView({ sessionId, activeRound = n
     return count;
   }, [totalStationsCount, stations, stationExaminerMap]);
 
+  // Generate Chronological Timeline Steps with Transitions, Clock Times, and Done Status
+  const timelineSteps = useMemo(() => {
+    if (!sessionData) return [];
+
+    const stationMins = Number(sessionData.station_duration_minutes || 12);
+    const transitionMins = Number(sessionData.transition_duration_minutes ?? 2);
+    const totalR = Number(roundsCount || 4);
+
+    let baseTime = new Date();
+    if (sessionData.started_at) {
+      baseTime = new Date(sessionData.started_at);
+    } else if (sessionData.start_time) {
+      const parts = String(sessionData.start_time).split(":");
+      baseTime.setHours(parseInt(parts[0] || "8", 10), parseInt(parts[1] || "0", 10), 0, 0);
+    } else {
+      baseTime.setHours(8, 0, 0, 0);
+    }
+
+    const steps = [];
+    let currentTime = new Date(baseTime);
+
+    const rawPhase = timerState?.phase || "standby";
+    const isPaused = rawPhase === "paused" || rawPhase.startsWith("paused") || sessionData.status === "paused";
+    const livePhase = rawPhase.startsWith("paused_") ? rawPhase.replace("paused_", "") : (rawPhase === "paused" ? "action" : rawPhase);
+    const liveRound = Number(timerState?.round_number || activeRound || 1);
+
+    const fmt = (d) => {
+      const hh = d.getHours().toString().padStart(2, "0");
+      const mm = d.getMinutes().toString().padStart(2, "0");
+      return `${hh}:${mm}`;
+    };
+
+    // 1. Initial Transition (Transisi Awal Persiapan Pos Stase 1)
+    if (transitionMins > 0) {
+      const startTimeStr = fmt(currentTime);
+      const endTimeObj = new Date(currentTime.getTime() + transitionMins * 60 * 1000);
+      const endTimeStr = fmt(endTimeObj);
+      currentTime = endTimeObj;
+
+      let status = "upcoming";
+      if (livePhase === "initial_transition") {
+        status = isPaused ? "paused" : "live";
+      } else if (
+        sessionData.status === "completed" ||
+        sessionData.status === "finished" ||
+        ((sessionData.status === "ongoing" || sessionData.status === "paused") && livePhase !== "standby" && livePhase !== "initial_transition")
+      ) {
+        status = "done";
+      }
+
+      steps.push({
+        id: "step-init-trans",
+        type: "transition",
+        isInitial: true,
+        title: "Transisi Awal & Persiapan Pos Stase 1",
+        description: "Peserta memasuki gedung skill lab & persiapan di depan Pos Stase 1",
+        durationMinutes: transitionMins,
+        startTimeStr,
+        endTimeStr,
+        roundNumber: 1,
+        status,
+      });
+    }
+
+    // 2. Loop per Ronde (Exam Action + Inter-station Transition)
+    for (let r = 1; r <= totalR; r++) {
+      // 2a. Exam Action Step
+      const examStart = fmt(currentTime);
+      const examEndObj = new Date(currentTime.getTime() + stationMins * 60 * 1000);
+      const examEnd = fmt(examEndObj);
+      currentTime = examEndObj;
+
+      let examStatus = "upcoming";
+      if (sessionData.status === "completed" || sessionData.status === "finished") {
+        examStatus = "done";
+      } else if (sessionData.status === "ongoing" || sessionData.status === "running" || sessionData.status === "paused") {
+        if (r < liveRound) {
+          examStatus = "done";
+        } else if (r === liveRound) {
+          if (livePhase === "action" || livePhase === "reading" || livePhase === "running") {
+            examStatus = isPaused ? "paused" : "live";
+          } else if (livePhase === "transition" || livePhase === "break" || livePhase === "completed_waiting") {
+            examStatus = "done";
+          }
+        }
+      }
+
+      steps.push({
+        id: `step-round-${r}-exam`,
+        type: "exam",
+        title: `Ronde ${r}: Sesi Ujian Stase`,
+        description: `Peserta mengerjakan kasus medis & evaluasi oleh Dokter Penguji (Ronde ${r}/${totalR})`,
+        durationMinutes: stationMins,
+        startTimeStr: examStart,
+        endTimeStr: examEnd,
+        roundNumber: r,
+        status: examStatus,
+      });
+
+      // 2b. Inter-station Transition Step (Transisi Sela Pos / Transisi Akhir)
+      if (transitionMins > 0) {
+        const transStart = fmt(currentTime);
+        const transEndObj = new Date(currentTime.getTime() + transitionMins * 60 * 1000);
+        const transEnd = fmt(transEndObj);
+        currentTime = transEndObj;
+
+        let transStatus = "upcoming";
+        const isFinalRound = r === totalR;
+
+        if (sessionData.status === "completed" || sessionData.status === "finished") {
+          transStatus = "done";
+        } else if (sessionData.status === "ongoing" || sessionData.status === "running" || sessionData.status === "paused") {
+          if (r < liveRound) {
+            transStatus = "done";
+          } else if (r === liveRound) {
+            if (livePhase === "transition" || livePhase === "break" || livePhase === "completed_waiting") {
+              transStatus = isPaused ? "paused" : "live";
+            }
+          }
+        }
+
+        steps.push({
+          id: `step-round-${r}-trans`,
+          type: "transition",
+          isFinal: isFinalRound,
+          title: isFinalRound ? "Transisi Akhir & Rekapitulasi Nilai" : `Transisi Rotasi Stase (Ronde ${r} → ${r + 1})`,
+          description: isFinalRound
+            ? "Seluruh ronde ujian selesai. Peserta keluar pos & Penguji menyelesaikan penginputan nilai"
+            : `Peserta berjalan berpindah ke pos stase berikutnya untuk Ronde ${r + 1}`,
+          durationMinutes: transitionMins,
+          startTimeStr: transStart,
+          endTimeStr: transEnd,
+          roundNumber: r,
+          status: transStatus,
+        });
+      }
+    }
+
+    return steps;
+  }, [sessionData, roundsCount, timerState, activeRound]);
+
   if (loading) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-xs">
@@ -201,6 +345,19 @@ export default function SessionRotationScheduleView({ sessionId, activeRound = n
           <div className="flex flex-wrap items-center gap-2">
             {/* View Mode Switcher */}
             <div className="inline-flex rounded-xl border border-slate-200 bg-slate-100/80 p-1 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setViewMode("timeline")}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition ${
+                  viewMode === "timeline"
+                    ? "bg-white text-blue-700 shadow-2xs font-bold"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <Clock size={15} />
+                Timeline Kegiatan
+              </button>
+
               <button
                 type="button"
                 onClick={() => setViewMode("table")}
@@ -347,6 +504,153 @@ export default function SessionRotationScheduleView({ sessionId, activeRound = n
           </div>
         </div>
       </div>
+
+      {/* ------------------------------------------------------------- */}
+      {/* VIEW MODE 0: TIMELINE KANBAN / KRONOLOGIS KEGIATAN SIRKUIT */}
+      {/* ------------------------------------------------------------- */}
+      {viewMode === "timeline" && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+            <div>
+              <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                <Clock className="text-blue-600" size={18} />
+                Timeline Rangkaian Kegiatan Sirkuit OSCE ({timelineSteps.length} Tahapan)
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Urutan kronologis lengkap mencakup <strong>Transisi Awal</strong>, <strong>Sesi Ujian Stase</strong>, <strong>Transisi Sela Pos</strong>, serta <strong>Status Selesai (DONE)</strong>.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3 text-xs">
+              <span className="flex items-center gap-1.5 font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+                <CheckCircle2 size={14} /> DONE (Selesai)
+              </span>
+              <span className="flex items-center gap-1.5 font-bold text-amber-800 bg-amber-100 border border-amber-300 px-2.5 py-1 rounded-lg">
+                <Pause size={12} /> PAUSED (Dihentikan)
+              </span>
+              <span className="flex items-center gap-1.5 font-bold text-blue-800 bg-blue-100 border border-blue-300 px-2.5 py-1 rounded-lg animate-pulse">
+                <span className="h-2 w-2 rounded-full bg-blue-600" /> LIVE (Berlangsung)
+              </span>
+              <span className="flex items-center gap-1.5 font-medium text-slate-500 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-lg">
+                <Clock size={14} /> Menunggu
+              </span>
+            </div>
+          </div>
+
+          <div className="relative pl-6 sm:pl-8 border-l-2 border-slate-200 space-y-6">
+            {timelineSteps.map((step, idx) => {
+              const isDone = step.status === "done";
+              const isLive = step.status === "live";
+              const isStepPaused = step.status === "paused";
+
+              return (
+                <div key={step.id || idx} className="relative group">
+                  {/* Timeline Dot Icon */}
+                  <div
+                    className={`absolute -left-[37px] sm:-left-[45px] top-1.5 flex h-7 w-7 items-center justify-center rounded-full border-2 transition ${
+                      isDone
+                        ? "border-emerald-500 bg-emerald-50 text-emerald-600 shadow-2xs"
+                        : isStepPaused
+                        ? "border-amber-500 bg-amber-500 text-white shadow-md animate-pulse"
+                        : isLive
+                        ? "border-blue-600 bg-blue-600 text-white shadow-md animate-bounce"
+                        : "border-slate-300 bg-white text-slate-400"
+                    }`}
+                  >
+                    {isDone ? (
+                      <CheckCircle2 size={15} />
+                    ) : isStepPaused ? (
+                      <Pause size={13} />
+                    ) : isLive ? (
+                      <Sparkles size={14} />
+                    ) : step.type === "transition" ? (
+                      <Hourglass size={13} />
+                    ) : (
+                      <Stethoscope size={13} />
+                    )}
+                  </div>
+
+                  {/* Step Card Content */}
+                  <div
+                    className={`rounded-2xl border p-4.5 transition shadow-2xs ${
+                      isStepPaused
+                        ? "border-amber-400 bg-amber-50/80 shadow-md ring-2 ring-amber-300"
+                        : isLive
+                        ? "border-blue-400 bg-blue-50/70 shadow-md ring-2 ring-blue-200"
+                        : isDone
+                        ? "border-slate-200 bg-slate-50/60 opacity-85 hover:opacity-100"
+                        : "border-slate-200 bg-white"
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/60 pb-2.5">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`rounded-md px-2 py-0.5 text-[10px] font-black uppercase ${
+                            isStepPaused
+                              ? "bg-amber-500 text-white"
+                              : step.type === "transition"
+                              ? "bg-amber-100 text-amber-900 border border-amber-300"
+                              : "bg-blue-600 text-white"
+                          }`}
+                        >
+                          {step.type === "transition"
+                            ? step.isInitial
+                              ? "Transisi Awal"
+                              : step.isFinal
+                              ? "Transisi Akhir"
+                              : "Transisi Pos"
+                            : `Sesi Ujian Ronde ${step.roundNumber}`}
+                        </span>
+
+                        <h4 className="text-sm font-black text-slate-900">{step.title}</h4>
+                      </div>
+
+                      {/* Time Range Badge */}
+                      <div className="flex items-center gap-2">
+                        <span className="flex items-center gap-1 font-mono text-xs font-bold text-slate-700 bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-2xs">
+                          <Clock size={13} className="text-slate-500" />
+                          {step.startTimeStr} - {step.endTimeStr} ({step.durationMinutes} Mnt)
+                        </span>
+
+                        {/* Status Badge */}
+                        <span
+                          className={`rounded-lg px-2.5 py-1 text-[11px] font-black uppercase flex items-center gap-1 ${
+                            isDone
+                              ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
+                              : isStepPaused
+                              ? "bg-amber-500 text-white shadow-xs"
+                              : isLive
+                              ? "bg-emerald-500 text-white shadow-xs animate-pulse"
+                              : "bg-slate-100 text-slate-600 border border-slate-200"
+                          }`}
+                        >
+                          {isDone ? (
+                            <>
+                              <CheckCircle2 size={12} /> DONE (SELESAI)
+                            </>
+                          ) : isStepPaused ? (
+                            <>
+                              <Pause size={12} /> DIHENTIKAN (PAUSED)
+                            </>
+                          ) : isLive ? (
+                            <>
+                              <span className="h-2 w-2 rounded-full bg-white" /> BERLANGSUNG (LIVE)
+                            </>
+                          ) : (
+                            "MENUNGGU"
+                          )}
+                        </span>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-slate-600 mt-2 font-medium">{step.description}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ------------------------------------------------------------- */}
       {/* VIEW MODE 1: MATRIX TABLE VIEW */}
