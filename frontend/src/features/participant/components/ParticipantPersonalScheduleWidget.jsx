@@ -16,6 +16,7 @@ import {
 import { fetchSessionById } from "@/services/sessionService";
 import { getSessionParticipants, getSessionExaminers } from "@/services/session.service";
 import { supabase } from "@/lib/supabaseClient";
+import { useAuth } from "@/context/AuthProvider";
 
 export default function ParticipantPersonalScheduleWidget({
   sessionId,
@@ -27,6 +28,9 @@ export default function ParticipantPersonalScheduleWidget({
   const [stations, setStations] = useState([]);
   const [examiners, setExaminers] = useState([]);
   const [participants, setParticipants] = useState([]);
+  const { user: authUser } = useAuth();
+
+  const targetUserId = participantUserId || authUser?.id;
 
   async function loadData() {
     if (!sessionId) return;
@@ -81,12 +85,19 @@ export default function ParticipantPersonalScheduleWidget({
   // Find candidate's own participant record
   const currentCandidate = useMemo(() => {
     if (!participants || participants.length === 0) return null;
-    if (participantUserId) {
-      const found = participants.find((p) => String(p.user_id) === String(participantUserId) || String(p.id) === String(participantUserId));
+    const candidateId = targetUserId || authUser?.id;
+    const candidateEmail = authUser?.email;
+
+    if (candidateId || candidateEmail) {
+      const found = participants.find(
+        (p) =>
+          (candidateId && (String(p.user_id) === String(candidateId) || String(p.id) === String(candidateId))) ||
+          (candidateEmail && p.email && String(p.email).toLowerCase() === String(candidateEmail).toLowerCase())
+      );
       if (found) return found;
     }
     return participants[0];
-  }, [participants, participantUserId]);
+  }, [participants, targetUserId, authUser]);
 
   const totalN = stations.length > 0 ? stations.length : (session?.total_stations || 6);
   const startingStationNum = Number(currentCandidate?.station_number || currentCandidate?.starting_station_number || 1);
@@ -107,14 +118,43 @@ export default function ParticipantPersonalScheduleWidget({
     return map;
   }, [stations, examiners]);
 
-  // Calculate schedule per round R = 1..N
+  // Calculate schedule per round R = 1..N with estimated clock times
   const roundScheduleList = useMemo(() => {
+    const stationMins = Number(session?.station_duration_minutes || 12);
+    const transitMins = Number(session?.transition_duration_minutes ?? 2);
+
+    let baseTime = new Date();
+    if (session?.started_at) {
+      baseTime = new Date(session.started_at);
+    } else if (session?.start_time) {
+      const parts = String(session.start_time).split(":");
+      baseTime.setHours(parseInt(parts[0] || "8", 10), parseInt(parts[1] || "0", 10), 0, 0);
+    } else {
+      baseTime.setHours(8, 0, 0, 0);
+    }
+
+    const fmt = (d) => {
+      const hh = d.getHours().toString().padStart(2, "0");
+      const mm = d.getMinutes().toString().padStart(2, "0");
+      return `${hh}:${mm}`;
+    };
+
+    let currentTime = new Date(baseTime);
+    if (transitMins > 0) {
+      currentTime = new Date(currentTime.getTime() + transitMins * 60 * 1000);
+    }
+
     const list = [];
     for (let r = 1; r <= totalN; r++) {
       const currentStationNum = ((startingStationNum - 1 + (r - 1)) % totalN) + 1;
       const stObj = stations.find((st) => Number(st.station_number) === currentStationNum);
       const exInfo = stationExaminerMap[currentStationNum] || {};
       const isBreak = stObj?.is_break || stObj?.title?.toLowerCase().includes("istirahat");
+
+      const startTimeStr = fmt(currentTime);
+      const endTimeObj = new Date(currentTime.getTime() + stationMins * 60 * 1000);
+      const endTimeStr = fmt(endTimeObj);
+      currentTime = new Date(endTimeObj.getTime() + transitMins * 60 * 1000);
 
       let roundStatus = "upcoming";
       if (r < Number(activeRound)) roundStatus = "completed";
@@ -130,10 +170,13 @@ export default function ParticipantPersonalScheduleWidget({
         isAssigned: exInfo.isAssigned,
         isBreak,
         roundStatus,
+        startTimeStr,
+        endTimeStr,
+        durationMinutes: stationMins,
       });
     }
     return list;
-  }, [totalN, startingStationNum, stations, stationExaminerMap, activeRound]);
+  }, [totalN, startingStationNum, stations, stationExaminerMap, activeRound, session]);
 
   if (loading) {
     return (
@@ -157,7 +200,7 @@ export default function ParticipantPersonalScheduleWidget({
               Jadwal Rotasi Saya
             </h3>
             <p className="text-xs text-slate-500">
-              Peserta: <strong className="text-slate-800">{currentCandidate?.full_name || "Nama Peserta"}</strong> • Pos Awal Stase {startingStationNum}
+              Peserta: <strong className="text-slate-800">{currentCandidate?.full_name || currentCandidate?.profiles?.full_name || authUser?.email || "Nama Peserta"}</strong> • Pos Awal Stase {startingStationNum}
             </p>
           </div>
         </div>
@@ -186,7 +229,7 @@ export default function ParticipantPersonalScheduleWidget({
               }`}
             >
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100/80 pb-2 mb-2">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span
                     className={`rounded-lg px-2.5 py-0.5 text-xs font-extrabold ${
                       isCurrentActive
@@ -201,6 +244,11 @@ export default function ParticipantPersonalScheduleWidget({
 
                   <span className="font-bold text-xs text-slate-900 bg-white px-2.5 py-0.5 rounded-md border border-slate-200">
                     Pos Stase {item.stationNum}
+                  </span>
+
+                  <span className="font-mono text-[11px] font-bold text-slate-600 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-200 flex items-center gap-1">
+                    <Clock size={12} className="text-slate-400" />
+                    {item.startTimeStr} - {item.endTimeStr}
                   </span>
                 </div>
 

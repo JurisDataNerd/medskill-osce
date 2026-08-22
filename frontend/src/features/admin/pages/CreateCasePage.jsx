@@ -21,11 +21,14 @@ import {
 } from "lucide-react";
 
 import AdminLayout from "@/layouts/AdminLayout";
-import AdminAuxiliaryExamBuilder from "@/features/admin/components/AdminAuxiliaryExamBuilder";
 import ConfirmModal from "@/components/ConfirmModal";
 import SuccessModal from "@/components/ui/SuccessModal";
 import { getCaseById, createCase, updateCase } from "@/services/case.service";
 import { supabase } from "@/lib/supabaseClient";
+import CaseScenarioTab from "@/features/admin/components/case/CaseScenarioTab";
+import CaseAnswerKeyTab from "@/features/admin/components/case/CaseAnswerKeyTab";
+import CaseRubricTab from "@/features/admin/components/case/CaseRubricTab";
+import CaseAuxiliaryTab from "@/features/admin/components/case/CaseAuxiliaryTab";
 
 export default function CreateCasePage() {
   const { id } = useParams();
@@ -561,279 +564,49 @@ export default function CreateCasePage() {
 
       {/* Tab 1: Basic Info & Scenario */}
       {activeTab === 1 && (
-        <div className="space-y-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <div>
-              <label className="block text-xs font-bold text-slate-800 mb-1">
-                Judul Kasus Medis <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Contoh: Nyeri Dada Khas Infark Miokard Akut (STEMI Anteroseptal)"
-                className="w-full rounded-xl border border-slate-200 p-3 text-xs font-medium text-slate-800 bg-white focus:border-blue-500 focus:outline-none"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-800 mb-1">Sistem Organ</label>
-                <select
-                  value={systemOrgan}
-                  onChange={(e) => setSystemOrgan(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 p-3 text-xs font-medium text-slate-800 bg-white"
-                >
-                  <option value="Kardiovaskular">Kardiovaskular</option>
-                  <option value="Respirasi">Respirasi</option>
-                  <option value="Neurologi">Neurologi</option>
-                  <option value="Digestif">Digestif</option>
-                  <option value="Muskuloskeletal">Muskuloskeletal</option>
-                  <option value="Endokrin">Endokrin</option>
-                  <option value="Urologi">Urologi</option>
-                  <option value="THT-KL">THT-KL</option>
-                  <option value="Pediatri">Pediatri</option>
-                  <option value="Bedah Umum">Bedah Umum</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-800 mb-1">Level SKDI</label>
-                <select
-                  value={skdiLevel}
-                  onChange={(e) => setSkdiLevel(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 p-3 text-xs font-medium text-slate-800 bg-white"
-                >
-                  <option value="4A (Tuntas Mandiri)">Tingkat 4A</option>
-                  <option value="3B (Gawat Darurat)">Tingkat 3B</option>
-                  <option value="3A (Non Gawat Darurat)">Tingkat 3A</option>
-                  <option value="2">Tingkat 2</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-800 mb-1">Skenario Klinis Utama</label>
-            <textarea
-              rows={4}
-              value={scenario}
-              onChange={(e) => setScenario(e.target.value)}
-              placeholder="Deskripsi skenario klinis lengkap yang ditampilkan di pintu stase/layar peserta..."
-              className="w-full rounded-xl border border-slate-200 p-3 text-xs text-slate-800 bg-white focus:border-blue-500 focus:outline-none"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <div>
-              <label className="block text-xs font-bold text-slate-800 mb-1">Instruksi Peserta Ujian</label>
-              <textarea
-                rows={4}
-                value={participantInstructions}
-                onChange={(e) => setParticipantInstructions(e.target.value)}
-                placeholder="1. Lakukan anamnesis terarah...&#10;2. Lakukan pemeriksaan fisik...&#10;3. Tentukan diagnosis & resep..."
-                className="w-full rounded-xl border border-slate-200 p-3 text-xs text-slate-800 bg-white focus:border-blue-500 focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-800 mb-1">Instruksi Dokter Penguji</label>
-              <textarea
-                rows={4}
-                value={examinerInstructions}
-                onChange={(e) => setExaminerInstructions(e.target.value)}
-                placeholder="Panduan khusus untuk dokter penguji spesialis saat menilai di stase..."
-                className="w-full rounded-xl border border-slate-200 p-3 text-xs text-slate-800 bg-white focus:border-blue-500 focus:outline-none"
-              />
-            </div>
-          </div>
-        </div>
+        <CaseScenarioTab
+          title={title}
+          setTitle={setTitle}
+          systemOrgan={systemOrgan}
+          setSystemOrgan={setSystemOrgan}
+          skdiLevel={skdiLevel}
+          setSkdiLevel={setSkdiLevel}
+          scenario={scenario}
+          setScenario={setScenario}
+          participantInstructions={participantInstructions}
+          setParticipantInstructions={setParticipantInstructions}
+          examinerInstructions={examinerInstructions}
+          setExaminerInstructions={setExaminerInstructions}
+        />
       )}
 
       {/* Tab 2: Gold Standard Answer Keys */}
       {activeTab === 2 && (
-        <div className="space-y-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-4 text-xs text-blue-900 flex items-start gap-3">
-            <Award size={20} className="shrink-0 text-blue-600 mt-0.5" />
-            <div>
-              <span className="font-bold">Kunci Jawaban:</span> Kunci jawaban ini akan tampil di layar dokter penguji berdampingan dengan jawaban peserta.
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-800 mb-1">
-              Kunci Jawaban Diagnosis
-            </label>
-            <textarea
-              rows={4}
-              value={answerKeyDiagnosis}
-              onChange={(e) => setAnswerKeyDiagnosis(e.target.value)}
-              placeholder="Contoh: WDx: STEMI Anteroseptal (I21.0). DDx: Angina Pektoris Tidak Stabil (UAP), Diseksi Aorta, Perikarditis Akut."
-              className="w-full rounded-xl border border-slate-200 p-3 text-xs font-mono text-slate-800 bg-white focus:border-blue-500 focus:outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-800 mb-1">
-              Kunci Jawaban Resep Obat
-            </label>
-            <textarea
-              rows={5}
-              value={answerKeyPrescription}
-              onChange={(e) => setAnswerKeyPrescription(e.target.value)}
-              placeholder="Contoh:&#10;R/ Aspirin tab 80mg No. IV S 1 dd tab IV (chewed)&#10;R/ Clopidogrel tab 75mg No. IV S 1 dd tab IV&#10;R/ ISDN tab 5mg No. III S 1 dd tab I sublingual"
-              className="w-full rounded-xl border border-slate-200 p-3 text-xs font-mono text-slate-800 bg-white focus:border-blue-500 focus:outline-none"
-            />
-          </div>
-        </div>
+        <CaseAnswerKeyTab
+          answerKeyDiagnosis={answerKeyDiagnosis}
+          setAnswerKeyDiagnosis={setAnswerKeyDiagnosis}
+          answerKeyPrescription={answerKeyPrescription}
+          setAnswerKeyPrescription={setAnswerKeyPrescription}
+        />
       )}
 
       {/* Tab 3: SKDI Rubric Items */}
       {activeTab === 3 && (
-        <div className="space-y-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-            <div>
-              <h3 className="text-sm font-bold text-slate-900">Checklist Rubrik Penilaian SKDI</h3>
-              <p className="text-xs text-slate-500">Konfigurasi indikator penilaian dengan skor 0-3 dan deskriptor kinerja 4-level.</p>
-            </div>
-            <button
-              onClick={handleAddRubricItem}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-blue-700 transition"
-            >
-              <Plus size={15} />
-              Tambah Indikator Rubrik
-            </button>
-          </div>
-
-          <div className="space-y-6">
-            {rubricItems.map((item, idx) => (
-              <div key={item.id} className="rounded-2xl border border-slate-200 p-5 bg-slate-50/50 space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-200/60 pb-3">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600 text-xs font-bold text-white">
-                      {idx + 1}
-                    </span>
-                    <span className="text-xs font-bold text-slate-800">Indikator #{idx + 1}</span>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => requestRemoveRubricItem(idx)}
-                    className="text-xs text-red-600 hover:text-red-800 font-semibold flex items-center gap-1"
-                  >
-                    <Trash2 size={14} /> Hapus
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                  <div className="md:col-span-2">
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Indikator Penilaian</label>
-                    <input
-                      type="text"
-                      value={item.question}
-                      onChange={(e) => handleUpdateRubricField(idx, "question", e.target.value)}
-                      placeholder="Misal: Anamnesis terarah PQRST nyeri dada"
-                      className="w-full rounded-xl border border-slate-200 p-2.5 text-xs text-slate-800 bg-white"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Area Kompetensi SKDI</label>
-                    <select
-                      value={item.competency_area || "ANAMNESIS"}
-                      onChange={(e) => handleUpdateRubricField(idx, "competency_area", e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 p-2.5 text-xs text-slate-800 bg-white"
-                    >
-                      <option value="ANAMNESIS">ANAMNESIS</option>
-                      <option value="PHYSICAL_EXAM">PHYSICAL_EXAM</option>
-                      <option value="AUXILIARY_EXAM">AUXILIARY_EXAM</option>
-                      <option value="DIAGNOSIS_DDX">DIAGNOSIS_DDX</option>
-                      <option value="PHARMACOTHERAPY">PHARMACOTHERAPY</option>
-                      <option value="NON_PHARMACOTHERAPY">NON_PHARMACOTHERAPY</option>
-                      <option value="COMMUNICATION">COMMUNICATION</option>
-                      <option value="PROFESSIONALISM">PROFESSIONALISM</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Pedoman Skor Maksimal</label>
-                  <input
-                    type="text"
-                    value={item.answer_key}
-                    onChange={(e) => handleUpdateRubricField(idx, "answer_key", e.target.value)}
-                    placeholder="Pedoman skor maksimal 3..."
-                    className="w-full rounded-xl border border-slate-200 p-2.5 text-xs text-slate-800 bg-white"
-                  />
-                </div>
-
-                {/* 4-Level Descriptors */}
-                <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
-                  <div className="text-xs font-bold text-slate-800 flex items-center gap-2">
-                    <Info size={14} className="text-blue-600" />
-                    Deskriptor Kinerja Penilaian
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    <div>
-                      <span className="block text-[11px] font-bold text-red-600 mb-1">Skor 0 (Tidak Dilakukan)</span>
-                      <input
-                        type="text"
-                        value={item.descriptors?.score_0 || ""}
-                        onChange={(e) => handleUpdateRubricDescriptor(idx, "score_0", e.target.value)}
-                        placeholder="Deskripsi skor 0..."
-                        className="w-full rounded-lg border border-red-200 p-2 text-xs bg-red-50/30"
-                      />
-                    </div>
-
-                    <div>
-                      <span className="block text-[11px] font-bold text-amber-600 mb-1">Skor 1 (Kurang Lengkap)</span>
-                      <input
-                        type="text"
-                        value={item.descriptors?.score_1 || ""}
-                        onChange={(e) => handleUpdateRubricDescriptor(idx, "score_1", e.target.value)}
-                        placeholder="Deskripsi skor 1..."
-                        className="w-full rounded-lg border border-amber-200 p-2 text-xs bg-amber-50/30"
-                      />
-                    </div>
-
-                    <div>
-                      <span className="block text-[11px] font-bold text-blue-600 mb-1">Skor 2 (Cukup Lengkap)</span>
-                      <input
-                        type="text"
-                        value={item.descriptors?.score_2 || ""}
-                        onChange={(e) => handleUpdateRubricDescriptor(idx, "score_2", e.target.value)}
-                        placeholder="Deskripsi skor 2..."
-                        className="w-full rounded-lg border border-blue-200 p-2 text-xs bg-blue-50/30"
-                      />
-                    </div>
-
-                    <div>
-                      <span className="block text-[11px] font-bold text-emerald-600 mb-1">Skor 3 (Lengkap & Tepat)</span>
-                      <input
-                        type="text"
-                        value={item.descriptors?.score_3 || ""}
-                        onChange={(e) => handleUpdateRubricDescriptor(idx, "score_3", e.target.value)}
-                        placeholder="Deskripsi skor 3..."
-                        className="w-full rounded-lg border border-emerald-200 p-2 text-xs bg-emerald-50/30"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <CaseRubricTab
+          rubricItems={rubricItems}
+          handleAddRubricItem={handleAddRubricItem}
+          requestRemoveRubricItem={requestRemoveRubricItem}
+          handleUpdateRubricField={handleUpdateRubricField}
+          handleUpdateRubricDescriptor={handleUpdateRubricDescriptor}
+        />
       )}
 
       {/* Tab 4: Auxiliary Exam Configs */}
       {activeTab === 4 && (
-        <div className="space-y-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <AdminAuxiliaryExamBuilder
-            configs={auxiliaryConfigs}
-            onChangeConfigs={setAuxiliaryConfigs}
-          />
-        </div>
+        <CaseAuxiliaryTab
+          auxiliaryConfigs={auxiliaryConfigs}
+          setAuxiliaryConfigs={setAuxiliaryConfigs}
+        />
       )}
 
       {/* Confirmation Modal: Simpan Kasus Medis */}

@@ -2,18 +2,10 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
-  Bot,
   CheckCircle2,
   Clock,
-  FileText,
   FileCheck2,
-  Send,
-  Stethoscope,
-  User,
   Users,
-  AlertCircle,
-  HelpCircle,
-  Sparkles,
   ChevronRight,
   ChevronDown,
   Lock,
@@ -24,14 +16,10 @@ import {
   Volume2,
   AlertTriangle,
   ArrowRight,
-  FlaskConical,
   Activity,
-  CheckSquare,
-  Square,
-  Image as ImageIcon,
   Search,
   X,
-  Filter,
+  XCircle,
   Coffee,
   RotateCw,
   LogOut,
@@ -41,10 +29,7 @@ import {
   PauseCircle,
 } from "lucide-react";
 import { playOsceAudio } from "@/services/audioService";
-import {
-  AUXILIARY_EXAM_CATALOG,
-  getAllAuxiliaryExamItems,
-} from "@/features/participant/data/auxiliaryExamsCatalog";
+import { AUXILIARY_EXAM_CATALOG } from "@/features/participant/data/auxiliaryExamsCatalog";
 import AuxiliaryExamResultModal from "@/components/AuxiliaryExamResultModal";
 import ConfirmModal from "@/components/ConfirmModal";
 import { toast } from "sonner";
@@ -64,22 +49,15 @@ import {
   fetchParticipantAnswer,
 } from "@/services/participantService";
 import ParticipantPersonalScheduleWidget from "@/features/participant/components/ParticipantPersonalScheduleWidget";
+import { useAuth } from "@/context/AuthProvider";
 
 export default function ParticipantSessionPage() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   // View Mode: 'waiting_room', 'live_round', 'transit', 'round_break', 'completed'
-  const [viewMode, setViewMode] = useState(() => {
-    if (!sessionId) return "waiting_room";
-    return localStorage.getItem(`osce_view_mode_${sessionId}`) || "waiting_room";
-  });
-
-  useEffect(() => {
-    if (sessionId && viewMode) {
-      localStorage.setItem(`osce_view_mode_${sessionId}`, viewMode);
-    }
-  }, [sessionId, viewMode]);
+  const [viewMode, setViewMode] = useState("waiting_room");
 
   // Loaded Session Detail from Supabase
   const [sessionDetail, setSessionDetail] = useState(null);
@@ -219,6 +197,17 @@ export default function ParticipantSessionPage() {
   const [dbStations, setDbStations] = useState([]);
   const [dbExaminers, setDbExaminers] = useState([]);
   const [myStartingStation, setMyStartingStation] = useState(1);
+
+  // Customisable Durations (in seconds)
+  const [stationDurationSeconds, setStationDurationSeconds] = useState(15 * 60); // Default 15 Menit Stase
+  const [transitDurationSeconds, setTransitDurationSeconds] = useState(2 * 60);  // Default 2 Menit Transisi
+  const [breakDurationSeconds, setBreakDurationSeconds] = useState(10 * 60);   // Default 10 Menit Istirahat Ronde
+
+  // Active timers
+  const [waitingCountdown, setWaitingCountdown] = useState(30);
+  const [roundSecondsLeft, setRoundSecondsLeft] = useState(stationDurationSeconds);
+  const [transitSecondsLeft, setTransitSecondsLeft] = useState(transitDurationSeconds);
+  const [breakSecondsLeft, setBreakSecondsLeft] = useState(breakDurationSeconds);
 
   useEffect(() => {
     async function loadSessionData() {
@@ -371,19 +360,8 @@ export default function ParticipantSessionPage() {
     };
   }, [dbStations, dbExaminers, currentStationNum, sessionDetail, liveStageData]);
 
-  // Customisable Durations (in seconds)
-  const [stationDurationSeconds, setStationDurationSeconds] = useState(15 * 60); // Default 15 Menit Stase
-  const [transitDurationSeconds, setTransitDurationSeconds] = useState(2 * 60);  // Default 2 Menit Transisi
-  const [breakDurationSeconds, setBreakDurationSeconds] = useState(10 * 60);   // Default 10 Menit Istirahat Ronde
-
   // Round Break interval configuration (Default: Istirahat setelah Ronde 3)
   const [breakAfterRound] = useState(3);
-
-  // Active timers
-  const [waitingCountdown, setWaitingCountdown] = useState(30);
-  const [roundSecondsLeft, setRoundSecondsLeft] = useState(stationDurationSeconds);
-  const [transitSecondsLeft, setTransitSecondsLeft] = useState(transitDurationSeconds);
-  const [breakSecondsLeft, setBreakSecondsLeft] = useState(breakDurationSeconds);
 
   // Multi-step exam state inside round (1: Anamnesis, 2: Pemeriksaan Fisik, 3: Penunjang, 4: Diagnosis & Resep)
   const [examStep, setExamStep] = useState(1);
@@ -602,17 +580,32 @@ export default function ParticipantSessionPage() {
         setRoundSecondsLeft(rem);
 
         if (
+          (sessionDetail?.status === "waiting_room" ||
+            sessionDetail?.status === "published" ||
+            sessionDetail?.status === "scheduled") &&
+          (stateData.phase === "standby" || !stateData.phase)
+        ) {
+          setViewMode("waiting_room");
+        } else if (stateData.phase === "transition" || stateData.phase === "initial_transition") {
+          setViewMode("transit");
+          setTransitSecondsLeft(rem);
+        } else if (
           stateData.phase === "action" ||
           stateData.phase === "reading" ||
           stateData.phase === "paused"
         ) {
-          setViewMode("live_round");
-        } else if (stateData.phase === "transition") {
-          setViewMode("transit");
-          setTransitSecondsLeft(rem);
+          setViewMode((prev) => {
+            const isSubmitted = sessionId && localStorage.getItem(`osce_station_submitted_${sessionId}_round_${stateData.round_number || 1}`) === "true";
+            if (isSubmitted && prev !== "station_completed_wait") {
+              return "station_completed_wait";
+            }
+            return "live_round";
+          });
         } else if (stateData.phase === "break") {
           setViewMode("round_break");
           setBreakSecondsLeft(rem);
+        } else if (stateData.phase === "completed_waiting") {
+          setViewMode("completed");
         }
       }
     }
@@ -635,17 +628,32 @@ export default function ParticipantSessionPage() {
         setRoundSecondsLeft(rem);
 
         if (
+          (sessionDetail?.status === "waiting_room" ||
+            sessionDetail?.status === "published" ||
+            sessionDetail?.status === "scheduled") &&
+          (newTimerState.phase === "standby" || !newTimerState.phase)
+        ) {
+          setViewMode("waiting_room");
+        } else if (newTimerState.phase === "transition" || newTimerState.phase === "initial_transition") {
+          setViewMode("transit");
+          setTransitSecondsLeft(rem);
+        } else if (
           newTimerState.phase === "action" ||
           newTimerState.phase === "reading" ||
           newTimerState.phase === "paused"
         ) {
-          setViewMode("live_round");
-        } else if (newTimerState.phase === "transition") {
-          setViewMode("transit");
-          setTransitSecondsLeft(rem);
+          setViewMode((prev) => {
+            const isSubmitted = sessionId && localStorage.getItem(`osce_station_submitted_${sessionId}_round_${newTimerState.round_number || 1}`) === "true";
+            if (isSubmitted && prev !== "station_completed_wait") {
+              return "station_completed_wait";
+            }
+            return "live_round";
+          });
         } else if (newTimerState.phase === "break") {
           setViewMode("round_break");
           setBreakSecondsLeft(rem);
+        } else if (newTimerState.phase === "completed_waiting") {
+          setViewMode("completed");
         }
       },
       onSessionUpdate: (sess) => {
@@ -653,19 +661,9 @@ export default function ParticipantSessionPage() {
           setSessionDetail((prev) => (prev ? { ...prev, status: sess.status } : sess));
           if (sess.status === "completed" || sess.status === "finished") {
             toast.info("Sesi OSCE telah diakhiri oleh Admin Control Room. Dialihkan ke Dashboard.", { duration: 5000 });
-            localStorage.removeItem(`osce_view_mode_${sessionId}`);
             navigate("/participant");
-          } else if (
-            sess.status === "ongoing" ||
-            sess.status === "running" ||
-            sess.status === "paused"
-          ) {
-            setViewMode((prev) => {
-              if (prev === "waiting_room") {
-                return globalTimerState?.phase === "transition" ? "transit" : "live_round";
-              }
-              return prev;
-            });
+          } else if (sess.status === "waiting_room") {
+            setViewMode("waiting_room");
           }
         }
       },
@@ -753,9 +751,18 @@ export default function ParticipantSessionPage() {
       });
       return;
     }
-    setViewMode("live_round");
-    setCurrentRound(1);
-    setExamStep(1);
+    const currentPhase = globalTimerState?.phase;
+    if (currentPhase === "initial_transition" || currentPhase === "transition") {
+      setViewMode("transit");
+    } else if (currentPhase === "break") {
+      setViewMode("round_break");
+    } else if (currentPhase === "completed_waiting" || currentPhase === "finished") {
+      setViewMode("completed");
+    } else {
+      setViewMode("live_round");
+      setExamStep(1);
+    }
+    setCurrentRound(globalTimerState?.round_number || 1);
   }
 
   // Auto-sync candidate view & active round with Admin Global Timer State
@@ -773,7 +780,17 @@ export default function ParticipantSessionPage() {
       }
     }
 
-    if (globalTimerState.phase === "transition") {
+    if (
+      (sessionDetail?.status === "waiting_room" ||
+        sessionDetail?.status === "published" ||
+        sessionDetail?.status === "scheduled") &&
+      (globalTimerState.phase === "standby" || !globalTimerState.phase)
+    ) {
+      setViewMode("waiting_room");
+      return;
+    }
+
+    if (globalTimerState.phase === "transition" || globalTimerState.phase === "initial_transition") {
       const serverRound = Number(globalTimerState.round_number || currentRound);
       if (serverRound > totalRoundsInSession) {
         setViewMode("completed");
@@ -782,6 +799,8 @@ export default function ParticipantSessionPage() {
       }
     } else if (globalTimerState.phase === "break") {
       setViewMode("round_break");
+    } else if (globalTimerState.phase === "completed_waiting") {
+      setViewMode("completed");
     } else if (
       globalTimerState.phase === "finished" ||
       globalTimerState.phase === "completed" ||
@@ -789,23 +808,19 @@ export default function ParticipantSessionPage() {
       sessionDetail?.status === "finished"
     ) {
       toast.info("Sesi OSCE telah diakhiri oleh Admin Control Room. Dialihkan ke Dashboard.", { duration: 5000 });
-      localStorage.removeItem(`osce_view_mode_${sessionId}`);
       navigate("/participant");
     } else if (
-      (globalTimerState.phase === "action" ||
-       globalTimerState.phase === "reading" ||
-       globalTimerState.phase === "running" ||
-       globalTimerState.phase === "paused") &&
-      sessionDetail?.status !== "draft" &&
-      sessionDetail?.status !== "published"
+      globalTimerState.phase === "action" ||
+      globalTimerState.phase === "reading" ||
+      globalTimerState.phase === "running" ||
+      globalTimerState.phase === "paused"
     ) {
       setViewMode((prev) => {
-        if (prev === "waiting_room" || prev === "completed") return "live_round";
         const isSubmitted = sessionId && localStorage.getItem(`osce_station_submitted_${sessionId}_round_${currentRound}`) === "true";
         if (isSubmitted && prev !== "station_completed_wait") {
           return "station_completed_wait";
         }
-        return (prev === "waiting_room" || prev === "completed") ? "live_round" : prev;
+        return "live_round";
       });
     }
   }, [globalTimerState, sessionDetail?.status, sessionId, currentRound]);
@@ -1086,7 +1101,7 @@ export default function ParticipantSessionPage() {
           </div>
 
           {/* Embedded Participant Personal Schedule Widget */}
-          <ParticipantPersonalScheduleWidget sessionId={sessionId} activeRound={currentRound} />
+          <ParticipantPersonalScheduleWidget sessionId={sessionId} participantUserId={user?.id} activeRound={currentRound} />
 
             {/* Live Online Users List Widget */}
             <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5 space-y-3">
@@ -1203,10 +1218,11 @@ export default function ParticipantSessionPage() {
      RENDER VIEW 2: RUANG TRANSIT PERPINDAHAN STASE (TRANSIT WAITING ROOM - 2 MINS)
   ============================================================ */
   if (viewMode === "transit") {
-    const isInitialStartTransition = globalTimerState?.phase === "transition" && (globalTimerState?.round_number === 1 || currentRound === 1);
+    const isInitialStartTransition = globalTimerState?.phase === "initial_transition";
+
     const targetRoundNumber = isInitialStartTransition
-      ? (globalTimerState?.round_number || 1)
-      : (globalTimerState?.round_number || currentRound + 1);
+      ? 1
+      : Math.min(totalRoundsInSession, (globalTimerState?.round_number || currentRound) + 1);
 
     const totalStationsCount = sessionDetail?.total_stations || dbStations?.length || 4;
     const targetStationNum = ((myStartingStation - 1 + (targetRoundNumber - 1)) % totalStationsCount) + 1;
@@ -2124,8 +2140,9 @@ export default function ParticipantSessionPage() {
           )}
         </>
       )}
-    </div>
-  </main>
+      </div>
+    </main>
+  )}
 
       {/* MODAL 1: DISPLAY HASIL BERKAS PEMERIKSAAN PENUNJANG */}
       <AuxiliaryExamResultModal
@@ -2212,7 +2229,7 @@ export default function ParticipantSessionPage() {
       )}
 
       {/* FULLSCREEN NON-CLOSABLE OVERLAY WHEN OSCE SESSION IS PAUSED BY ADMIN */}
-      {(globalTimerState?.phase === "paused" || sessionDetail?.status === "paused") && (
+      {(globalTimerState?.phase === "paused" || globalTimerState?.phase?.startsWith("paused") || sessionDetail?.status === "paused") && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-6 animate-in fade-in duration-200 select-none pointer-events-auto">
           <div className="max-w-md w-full rounded-3xl border border-amber-500/50 bg-slate-900 p-8 text-center space-y-6 shadow-2xl text-white">
             <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-amber-500/20 text-amber-400 border border-amber-500/40 shadow-inner">
@@ -2229,6 +2246,31 @@ export default function ParticipantSessionPage() {
               </h2>
               <p className="text-xs text-slate-300 font-medium leading-relaxed max-w-sm mx-auto">
                 Panitia Control Room sedang mem-pause timer ujian. Harap tetap tenang, berada di posisi stase Anda, dan menunggu pengumuman selanjutnya.
+              </p>
+            </div>
+
+            {/* Status Posisi Saat Ini */}
+            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-left space-y-1">
+              <span className="text-[10px] font-black text-amber-400 uppercase tracking-wider block">
+                Posisi Stase & Fase Saat Ini:
+              </span>
+              <p className="text-sm font-extrabold text-white">
+                {globalTimerState?.phase === "paused_initial_transition"
+                  ? "Transisi Awal & Persiapan Pos Stase 1"
+                  : globalTimerState?.phase === "paused_transition"
+                  ? `Transisi Perpindahan Pos Stase (Ronde ${currentRound} → ${currentRound + 1})`
+                  : globalTimerState?.phase === "paused_break"
+                  ? `Jeda Istirahat Ronde ${currentRound}`
+                  : `Sesi Ujian Stase: ${assignedStation?.station_name || `Stase Ronde ${currentRound}`}`}
+              </p>
+              <p className="text-xs text-slate-300 font-medium">
+                {globalTimerState?.phase === "paused_initial_transition"
+                  ? "Peserta berada di pintu masuk / depan pos stase 1 menunggu dimulainya ujian."
+                  : globalTimerState?.phase === "paused_transition"
+                  ? `Peserta sedang dalam proses perpindahan menuju stase ronde ${currentRound + 1}.`
+                  : globalTimerState?.phase === "paused_break"
+                  ? "Peserta berada di ruang jeda istirahat."
+                  : `Peserta berada di pos ${assignedStation?.station_name || `Stase ${currentRound}`} (Pengerjaan kasus dihentikan sementara).`}
               </p>
             </div>
 

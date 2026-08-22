@@ -20,12 +20,15 @@ import {
   MapPin,
   UserCheck,
   Loader2,
+  Copy,
 } from "lucide-react";
 
 import AdminLayout from "@/layouts/AdminLayout";
 import SessionModal from "@/features/admin/components/SessionModal";
 import ConfirmModal from "@/components/ConfirmModal";
-import { fetchSessions, deleteSession, updateSessionStatus } from "@/services/sessionService";
+import { fetchSessions, deleteSession, updateSessionStatus, duplicateSession } from "@/services/sessionService";
+import { startOsceSession } from "@/services/realtimeTimerService";
+import { toast } from "sonner";
 
 export default function SessionsPage() {
   const navigate = useNavigate();
@@ -33,6 +36,7 @@ export default function SessionsPage() {
   // State
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [duplicatingId, setDuplicatingId] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
@@ -161,6 +165,32 @@ export default function SessionsPage() {
     });
   }
 
+  async function handleDuplicate(session) {
+    setConfirmModal({
+      isOpen: true,
+      title: "Duplikat Sesi OSCE?",
+      message: `Apakah Anda yakin ingin menduplikat sesi "${session.title}"?\n\nSesi baru akan dibuat beserta seluruh salinan stase, rubrik penilaian, file pendukung, dan penguji terkait.`,
+      confirmText: "Ya, Duplikat Sesi",
+      cancelText: "Batal",
+      variant: "primary",
+      isAlert: false,
+      onConfirm: async () => {
+        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        try {
+          setDuplicatingId(session.id);
+          const newSession = await duplicateSession(session.id);
+          toast.success(`Berhasil menduplikat sesi "${session.title}"! Sesi baru siap diuji.`);
+          await loadSessions();
+        } catch (err) {
+          console.error("Error duplicating session:", err);
+          toast.error(`Gagal menduplikat sesi: ${err.message || err}`);
+        } finally {
+          setDuplicatingId(null);
+        }
+      },
+    });
+  }
+
   async function handleStatusChange(id, newStatus) {
     if (newStatus === "running" || newStatus === "ongoing") {
       const active = sessions.find(
@@ -181,7 +211,14 @@ export default function SessionsPage() {
     }
 
     try {
-      await updateSessionStatus(id, newStatus);
+      if (newStatus === "running" || newStatus === "ongoing") {
+        const sessionToStart = sessions.find((s) => s.id === id);
+        const stationDur = sessionToStart?.station_duration_minutes || 12;
+        const transDur = sessionToStart?.transition_duration_minutes || 2;
+        await startOsceSession(id, stationDur, transDur);
+      } else {
+        await updateSessionStatus(id, newStatus);
+      }
     } catch (err) {
       console.warn("Could not update status to Supabase:", err);
     }
@@ -202,7 +239,7 @@ export default function SessionsPage() {
     );
 
     if (newStatus === "running" || newStatus === "ongoing") {
-      navigate("/admin/live");
+      navigate(`/admin/live?sessionId=${id}`);
     }
   }
 
@@ -567,6 +604,20 @@ export default function SessionsPage() {
                               </button>
                             </>
                           )}
+
+                          <button
+                            onClick={() => handleDuplicate(session)}
+                            disabled={duplicatingId === session.id}
+                            className="inline-flex items-center gap-1 rounded-md border border-purple-200 bg-purple-50 px-2.5 py-1 text-xs font-semibold text-purple-700 transition hover:bg-purple-100 disabled:opacity-50"
+                            title="Duplikat Sesi Ini (Stase, Rubrik & Peserta)"
+                          >
+                            {duplicatingId === session.id ? (
+                              <Loader2 size={13} className="animate-spin" />
+                            ) : (
+                              <Copy size={13} />
+                            )}
+                            Duplikat
+                          </button>
 
                           <button
                             onClick={() => navigate(`/admin/sessions/${session.id}`)}

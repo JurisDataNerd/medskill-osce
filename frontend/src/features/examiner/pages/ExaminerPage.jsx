@@ -23,11 +23,13 @@ import {
   ArrowRight,
   AlertCircle,
   TrendingUp,
+  X,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthProvider";
 import { fetchSessions } from "@/services/sessionService";
 import { supabase } from "@/lib/supabaseClient";
 import { ExaminerDashboardSkeleton } from "@/components/ui/Skeleton";
+import ExaminerStationScheduleWidget from "@/features/examiner/components/ExaminerStationScheduleWidget";
 
 export default function ExaminerPage() {
   const navigate = useNavigate();
@@ -44,6 +46,7 @@ export default function ExaminerPage() {
     unsatisfactory: 0,
     passRate: 0,
   });
+  const [selectedScheduleSession, setSelectedScheduleSession] = useState(null);
 
   useEffect(() => {
     async function loadExaminerDashboard() {
@@ -377,7 +380,22 @@ export default function ExaminerPage() {
                         </div>
                       </div>
 
-                      <div className="pt-3 border-t border-slate-200/60">
+                      <div className="pt-3 border-t border-slate-200/60 space-y-2">
+                        {!isDraft && (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedScheduleSession({
+                              sessionId: s.id,
+                              stationNumber: st?.station_number || a?.assigned_station_number || 1,
+                              title: s.title
+                            })}
+                            className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition cursor-pointer"
+                          >
+                            <CalendarDays size={14} />
+                            Jadwal Rotasi Pos #{st?.station_number || a?.assigned_station_number || 1}
+                          </button>
+                        )}
+
                         {isCompleted ? (
                           <button
                             onClick={() => navigate("/examiner/history")}
@@ -627,6 +645,42 @@ export default function ExaminerPage() {
           </div>
         </div>
       </div>
+
+      {/* Interactive Examiner Rotation Schedule Modal */}
+      {selectedScheduleSession && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="relative w-full max-w-2xl max-h-[88vh] overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="rounded-lg bg-blue-100 p-2 text-blue-700">
+                  <CalendarDays size={18} />
+                </span>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    Jadwal Rotasi Peserta Diuji (Pos #{selectedScheduleSession.stationNumber})
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Sesi: <strong className="text-slate-800">{selectedScheduleSession.title}</strong>
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSelectedScheduleSession(null)}
+                className="rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <ExaminerStationScheduleWidget
+              sessionId={selectedScheduleSession.sessionId}
+              stationNumber={selectedScheduleSession.stationNumber}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

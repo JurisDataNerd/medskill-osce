@@ -9,7 +9,7 @@ import {
   FileText,
   Settings,
   LogOut,
-  Bell,
+  RotateCw,
   BookOpen,
   User,
   ChevronUp,
@@ -65,6 +65,7 @@ export default function AdminLayout({ children, headerAction }) {
     return localStorage.getItem("admin_sidebar_collapsed") === "true";
   });
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     localStorage.setItem("admin_sidebar_collapsed", String(isCollapsed));
@@ -258,9 +259,15 @@ export default function AdminLayout({ children, headerAction }) {
             {headerAction ? (
               headerAction
             ) : (
-              <button className="relative rounded-xl bg-slate-100 p-2.5 transition hover:bg-slate-200 cursor-pointer">
-                <Bell size={20} className="text-slate-600" />
-                <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500" />
+              <button
+                onClick={() => {
+                  setIsRefreshing(true);
+                  window.location.reload();
+                }}
+                className="rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-slate-600 transition hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 cursor-pointer active:scale-95 shadow-2xs"
+                title="Refresh Halaman"
+              >
+                <RotateCw size={18} className={isRefreshing ? "animate-spin text-blue-600" : ""} />
               </button>
             )}
           </div>

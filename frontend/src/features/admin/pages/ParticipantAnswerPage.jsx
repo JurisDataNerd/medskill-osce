@@ -17,8 +17,11 @@ import {
   Pencil,
   Activity,
   FileCode,
+  Download,
+  Printer,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import ParticipantReportPdfModal from "@/features/admin/components/report/ParticipantReportPdfModal";
 
 export default function ParticipantAnswerPage() {
   const { participantId } = useParams();
@@ -27,6 +30,11 @@ export default function ParticipantAnswerPage() {
   const [expandedStation, setExpandedStation] = useState(1);
   const [scorecard, setScorecard] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [rawSession, setRawSession] = useState(null);
+  const [rawStations, setRawStations] = useState([]);
+  const [rawEvaluations, setRawEvaluations] = useState([]);
+  const [rawParticipant, setRawParticipant] = useState(null);
 
   useEffect(() => {
     async function loadScorecard() {
@@ -189,6 +197,18 @@ export default function ParticipantAnswerPage() {
           else globalRatingText = firstGrs;
         }
 
+        setRawSession(session);
+        setRawStations(stations || []);
+        setRawEvaluations(evaluations || []);
+        setRawParticipant({
+          id: p?.id || participantId,
+          nim: nim,
+          name: fullName,
+          final_score: overallPct,
+          status: finalGrade === "Lulus" ? "Lulus" : "Tidak Lulus",
+          rank: 1,
+        });
+
         setScorecard({
           participant_name: fullName,
           nim: nim,
@@ -245,7 +265,7 @@ export default function ParticipantAnswerPage() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate("/admin/live")}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs cursor-pointer"
             >
               <ArrowLeft size={16} />
               <span>Kembali ke Live Control Room</span>
@@ -264,6 +284,16 @@ export default function ParticipantAnswerPage() {
                 {scorecard.participant_name} ({scorecard.nim})
               </h1>
             </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsReportModalOpen(true)}
+              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-blue-700 active:scale-95 transition cursor-pointer"
+            >
+              <Download size={15} />
+              <span>Cetak Transkrip Nilai (PDF)</span>
+            </button>
           </div>
         </div>
 
@@ -438,6 +468,16 @@ export default function ParticipantAnswerPage() {
           </div>
         </div>
       </div>
+
+      <ParticipantReportPdfModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        participant={rawParticipant}
+        session={rawSession}
+        stations={rawStations}
+        evaluations={rawEvaluations}
+        nblCutoff={rawSession?.nbl_cutoff || 72.4}
+      />
     </AdminLayout>
   );
 }

@@ -7,11 +7,19 @@ export async function fetchSessions() {
   const { data, error } = await supabase
     .schema("osce")
     .from("sessions")
-    .select("*")
+    .select(`
+      *,
+      session_participants (id, full_name, user_id, starting_station_number, wave_number, status),
+      session_examiners (id, full_name, specialty, assigned_station_number, status)
+    `)
     .order("created_at", { ascending: false });
 
   if (error) throw error;
-  return data;
+  return (data || []).map((sess) => ({
+    ...sess,
+    registered_participants: sess.session_participants?.length || 0,
+    total_examiners: sess.session_examiners?.length || 0,
+  }));
 }
 
 /**
@@ -498,24 +506,57 @@ export async function deleteSessionExaminer(sessionId, stationNumber) {
 }
 
 /**
- * Upload station auxiliary file to Supabase Storage osce-media bucket
+ * Duplicate an existing OSCE session with all stations, rubric items, auxiliary files, and examiners
+ * (Participants are excluded from duplication as requested)
  */
-export async function uploadAuxiliaryImage(file, sessionId, stationId) {
-  const fileExt = file.name.split(".").pop();
-  const filePath = `sessions/${sessionId}/station_${stationId}/${Date.now()}.${fileExt}`;
+export async function duplicateSession(sessionId) {
+  const fullSession = await fetchSessionById(sessionId);
+  if (!fullSession) throw new Error("Sesi asal tidak ditemukan.");
 
-  const { error: uploadError } = await supabase.storage
-    .from("osce-media")
-    .upload(filePath, file, { upsert: true });
+  const dateStr = new Date().toISOString().split("T")[0];
 
-  if (uploadError) throw uploadError;
-
-  const { data: publicUrlData } = supabase.storage
-    .from("osce-media")
-    .getPublicUrl(filePath);
-
-  return {
-    publicUrl: publicUrlData.publicUrl,
-    storagePath: filePath,
+  // Strictly match Postgres osce.sessions table schema columns
+  const newSessionPayload = {
+    title: `Salinan ${fullSession.title}`,
+    description: fullSession.description ? `(Salinan) ${fullSession.description}` : "Salinan Sesi OSCE Ujian",
+    location_building: fullSession.location_building || fullSession.location || "Gedung Skill Lab Kedokteran",
+    session_date: dateStr,
+    start_time: fullSession.start_time || "08:00:00",
+    end_time: fullSession.end_time || "12:00:00",
+    status: "scheduled",
+    exam_type: fullSession.exam_type || "regular",
+    track_label: fullSession.track_label || "A",
+    total_stations: fullSession.total_stations || fullSession.stations?.length || 6,
+    total_rounds: fullSession.total_rounds || fullSession.total_stations || fullSession.stations?.length || 6,
+    max_participants_per_wave: fullSession.max_participants_per_wave || 8,
+    station_duration_minutes: fullSession.station_duration_minutes || 12,
+    break_duration_minutes: fullSession.break_duration_minutes || 2,
+    transition_duration_minutes: fullSession.transition_duration_minutes || 1,
+    reading_duration_minutes: fullSession.reading_duration_minutes || 1,
   };
+
+  // Creates session, stations, rubric_items, auxiliary_configs, and examiners (0 participants)
+  const createdSession = await createSession(newSessionPayload, fullSession.stations || []);
+
+  // Initialize clean timer state for the new duplicated session
+  if (createdSession?.id) {
+    const { error: tErr } = await supabase
+      .schema("osce")
+      .from("session_timer_state")
+      .upsert(
+        [{
+          session_id: createdSession.id,
+          phase: "standby",
+          target_end_time: null,
+          paused_remaining_ms: null,
+          round_number: 1,
+          wave_number: 1,
+          updated_at: new Date().toISOString(),
+        }],
+        { onConflict: "session_id" }
+      );
+    if (tErr) console.warn("Notice initializing timer state during duplication:", tErr);
+  }
+
+  return createdSession;
 }

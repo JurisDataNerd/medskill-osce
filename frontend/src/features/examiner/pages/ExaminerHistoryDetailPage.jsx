@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -18,9 +18,11 @@ import {
   Eye,
   AlertCircle,
   Loader2,
+  Download,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import AuxiliaryExamResultModal from "@/components/AuxiliaryExamResultModal";
+import { exportElementToPdf } from "@/services/pdfExportService";
 
 import { useAuth } from "@/context/AuthProvider";
 import { ExaminerHistoryDetailSkeleton } from "@/components/ui/Skeleton";
@@ -29,8 +31,10 @@ export default function ExaminerHistoryDetailPage() {
   const navigate = useNavigate();
   const { historyId } = useParams();
   const { user } = useAuth();
+  const documentRef = useRef(null);
 
   const [loading, setLoading] = useState(true);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [historyItem, setHistoryItem] = useState(null);
   const [expandedExamineeIndex, setExpandedExamineeIndex] = useState(0);
   const [auxModalData, setAuxModalData] = useState({ isOpen: false, results: [] });
@@ -156,16 +160,32 @@ export default function ExaminerHistoryDetailPage() {
 
   const examinees = historyItem.examinees_detail || [];
 
+  async function handleDownloadPdf() {
+    if (!documentRef.current) return;
+    try {
+      setDownloadingPdf(true);
+      await exportElementToPdf(documentRef.current, {
+        filename: `Rekap_Evaluasi_Penguji_${(historyItem?.station_name || "Stase").replace(/\s+/g, "_")}.pdf`,
+        format: "a4",
+        orientation: "portrait",
+      });
+    } catch (err) {
+      console.error("Gagal mengunduh PDF:", err);
+    } finally {
+      setDownloadingPdf(false);
+    }
+  }
+
   return (
-    <div className="space-y-6">
-      {/* Back Link & Header */}
-      <div>
+    <div ref={documentRef} className="min-h-screen bg-slate-100 p-6 font-sans text-slate-800 space-y-6">
+      {/* Top Bar Navigation */}
+      <div className="flex flex-col gap-4 border-b border-slate-200 pb-5">
         <button
           onClick={() => navigate("/examiner/history")}
-          className="mb-3 inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition"
+          className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-900 transition w-fit cursor-pointer"
         >
           <ArrowLeft size={16} />
-          Kembali ke Daftar Riwayat Pengujian
+          Kembali ke Riwayat Evaluasi Sesi
         </button>
 
         <div className="flex flex-wrap items-center justify-between gap-4">
@@ -183,13 +203,32 @@ export default function ExaminerHistoryDetailPage() {
             </p>
           </div>
 
-          <button
-            onClick={() => window.print()}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition active:scale-95"
-          >
-            <Printer size={15} />
-            Cetak Rekap Nilai Stase (PDF)
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => window.print()}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition active:scale-95 cursor-pointer"
+            >
+              <Printer size={15} />
+              Cetak
+            </button>
+            <button
+              onClick={handleDownloadPdf}
+              disabled={downloadingPdf}
+              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-blue-700 active:scale-95 transition cursor-pointer disabled:opacity-50"
+            >
+              {downloadingPdf ? (
+                <>
+                  <Loader2 size={15} className="animate-spin" />
+                  Membuat PDF...
+                </>
+              ) : (
+                <>
+                  <Download size={15} />
+                  Unduh PDF Berita Acara
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 

@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
-  ArrowLeft,
   Award,
   CheckCircle2,
   Clock,
@@ -9,13 +8,6 @@ import {
   UserCheck,
   Users,
   AlertCircle,
-  HelpCircle,
-  ChevronDown,
-  ChevronUp,
-  ChevronsUpDown,
-  ChevronRight,
-  Lock,
-  Coffee,
   Eye,
   Activity,
   FileSpreadsheet,
@@ -23,8 +15,6 @@ import {
   Loader2,
   Info,
   CalendarDays,
-  Building2,
-  Layers,
   Play,
   PlayCircle,
   Megaphone,
@@ -70,6 +60,7 @@ export default function ExaminerStagePage() {
   const [feedback, setFeedback] = useState("Kinerja klinis dan komunikasi peserta sangat baik dan terstruktur.");
   const [showScenario, setShowScenario] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
 
   const [confirmModal, setConfirmModal] = useState({
     isOpen: false,
@@ -554,7 +545,7 @@ export default function ExaminerStagePage() {
       return (
         <div className="space-y-1 text-xs font-medium text-slate-800">
           {items.map((item, idx) => {
-            const hasNumbering = /^\d+[\.\)]/.test(item);
+            const hasNumbering = /^\d+[.)]/.test(item);
             return (
               <p key={idx} className="leading-relaxed">
                 {hasNumbering ? item : `${idx + 1}. ${item}`}
@@ -1655,7 +1646,9 @@ export default function ExaminerStagePage() {
 
           <div className="flex items-center gap-3">
             <div className={`flex items-center gap-2 rounded-xl border px-3.5 py-1.5 text-xs font-bold shadow-2xs ${
-              timerState?.phase === "transition"
+              timerState?.phase === "completed_waiting"
+                ? "border-indigo-300 bg-indigo-100 text-indigo-950 font-black"
+                : timerState?.phase === "transition" || timerState?.phase === "initial_transition"
                 ? "border-amber-300 bg-amber-100 text-amber-950 font-black"
                 : timerState?.phase === "break"
                 ? "border-blue-300 bg-blue-100 text-blue-950"
@@ -1665,8 +1658,14 @@ export default function ExaminerStagePage() {
             }`}>
               <Clock size={16} className={timerState?.phase === "paused" ? "text-rose-600" : "text-blue-600 animate-pulse"} />
               <span>
-                {timerState?.phase === "transition"
+                {timerState?.phase === "completed_waiting"
+                  ? "Sesi Selesai (Grace Period):"
+                  : timerState?.phase === "initial_transition"
+                  ? "Persiapan Pos Stase 1:"
+                  : timerState?.phase === "transition"
                   ? "Transisi Pergerakan Peserta:"
+                  : timerState?.phase === "reading"
+                  ? "Waktu Baca Soal (Reading Time):"
                   : timerState?.phase === "break"
                   ? "Waktu Istirahat Ronde:"
                   : timerState?.phase === "paused"
@@ -1679,15 +1678,25 @@ export default function ExaminerStagePage() {
               </span>
               {timerState?.phase && (
                 <span className={`rounded-md px-2 py-0.5 text-[10px] font-black text-white uppercase ml-1 ${
-                  timerState.phase === 'transition'
+                  timerState.phase === 'completed_waiting'
+                    ? 'bg-purple-700'
+                    : timerState.phase === 'transition' || timerState.phase === 'initial_transition'
                     ? 'bg-amber-600'
+                    : timerState.phase === 'reading'
+                    ? 'bg-cyan-600'
                     : timerState.phase === 'break'
                     ? 'bg-indigo-600'
                     : timerState.phase === 'paused'
                     ? 'bg-rose-600'
                     : 'bg-emerald-600'
                 }`}>
-                  {timerState.phase}
+                  {timerState.phase === 'initial_transition'
+                    ? 'PERSIAPAN'
+                    : timerState.phase === 'reading'
+                    ? 'READING TIME'
+                    : timerState.phase === 'completed_waiting'
+                    ? 'SELESAI'
+                    : timerState.phase}
                 </span>
               )}
             </div>
@@ -1706,22 +1715,71 @@ export default function ExaminerStagePage() {
 
       {/* Main Content Container */}
       <div className="max-w-7xl w-full mx-auto space-y-6">
-        {timerState?.phase === "transition" && (
+        {(timerState?.phase === "completed_waiting" || (remainingSeconds <= 0 && currentRoundNum >= totalStations)) && (
+          <div className="rounded-2xl border-2 border-indigo-400 bg-indigo-50 p-4 text-indigo-950 shadow-md flex flex-wrap items-center justify-between gap-3 animate-in fade-in">
+            <div className="flex items-center gap-3">
+              <Clock size={24} className="text-indigo-600 shrink-0 animate-pulse" />
+              <div className="text-xs">
+                <span className="font-extrabold uppercase text-indigo-900 text-sm block flex items-center gap-1">
+                  ⏱️ Waktu Ronde Habis — Grace Period Penilaian Ronde Terakhir
+                </span>
+                <span className="font-medium text-indigo-800">
+                  Silakan selesaikan penilaian & submit skor peserta ronde terakhir. Layar penguji tetap dapat digunakan untuk input nilai.
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={handleSaveEvaluation}
+              disabled={saving}
+              className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-indigo-700 active:scale-95 transition disabled:opacity-50 shrink-0 cursor-pointer"
+            >
+              {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              Submit & Lock Score
+            </button>
+          </div>
+        )}
+
+        {(timerState?.phase === "transition" || timerState?.phase === "initial_transition") && (
           <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-950 shadow-md flex items-center gap-3">
             <Clock size={20} className="text-amber-600 animate-pulse shrink-0" />
             <div className="text-xs font-bold">
-              <span className="font-extrabold uppercase text-amber-900 block">FASE TRANSISI PERGERAKAN PESERTA (2 MENIT):</span>
-              Peserta sedang melakukan perpindahan pos stase rotasi. Penguji dapat mempersiapkan lembar penilaian untuk peserta ronde berikutnya.
+              <span className="font-extrabold uppercase text-amber-900 block">
+                {timerState?.phase === "initial_transition" ? "FASE PERSIAPAN POS STASE 1:" : "FASE TRANSISI PERGERAKAN PESERTA:"}
+              </span>
+              {timerState?.phase === "initial_transition"
+                ? "Peserta sedang memasuki ruangan dan mempersiapkan diri di pos stase 1. Sesi ujian akan segera dimulai setelah timer persiapan selesai."
+                : "Peserta sedang melakukan perpindahan pos stase rotasi. Penguji dapat mempersiapkan lembar penilaian untuk peserta ronde berikutnya."}
             </div>
           </div>
         )}
 
-        {timerState?.phase === "paused" && (
-          <div className="rounded-2xl border border-rose-300 bg-rose-50 p-4 text-rose-950 shadow-md flex items-center gap-3">
-            <AlertCircle size={20} className="text-rose-600 shrink-0" />
+        {timerState?.phase === "reading" && (
+          <div className="rounded-2xl border border-cyan-300 bg-cyan-50 p-4 text-cyan-950 shadow-md flex items-center gap-3">
+            <Clock size={20} className="text-cyan-600 animate-pulse shrink-0" />
             <div className="text-xs font-bold">
-              <span className="font-extrabold uppercase text-rose-900 block">TIMER DI-PAUSE OLEH ADMIN CONTROL DESK:</span>
-              Jadwal timer sesi ujian di-pause sementara. Penilaian yang sudah diisi tetap tersimpan di draf.
+              <span className="font-extrabold uppercase text-cyan-900 block">FASE MEMBACA SOAL (READING TIME):</span>
+              Peserta sedang membaca skenario & instruksi di depan pintu stase. Pintu stase akan dibuka setelah waktu membaca selesai.
+            </div>
+          </div>
+        )}
+
+        {(timerState?.phase === "paused" || timerState?.phase?.startsWith("paused") || activeSession?.status === "paused") && (
+          <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-950 shadow-md flex items-center gap-3">
+            <AlertCircle size={20} className="text-amber-600 shrink-0" />
+            <div className="text-xs font-bold space-y-0.5">
+              <span className="font-extrabold uppercase text-amber-900 block">
+                SESI DI-PAUSE OLEH ADMIN CONTROL DESK:
+              </span>
+              <p className="text-slate-800">
+                {timerState?.phase === "paused_initial_transition"
+                  ? "Sesi dihentikan sementara pada Fase Transisi Awal & Persiapan Pos Stase 1."
+                  : timerState?.phase === "paused_transition"
+                  ? `Sesi dihentikan sementara pada Fase Transisi Rotasi Stase (Ronde ${activeSession?.current_round || 1} → ${(activeSession?.current_round || 1) + 1}).`
+                  : timerState?.phase === "paused_break"
+                  ? `Sesi dihentikan sementara pada Fase Jeda Istirahat (Ronde ${activeSession?.current_round || 1}).`
+                  : `Sesi dihentikan sementara pada Sesi Ujian Stase Ronde ${activeSession?.current_round || 1}.`}
+                {" "}Penilaian yang sudah diisi tetap tersimpan aman di draf.
+              </p>
             </div>
           </div>
         )}
@@ -1777,8 +1835,18 @@ export default function ExaminerStagePage() {
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
+                type="button"
+                onClick={() => setIsScheduleModalOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100 transition cursor-pointer"
+              >
+                <CalendarDays size={15} />
+                Jadwal Rotasi Pos Stase
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setShowScenario(!showScenario)}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
               >
@@ -2173,6 +2241,43 @@ export default function ExaminerStagePage() {
         variant={confirmModal.variant}
         isAlert={confirmModal.isAlert}
       />
+
+      {/* Interactive Schedule Rotation Modal for Live Exam */}
+      {isScheduleModalOpen && activeSession && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="relative w-full max-w-2xl max-h-[88vh] overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="rounded-lg bg-blue-100 p-2 text-blue-700">
+                  <CalendarDays size={18} />
+                </span>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    Jadwal Rotasi Peserta (Pos Stase #{stationData?.station_number || 1})
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Pemetaan jadwal rotasi mahasiswa yang diuji pada stase ini per ronde.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsScheduleModalOpen(false)}
+                className="rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <ExaminerStationScheduleWidget
+              sessionId={activeSession.id}
+              stationNumber={stationData?.station_number}
+              activeRound={currentRoundNum}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

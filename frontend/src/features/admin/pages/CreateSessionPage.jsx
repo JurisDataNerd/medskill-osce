@@ -321,6 +321,9 @@ export default function CreateSessionPage() {
   const [lateToleranceMinutes, setLateToleranceMinutes] = useState(5);
   const [autoLockAnswerRule, setAutoLockAnswerRule] = useState(true);
   const [autoPublishResults, setAutoPublishResults] = useState(false);
+  const [enableTransitionPhase, setEnableTransitionPhase] = useState(true);
+  const [enableWaitingRoomPhase, setEnableWaitingRoomPhase] = useState(true);
+  const [enableThankYouScreenPhase, setEnableThankYouScreenPhase] = useState(true);
 
   // Status of session (for edit mode)
   const [sessionStatus, setSessionStatus] = useState("draft");
@@ -2161,6 +2164,27 @@ export default function CreateSessionPage() {
                   description="Memastikan hanya 1 sesi ujian yang dapat berjalan secara live dalam 1 waktu."
                   checked={singleLiveSessionRule}
                   onChange={setSingleLiveSessionRule}
+                />
+
+                <RuleToggleItem
+                  title="Tampilkan Layar Transisi Persiapan & Rotasi Pos Stase"
+                  description="Menampilkan layar transisi perpindahan pos (1-2 Menit) bagi peserta & penguji di awal dan setiap pergantian stase."
+                  checked={enableTransitionPhase}
+                  onChange={setEnableTransitionPhase}
+                />
+
+                <RuleToggleItem
+                  title="Aktifkan Waiting Room (Ruang Tunggu Pre-Ujian)"
+                  description="Mengarahkan peserta & penguji ke ruang tunggu pra-ujian sebelum Admin menekan tombol Mulai Ujian."
+                  checked={enableWaitingRoomPhase}
+                  onChange={setEnableWaitingRoomPhase}
+                />
+
+                <RuleToggleItem
+                  title="Tampilkan Halaman Terima Kasih / Selesai Ujian"
+                  description="Menampilkan halaman ringkasan dan ucapan terima kasih setelah seluruh ronde sirkuit tuntas."
+                  checked={enableThankYouScreenPhase}
+                  onChange={setEnableThankYouScreenPhase}
                 />
 
                 <RuleToggleItem
