@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Star, Quote, CheckCircle2, Building2 } from "lucide-react";
+import { Star, Quote, CheckCircle2 } from "lucide-react";
 import Threads from "./Threads";
 
 export default function TestimonialsSection() {
@@ -31,15 +31,6 @@ export default function TestimonialsSection() {
       comment:
         "Rubrik penilaian pengujinya detail banget. Umpan balik setelah ujian buat saya tahu pasti poin mana yang kurang sebelum ujian sungguhan.",
     },
-  ];
-
-  const universities = [
-    "FK Universitas Indonesia",
-    "FK Universitas Gadjah Mada",
-    "FK Universitas Airlangga",
-    "FK Universitas Hasanuddin",
-    "FK Universitas Padjadjaran",
-    "FK Universitas Diponegoro",
   ];
 
   return (
@@ -121,31 +112,6 @@ export default function TestimonialsSection() {
             </motion.div>
           ))}
         </div>
-
-        {/* University Trust Badges Banner */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.3 }}
-          className="mt-16 pt-8 border-t border-slate-200/80 flex flex-col items-center text-center"
-        >
-          <p className="text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-2">
-            <Building2 size={14} className="text-[#0D3A68]" />
-            <span>Dipercaya oleh Mahasiswa Kedokteran dari 35+ Fakultas Kedokteran se-Indonesia:</span>
-          </p>
-
-          <div className="flex flex-wrap justify-center gap-3">
-            {universities.map((uni, idx) => (
-              <span
-                key={idx}
-                className="rounded-xl border border-slate-200/80 bg-white px-3.5 py-1.5 text-xs font-bold text-slate-700 shadow-2xs"
-              >
-                {uni}
-              </span>
-            ))}
-          </div>
-        </motion.div>
       </div>
     </section>
   );

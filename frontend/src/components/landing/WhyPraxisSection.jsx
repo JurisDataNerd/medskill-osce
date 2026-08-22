@@ -1,14 +1,14 @@
 import { motion } from "framer-motion";
-import { Bot, Clock, Target, Award } from "lucide-react";
+import { Stethoscope, Clock, Target, Award } from "lucide-react";
 import Threads from "./Threads";
 
 export default function WhyPraxisSection() {
   const benefits = [
     {
-      icon: Bot,
+      icon: Stethoscope,
       title: "Latihan Anamnesis Adaptif",
       description:
-        "Gali keluhan utama dan riwayat penyakit bersama Pasien AI. Latih kelancaran komunikasi klinis kapan saja tanpa cemas.",
+        "Pertajam teknik penggalian informasi medis, empati, dan alur anamnesis sistematis sebelum terjun ke stase nyata.",
     },
     {
       icon: Clock,

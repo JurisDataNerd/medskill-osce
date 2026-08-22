@@ -2,7 +2,6 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Sparkles,
-  Bot,
   Building2,
   CheckCircle2,
   FileText,
@@ -13,6 +12,7 @@ import {
   Layers,
   HelpCircle,
   FileCheck,
+  Clock,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -52,7 +52,7 @@ export default function SchemesSection() {
           </h2>
 
           <p className="mt-4 text-slate-600 text-base sm:text-lg font-medium leading-relaxed">
-            Praxis by Medskill Indonesia memfasilitasi kebutuhan simulasi ujian baik secara mandiri berbasis AI maupun ujian institusional berbasis sirkuit On-Site.
+            Praxis by Medskill Indonesia memfasilitasi kebutuhan simulasi ujian baik secara mandiri interaktif maupun ujian institusional berbasis sirkuit On-Site.
           </p>
 
           {/* Scheme Switcher Tabs */}
@@ -65,8 +65,8 @@ export default function SchemesSection() {
                   : "text-slate-600 hover:text-[#1E3A8A]"
               }`}
             >
-              <Bot size={18} />
-              <span>1. Skema OSCE Mandiri (Pasien AI)</span>
+              <Sparkles size={18} />
+              <span>1. Skema OSCE Mandiri (Coming Soon)</span>
             </button>
 
             <button
@@ -96,26 +96,26 @@ export default function SchemesSection() {
             >
               {/* Left Column: Mandiri Info */}
               <div className="lg:col-span-6 flex flex-col items-start space-y-5">
-                <span className="inline-flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-extrabold text-[#1E3A8A]">
-                  <Sparkles size={14} />
-                  <span>Praktis & Fleksibel 24/7</span>
+                <span className="inline-flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-1 text-xs font-extrabold text-amber-800">
+                  <Clock size={14} />
+                  <span>Segera Hadir / Coming Soon</span>
                 </span>
 
                 <h3 className="text-2xl sm:text-3xl font-black text-slate-900 leading-tight">
-                  Simulasi Anamnesis Interaktif dengan Pasien Standar AI
+                  Simulasi Anamnesis Interaktif & Mandiri
                 </h3>
 
                 <p className="text-slate-600 text-sm sm:text-base font-medium leading-relaxed">
-                  Pada skema OSCE Mandiri, mahasiswa kedokteran dapat menguji kemampuan komunikasi klinis dan penggalian riwayat penyakit (anamnesis) kapan saja tanpa menunggu jadwal simulasi fisik.
+                  Pada skema OSCE Mandiri, mahasiswa kedokteran dapat menguji kemampuan komunikasi klinis dan penggalian riwayat penyakit (anamnesis) secara mandiri dari browser.
                 </p>
 
                 <div className="space-y-3.5 pt-2 w-full">
                   <div className="flex items-start gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-4">
                     <CheckCircle2 className="h-5 w-5 text-[#1E3A8A] shrink-0 mt-0.5" />
                     <div>
-                      <h4 className="text-sm font-bold text-slate-900">Respon Pasien AI Alami & Spesifik</h4>
+                      <h4 className="text-sm font-bold text-slate-900">Respon Pasien Digital Alami & Spesifik</h4>
                       <p className="text-xs text-slate-600 mt-0.5">
-                        Pasien AI dapat memberikan respon verbal terhadap pertanyaan anamnesis (lokasi nyeri, durasi, pemicu, riwayat pengobatan).
+                        Pasien digital memberikan respon verbal terhadap pertanyaan anamnesis (lokasi nyeri, durasi, pemicu, riwayat pengobatan).
                       </p>
                     </div>
                   </div>
@@ -123,22 +123,19 @@ export default function SchemesSection() {
                   <div className="flex items-start gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-4">
                     <CheckCircle2 className="h-5 w-5 text-[#1E3A8A] shrink-0 mt-0.5" />
                     <div>
-                      <h4 className="text-sm font-bold text-slate-900">Pembuktian Antarmuka Antar Aset (`praxis.png`)</h4>
+                      <h4 className="text-sm font-bold text-slate-900">Modul Pembelajaran Mandiri Interaktif</h4>
                       <p className="text-xs text-slate-600 mt-0.5">
-                        Dilengkapi dengan tampilan chat real-time yang terbukti terintegrasi di modul platform Praxis.
+                        Dilengkapi dengan antarmuka latihan mandiri yang terintegrasi di modul platform Praxis.
                       </p>
                     </div>
                   </div>
                 </div>
 
                 <div className="pt-4 flex flex-wrap gap-4">
-                  <a
-                    href="#anamnesis-ai"
-                    className="inline-flex items-center gap-2.5 rounded-xl bg-[#1E3A8A] px-6 py-3.5 text-xs sm:text-sm font-bold text-white shadow-lg shadow-blue-900/20 hover:bg-blue-900 transition"
-                  >
-                    <span>Simulasikan Anamnesis dengan AI</span>
-                    <ArrowRight size={16} />
-                  </a>
+                  <div className="inline-flex items-center gap-2.5 rounded-xl bg-slate-100 border border-slate-200 px-6 py-3.5 text-xs sm:text-sm font-bold text-slate-500 cursor-not-allowed">
+                    <Clock size={16} className="text-amber-600" />
+                    <span>Modul Mandiri (Coming Soon)</span>
+                  </div>
                 </div>
               </div>
 

@@ -1,22 +1,70 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Play, ShieldCheck, ArrowRight, Star, Users, Award } from "lucide-react";
+import { Play, ShieldCheck, ArrowRight, Star, Users, Award, GraduationCap, Stethoscope } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import SplitText from "./SplitText";
 import Threads from "./Threads";
 
-export default function HeroSection() {
-  const [user, setUser] = useState(null);
+function CountingNumber({ target, suffix = "", prefix = "", decimals = 0, duration = 1500 }) {
+  const [count, setCount] = useState(0);
 
   useEffect(() => {
-    async function loadUser() {
+    let startTimestamp = null;
+    let animationFrameId;
+    const end = typeof target === "number" ? target : parseFloat(String(target).replace(/,/g, "")) || 0;
+
+    const step = (timestamp) => {
+      if (!startTimestamp) startTimestamp = timestamp;
+      const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+      const easeProgress = 1 - Math.pow(1 - progress, 3);
+      setCount(easeProgress * end);
+
+      if (progress < 1) {
+        animationFrameId = requestAnimationFrame(step);
+      }
+    };
+
+    animationFrameId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [target, duration]);
+
+  const formatted = decimals > 0
+    ? count.toFixed(decimals)
+    : Math.floor(count).toLocaleString();
+
+  return (
+    <span>
+      {prefix}
+      {formatted}
+      {suffix}
+    </span>
+  );
+}
+
+export default function HeroSection() {
+  const [user, setUser] = useState(null);
+  const [mentorCount, setMentorCount] = useState(14);
+
+  useEffect(() => {
+    async function loadData() {
       const {
         data: { session },
       } = await supabase.auth.getSession();
       setUser(session?.user ?? null);
+
+      try {
+        const { count, error } = await supabase
+          .from("mentors")
+          .select("*", { count: "exact", head: true });
+        if (!error && count !== null && count > 0) {
+          setMentorCount(count);
+        }
+      } catch (err) {
+        console.error("Error fetching mentor count:", err);
+      }
     }
-    loadUser();
+    loadData();
   }, []);
 
   function scrollToSection(id) {
@@ -85,7 +133,7 @@ export default function HeroSection() {
               transition={{ duration: 0.4, delay: 0.2 }}
               className="mt-4 max-w-2xl text-base sm:text-lg text-slate-600 font-medium leading-relaxed"
             >
-              Latih keterampilan anamnesis bersama <strong className="text-[#0D3A68] font-bold">Pasien AI 24/7</strong> dan ikuti simulasi ujian <strong className="text-[#C9A227] font-bold">On-Site</strong> langsung bersama dokter penguji untuk kesiapan maksimal menghadapi OSCE.
+              Latih keterampilan anamnesis bersama <strong className="text-[#0D3A68] font-bold">Praxis</strong> dan ikuti simulasi ujian <strong className="text-[#C9A227] font-bold">On-Site</strong> langsung bersama dokter penguji untuk kesiapan maksimal menghadapi OSCE.
             </motion.p>
 
             {/* Primary Buttons */}
@@ -109,32 +157,69 @@ export default function HeroSection() {
                 className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#C9A227]/60 bg-amber-50/70 px-7 py-4 text-sm sm:text-base font-extrabold text-[#0D3A68] shadow-xs hover:bg-amber-100/80 transition duration-200 w-full sm:w-auto hover:scale-[1.02]"
               >
                 <ShieldCheck className="h-5 w-5 text-[#C9A227]" />
-                <span>Login Portal Ujian</span>
+                <span>Masuk Portal Ujian</span>
               </Link>
             </motion.div>
 
-            {/* Clean Feature Highlights Bar */}
+            {/* Clean Animated Stat Highlights Bar */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.4 }}
-              className="mt-10 grid grid-cols-2 sm:grid-cols-4 gap-4 w-full pt-6 border-t border-slate-200/80"
+              className="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 w-full pt-6 border-t border-slate-200/80"
             >
-              <div className="flex flex-col items-start">
-                <span className="text-sm font-black text-[#0D3A68]">Anamnesis AI</span>
-                <span className="text-xs text-slate-500 font-medium">Pasien Standar Cerdas</span>
+              {/* Stat 1: Pengguna Aktif */}
+              <div className="flex items-start gap-3">
+                <div className="flex items-center justify-center rounded-2xl bg-amber-50/90 border border-[#C9A227]/40 p-2.5 text-[#0D3A68] shrink-0 mt-0.5 shadow-xs">
+                  <Users className="h-5 w-5 text-[#0D3A68]" />
+                </div>
+                <div className="flex flex-col items-start">
+                  <span className="text-xl sm:text-2xl font-black text-[#0D3A68] tracking-tight leading-none">
+                    <CountingNumber target={800} suffix="+" />
+                  </span>
+                  <span className="text-xs sm:text-sm font-bold text-slate-800 mt-1">
+                    Pengguna Aktif
+                  </span>
+                  <span className="text-[11px] sm:text-xs text-slate-500 font-medium hidden sm:block mt-0.5">
+                    Mahasiswa & Dokter Koas
+                  </span>
+                </div>
               </div>
-              <div className="flex flex-col items-start">
-                <span className="text-sm font-black text-[#0D3A68]">Pemeriksaan Fisik</span>
-                <span className="text-xs text-slate-500 font-medium">Panduan & Evaluasi</span>
+
+              {/* Stat 2: Lulusan UKNPDPD */}
+              <div className="flex items-start gap-3">
+                <div className="flex items-center justify-center rounded-2xl bg-amber-50/90 border border-[#C9A227]/40 p-2.5 text-[#0D3A68] shrink-0 mt-0.5 shadow-xs">
+                  <GraduationCap className="h-5 w-5 text-[#0D3A68]" />
+                </div>
+                <div className="flex flex-col items-start">
+                  <span className="text-xl sm:text-2xl font-black text-[#0D3A68] tracking-tight leading-none">
+                    <CountingNumber target={600} suffix="+" />
+                  </span>
+                  <span className="text-xs sm:text-sm font-bold text-slate-800 mt-1">
+                    Lulusan UKNPDPD
+                  </span>
+                  <span className="text-[11px] sm:text-xs text-slate-500 font-medium hidden sm:block mt-0.5">
+                    Alumni Peserta Simulasi
+                  </span>
+                </div>
               </div>
-              <div className="flex flex-col items-start">
-                <span className="text-sm font-black text-[#0D3A68]">Ujian On-Site</span>
-                <span className="text-xs text-slate-500 font-medium">Kantor Yogyakarta</span>
-              </div>
-              <div className="flex flex-col items-start">
-                <span className="text-sm font-black text-[#0D3A68]">Rubrik Standar</span>
-                <span className="text-xs text-slate-500 font-medium">Format Nasional</span>
+
+              {/* Stat 3: Jumlah Mentor */}
+              <div className="flex items-start gap-3">
+                <div className="flex items-center justify-center rounded-2xl bg-amber-50/90 border border-[#C9A227]/40 p-2.5 text-[#0D3A68] shrink-0 mt-0.5 shadow-xs">
+                  <Stethoscope className="h-5 w-5 text-[#0D3A68]" />
+                </div>
+                <div className="flex flex-col items-start">
+                  <span className="text-xl sm:text-2xl font-black text-[#0D3A68] tracking-tight leading-none">
+                    <CountingNumber target={mentorCount} suffix="+" />
+                  </span>
+                  <span className="text-xs sm:text-sm font-bold text-slate-800 mt-1">
+                    Jumlah Mentor
+                  </span>
+                  <span className="text-[11px] sm:text-xs text-slate-500 font-medium hidden sm:block mt-0.5">
+                    Dokter Umum Univ Ternama
+                  </span>
+                </div>
               </div>
             </motion.div>
           </div>

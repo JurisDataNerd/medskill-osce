@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import {
-  Bot,
+  Sparkles,
   Building2,
   Stethoscope,
   Users,
@@ -9,6 +9,7 @@ import {
   ArrowRight,
   ShieldCheck,
   Activity,
+  Clock,
 } from "lucide-react";
 
 export default function IntroductionSimulationSection() {
@@ -45,7 +46,7 @@ export default function IntroductionSimulationSection() {
           </h2>
 
           <p className="mt-3 text-blue-100/90 text-sm sm:text-base font-normal leading-relaxed">
-            Pilih metode persiapan yang sesuai: latihan mandiri berbasis AI atau ujian tatap muka langsung bersama dokter penguji.
+            Pilih metode persiapan yang sesuai: latihan mandiri interaktif atau ujian tatap muka langsung bersama dokter penguji.
           </p>
         </motion.div>
 
@@ -62,14 +63,17 @@ export default function IntroductionSimulationSection() {
             <div>
               <div className="flex items-center justify-between gap-2 pb-4 border-b border-white/10">
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/20 px-3 py-1 text-xs font-bold text-blue-200">
-                  <Bot size={14} className="text-[#C9A227]" />
+                  <Sparkles size={14} className="text-[#C9A227]" />
                   <span>Praxis Mandiri</span>
                 </span>
-                <span className="text-[11px] font-semibold text-[#C9A227]">Akses Kapan Saja</span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 border border-[#C9A227]/50 px-2.5 py-0.5 text-xs font-extrabold text-[#C9A227]">
+                  <Clock size={12} />
+                  <span>Coming Soon</span>
+                </span>
               </div>
 
               <h3 className="text-xl sm:text-2xl font-black text-white mt-4">
-                Simulasi Mandiri (AI)
+                Simulasi Mandiri
               </h3>
               <p className="text-xs sm:text-sm text-blue-100/90 mt-1">
                 Latihan fleksibel dari browser untuk mengasah penalaran klinis secara mandiri.
@@ -83,7 +87,7 @@ export default function IntroductionSimulationSection() {
                     <span>Anamnesis</span>
                   </div>
                   <p className="text-xs text-blue-100 mt-1 leading-relaxed">
-                    Wawancara klinis interaktif bersama <strong className="text-white">Pasien Standar AI</strong> dengan respons keluhan yang dinamis.
+                    Wawancara klinis interaktif bersama <strong className="text-white">Pasien Standar Digital</strong> dengan respons keluhan yang dinamis.
                   </p>
                 </div>
 
@@ -93,20 +97,17 @@ export default function IntroductionSimulationSection() {
                     <span>Pemeriksaan Fisik</span>
                   </div>
                   <p className="text-xs text-blue-100 mt-1 leading-relaxed">
-                    Instruksi manuver diperiksa dan temuan klinis ditampilkan secara instan melalui <strong className="text-white">AI Medical Guide</strong>.
+                    Instruksi manuver diperiksa dan temuan klinis ditampilkan secara instan melalui <strong className="text-white">Panduan Pemeriksaan Digital</strong>.
                   </p>
                 </div>
               </div>
             </div>
 
             <div className="mt-6 pt-4 border-t border-white/10">
-              <button
-                onClick={() => scrollToSection("proof")}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-white py-2.5 px-4 text-xs font-extrabold text-[#0D3A68] hover:bg-amber-50 transition cursor-pointer shadow-sm"
-              >
-                <span>Lihat Fitur Anamnesis AI</span>
-                <ArrowRight size={14} />
-              </button>
+              <div className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-white/10 border border-white/20 py-2.5 px-4 text-xs font-extrabold text-blue-200 cursor-not-allowed">
+                <Clock size={14} className="text-[#C9A227]" />
+                <span>Simulasi Mandiri (Coming Soon)</span>
+              </div>
             </div>
           </motion.div>
 

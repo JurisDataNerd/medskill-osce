@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Globe,
@@ -7,9 +8,24 @@ import {
   Calendar,
   HelpCircle,
   ShieldCheck,
+  ArrowRight,
+  Check,
 } from "lucide-react";
 
 export default function Footer() {
+  const [email, setEmail] = useState("");
+  const [subscribed, setSubscribed] = useState(false);
+
+  const handleSubscribe = (e) => {
+    e.preventDefault();
+    if (!email) return;
+    setSubscribed(true);
+    setTimeout(() => {
+      setSubscribed(false);
+      setEmail("");
+    }, 4000);
+  };
+
   return (
     <footer className="relative bg-[#0D3A68] text-white overflow-hidden pt-14 pb-8 border-t border-[#0A2B4E]">
       <div className="mx-auto max-w-7xl px-4 sm:px-8 relative z-10">
