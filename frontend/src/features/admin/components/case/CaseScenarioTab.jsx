@@ -1,3 +1,5 @@
+import { SYSTEM_ORGAN_LIST, SKDI_LEVEL_LIST } from "@/constants/medicalSystems";
+
 export default function CaseScenarioTab({
   title,
   setTitle,
@@ -30,22 +32,17 @@ export default function CaseScenarioTab({
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-bold text-slate-800 mb-1">Sistem Organ</label>
+            <label className="block text-xs font-bold text-slate-800 mb-1">Sistem Organ SKDI</label>
             <select
               value={systemOrgan}
               onChange={(e) => setSystemOrgan(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 p-3 text-xs font-medium text-slate-800 bg-white"
+              className="w-full rounded-xl border border-slate-200 p-3 text-xs font-medium text-slate-800 bg-white focus:border-blue-500 focus:outline-none"
             >
-              <option value="Kardiovaskular">Kardiovaskular</option>
-              <option value="Respirasi">Respirasi</option>
-              <option value="Neurologi">Neurologi</option>
-              <option value="Digestif">Digestif</option>
-              <option value="Muskuloskeletal">Muskuloskeletal</option>
-              <option value="Endokrin">Endokrin</option>
-              <option value="Urologi">Urologi</option>
-              <option value="THT-KL">THT-KL</option>
-              <option value="Pediatri">Pediatri</option>
-              <option value="Bedah Umum">Bedah Umum</option>
+              {SYSTEM_ORGAN_LIST.map((org) => (
+                <option key={org} value={org}>
+                  {org}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -54,12 +51,13 @@ export default function CaseScenarioTab({
             <select
               value={skdiLevel}
               onChange={(e) => setSkdiLevel(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 p-3 text-xs font-medium text-slate-800 bg-white"
+              className="w-full rounded-xl border border-slate-200 p-3 text-xs font-medium text-slate-800 bg-white focus:border-blue-500 focus:outline-none"
             >
-              <option value="4A (Tuntas Mandiri)">Tingkat 4A</option>
-              <option value="3B (Gawat Darurat)">Tingkat 3B</option>
-              <option value="3A (Non Gawat Darurat)">Tingkat 3A</option>
-              <option value="2">Tingkat 2</option>
+              {SKDI_LEVEL_LIST.map((lvl) => (
+                <option key={lvl.value} value={lvl.value}>
+                  {lvl.label}
+                </option>
+              ))}
             </select>
           </div>
         </div>

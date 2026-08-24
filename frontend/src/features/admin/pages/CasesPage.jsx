@@ -20,6 +20,7 @@ import AdminLayout from "@/layouts/AdminLayout";
 import CaseModal from "@/features/admin/components/CaseModal";
 import ConfirmModal from "@/components/ConfirmModal";
 import QuestionBankImportModal from "@/features/admin/components/QuestionBankImportModal";
+import { SYSTEM_ORGAN_LIST } from "@/constants/medicalSystems";
 
 import {
   getCases,
@@ -232,22 +233,11 @@ export default function CasesPage() {
           <span className="text-slate-400 font-bold flex items-center gap-1 mr-1">
             <Filter size={13} /> Filter Organ:
           </span>
-          {[
-            "ALL",
-            "Kardiovaskular",
-            "Respirasi",
-            "Neurologi",
-            "Digestif",
-            "Muskuloskeletal",
-            "Endokrin",
-            "Urologi",
-            "Pediatri",
-            "THT-KL",
-          ].map((org) => (
+          {["ALL", ...SYSTEM_ORGAN_LIST].map((org) => (
             <button
               key={org}
               onClick={() => setSelectedOrgan(org)}
-              className={`px-3 py-1 rounded-lg text-[11px] font-bold transition border ${
+              className={`px-3 py-1 rounded-lg text-[11px] font-bold transition border cursor-pointer ${
                 selectedOrgan === org
                   ? "bg-blue-600 border-blue-600 text-white shadow-2xs"
                   : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
