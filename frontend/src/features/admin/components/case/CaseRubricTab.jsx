@@ -43,7 +43,7 @@ export default function CaseRubricTab({
               </button>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
               <div className="md:col-span-2">
                 <label className="block text-xs font-bold text-slate-700 mb-1">Indikator Penilaian</label>
                 <input
@@ -60,27 +60,53 @@ export default function CaseRubricTab({
                 <select
                   value={item.competency_area || "ANAMNESIS"}
                   onChange={(e) => handleUpdateRubricField(idx, "competency_area", e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 p-2.5 text-xs text-slate-800 bg-white"
+                  className="w-full rounded-xl border border-slate-200 p-2.5 text-xs font-medium text-slate-800 bg-white"
                 >
-                  <option value="ANAMNESIS">ANAMNESIS</option>
-                  <option value="PHYSICAL_EXAM">PHYSICAL_EXAM</option>
-                  <option value="AUXILIARY_EXAM">AUXILIARY_EXAM</option>
-                  <option value="DIAGNOSIS_DDX">DIAGNOSIS_DDX</option>
-                  <option value="PHARMACOTHERAPY">PHARMACOTHERAPY</option>
-                  <option value="NON_PHARMACOTHERAPY">NON_PHARMACOTHERAPY</option>
-                  <option value="COMMUNICATION">COMMUNICATION</option>
-                  <option value="PROFESSIONALISM">PROFESSIONALISM</option>
+                  <option value="ANAMNESIS">Anamnesis (Riwayat Penyakit)</option>
+                  <option value="PHYSICAL_EXAM">Pemeriksaan Fisik</option>
+                  <option value="AUXILIARY_EXAM">Pemeriksaan Penunjang (Lab / Radiologi)</option>
+                  <option value="DIAGNOSIS_DDX">Diagnosis & Diagnosis Banding (WDx / DDx)</option>
+                  <option value="PHARMACOTHERAPY">Tatalaksana Farmakoterapi / Resep Medis</option>
+                  <option value="NON_PHARMACOTHERAPY">Tatalaksana Non-Farmakoterapi & Edukasi</option>
+                  <option value="COMMUNICATION">Komunikasi & Edukasi Pasien</option>
+                  <option value="PROFESSIONALISM">Perilaku Profesional / Etika Medis</option>
                 </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Bobot</label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    min="0.5"
+                    max="10"
+                    value={item.weight ?? 1.0}
+                    onChange={(e) => handleUpdateRubricField(idx, "weight", Number(e.target.value))}
+                    className="w-full rounded-xl border border-slate-200 p-2.5 text-xs font-bold text-blue-700 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Maks Poin</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={item.max_points ?? 3}
+                    onChange={(e) => handleUpdateRubricField(idx, "max_points", Number(e.target.value))}
+                    className="w-full rounded-xl border border-slate-200 p-2.5 text-xs font-bold text-slate-800 bg-white"
+                  />
+                </div>
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Pedoman Skor Maksimal</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Pedoman Skor Maksimal (Kunci Rubrik Teks)</label>
               <input
                 type="text"
                 value={item.answer_key}
                 onChange={(e) => handleUpdateRubricField(idx, "answer_key", e.target.value)}
-                placeholder="Pedoman skor maksimal 3..."
+                placeholder="Pedoman kriteria skor maksimal..."
                 className="w-full rounded-xl border border-slate-200 p-2.5 text-xs text-slate-800 bg-white"
               />
             </div>

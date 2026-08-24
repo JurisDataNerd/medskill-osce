@@ -231,18 +231,33 @@ export default function AdminAuxiliaryExamBuilder({
                     </div>
                   )}
 
-                  {/* Report / Ekspertise Text Input */}
-                  <div className="pt-1">
-                    <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-                      Hasil Laporan / Ekspertise Medis Teks
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Contoh: EKG ST Elevation V1-V4 atau Foto Thorax Pneumothorax..."
-                      value={reportVal}
-                      onChange={(e) => handleUpdateConfig(idVal, "reportText", e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 p-2 text-xs font-medium text-slate-800 focus:border-blue-500"
-                    />
+                  {/* Report / Ekspertise Text Input & Matched Key */}
+                  <div className="grid gap-2 sm:grid-cols-3 pt-1">
+                    <div className="sm:col-span-2">
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                        Hasil Laporan / Ekspertise Medis Teks
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Contoh: EKG ST Elevation V1-V4 atau Foto Thorax Pneumothorax..."
+                        value={reportVal}
+                        onChange={(e) => handleUpdateConfig(idVal, "reportText", e.target.value)}
+                        className="w-full rounded-lg border border-slate-200 p-2 text-xs font-medium text-slate-800 focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                        Status Indikasi Medis
+                      </label>
+                      <select
+                        value={item.matched_key !== false ? "true" : "false"}
+                        onChange={(e) => handleUpdateConfig(idVal, "matched_key", e.target.value === "true")}
+                        className="w-full rounded-lg border border-slate-200 p-2 text-xs font-bold text-slate-800 focus:border-blue-500"
+                      >
+                        <option value="true">Kunci Indikasi (Matched Key)</option>
+                        <option value="false">Non-Indikasi (Tambahan)</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
               </div>

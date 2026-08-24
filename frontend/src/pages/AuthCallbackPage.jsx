@@ -91,7 +91,7 @@ export default function AuthCallbackPage() {
 
       <div className="relative z-10 w-full max-w-md rounded-3xl border border-white/10 bg-white/5 p-8 text-center shadow-2xl backdrop-blur-xl">
         {/* Brand Header */}
-        <img src="/favicon.svg" alt="Praxis Logo" className="mx-auto mb-4 h-14 w-14 object-contain rounded-2xl shadow-lg" />
+        <img src="/logo_biru.avif" alt="Praxis Logo" className="mx-auto mb-4 h-12 w-12 object-contain" />
 
         <h1 className="text-xl font-extrabold tracking-tight text-white">
           Praxis <span className="text-blue-400">OSCE</span>

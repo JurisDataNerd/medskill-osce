@@ -55,16 +55,20 @@ export default function ExaminerPage() {
 
         let userProf = null;
         if (user) {
-          const { data: profData } = await supabase
-            .schema("public")
-            .from("profiles")
-            .select("full_name, email, specialty, university")
-            .eq("id", user.id)
-            .maybeSingle();
+          try {
+            const { data: profData, error: profErr } = await supabase
+              .schema("public")
+              .from("profiles")
+              .select("*")
+              .eq("id", user.id)
+              .maybeSingle();
 
-          if (profData) {
-            setProfile(profData);
-            userProf = profData;
+            if (!profErr && profData) {
+              setProfile(profData);
+              userProf = profData;
+            }
+          } catch (err) {
+            console.warn("Could not fetch profile from DB, falling back to auth metadata:", err);
           }
         }
 

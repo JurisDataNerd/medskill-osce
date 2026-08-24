@@ -57,7 +57,7 @@ export async function submitExaminerEvaluation({
 
   const activeExaminerId = authUser?.id || examiner_id || "examiner-user";
 
-  // 1. Fetch rubric items to calculate weighted scores
+  // 1. Fetch rubric items from Supabase to calculate weighted scores
   let totalEarned = 0;
   let totalPossible = 0;
 
@@ -66,18 +66,32 @@ export async function submitExaminerEvaluation({
       .schema("osce")
       .from("rubric_items")
       .select("*")
-      .eq("station_id", station_id);
+      .eq("station_id", station_id)
+      .order("question_number", { ascending: true });
 
-    (rubricItems || []).forEach((item) => {
-      const weight = Number(item.weight) || 1.0;
-      const maxPoints = Number(item.max_points) || 3;
-      const given = (rubric_scores || []).find((s) => s.rubric_item_id === item.id);
-      const scoreVal = given ? Number(given.score_given) : 0;
+    if (rubricItems && rubricItems.length > 0) {
+      rubricItems.forEach((item) => {
+        const weight = Number(item.weight) || 1.0;
+        const maxPoints = Number(item.max_points) || 3;
+        const given = (rubric_scores || []).find((s) => s.rubric_item_id === item.id);
+        const scoreVal = given !== undefined ? Number(given.score_given) : 0;
 
-      totalEarned += scoreVal * weight;
-      totalPossible += maxPoints * weight;
-    });
-  } catch (e) {}
+        totalEarned += scoreVal * weight;
+        totalPossible += maxPoints * weight;
+      });
+    } else if (rubric_scores && rubric_scores.length > 0) {
+      // Fallback calculation if rubric items aren't yet in DB
+      rubric_scores.forEach((s) => {
+        const weight = Number(s.weight) || 1.0;
+        const maxPoints = Number(s.max_points) || 3;
+        const scoreVal = Number(s.score_given) || 0;
+        totalEarned += scoreVal * weight;
+        totalPossible += maxPoints * weight;
+      });
+    }
+  } catch (e) {
+    console.warn("Could not query rubric_items for weight calculation:", e);
+  }
 
   const finalScorePercentage = totalPossible > 0 ? (totalEarned / totalPossible) * 100 : 0;
 
@@ -90,8 +104,8 @@ export async function submitExaminerEvaluation({
     rotation_round,
     grs_rating,
     examiner_notes,
-    total_points_earned: totalEarned,
-    max_points_possible: totalPossible,
+    total_points_earned: Math.round(totalEarned * 100) / 100,
+    max_points_possible: Math.round(totalPossible * 100) / 100,
     final_score_percentage: Math.round(finalScorePercentage * 100) / 100,
     is_locked,
     submitted_at: new Date().toISOString(),
@@ -127,7 +141,7 @@ export async function submitExaminerEvaluation({
         .map((s) => ({
           evaluation_id: evaluation.id,
           rubric_item_id: s.rubric_item_id,
-          score_given: s.score_given,
+          score_given: Number(s.score_given),
           feedback: s.feedback || null,
           scored_at: new Date().toISOString(),
         }));

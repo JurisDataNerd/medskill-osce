@@ -53,6 +53,10 @@ export default function ExaminerHistoryDetailPage() {
     async function loadHistoryDetail() {
       try {
         setLoading(true);
+        const {
+          data: { user: authUser },
+        } = await supabase.auth.getUser();
+
         // 1. Query session
         const { data: sess } = await supabase
           .schema("osce")
@@ -61,26 +65,114 @@ export default function ExaminerHistoryDetailPage() {
           .eq("id", historyId)
           .maybeSingle();
 
-        // 2. Query stations
+        // 2. Query examiner assignment for this session
+        let assignedStationNumber = null;
+        if (authUser?.id) {
+          const { data: exAssign } = await supabase
+            .schema("osce")
+            .from("session_examiners")
+            .select("*")
+            .eq("session_id", historyId)
+            .eq("user_id", authUser.id)
+            .maybeSingle();
+          if (exAssign) assignedStationNumber = exAssign.assigned_station_number;
+        }
+
+        // 3. Query stations with rubric items and auxiliary configs
         const { data: stList } = await supabase
           .schema("osce")
           .from("stations")
-          .select("*, rubric_items(*)")
-          .eq("session_id", historyId);
+          .select("*, rubric_items(*), station_auxiliary_configs(*)")
+          .eq("session_id", historyId)
+          .order("station_number", { ascending: true });
 
-        // 3. Query evaluations
-        const { data: evals } = await supabase
-          .schema("osce")
-          .from("examiner_evaluations")
-          .select("*, rubric_scores(*)")
-          .eq("session_id", historyId);
+        const targetStation = (assignedStationNumber && stList?.find(s => Number(s.station_number) === Number(assignedStationNumber)))
+          || (stList && stList[0])
+          || {
+            title: "Stase Penugasan Dokter",
+            case_title: "Kasus Medis Skenario",
+            rubric_items: [],
+            station_auxiliary_configs: [],
+          };
 
-        // 4. Query participants
-        const { data: pList } = await supabase
-          .schema("osce")
-          .from("session_participants")
-          .select("*")
-          .eq("session_id", historyId);
+        const rubricItemMap = {};
+        (targetStation.rubric_items || []).forEach(r => {
+          rubricItemMap[r.id] = r;
+        });
+
+        // 4. Query evaluations for this session and station safely
+        let evals = [];
+        try {
+          let evalQuery = supabase
+            .schema("osce")
+            .from("examiner_evaluations")
+            .select("*")
+            .eq("session_id", historyId);
+
+          if (targetStation.id) {
+            evalQuery = evalQuery.eq("station_id", targetStation.id);
+          }
+          const { data: rawEvals, error: evalErr } = await evalQuery;
+          if (!evalErr && rawEvals) {
+            evals = rawEvals;
+          }
+        } catch (e) {
+          console.warn("Could not query examiner_evaluations:", e);
+        }
+
+        // 4.1. Query rubric_scores for all evaluation IDs to avoid 400 embedding errors
+        const evalIds = (evals || []).map((e) => e.id).filter(Boolean);
+        let allScores = [];
+        if (evalIds.length > 0) {
+          try {
+            const { data: scData, error: scErr } = await supabase
+              .schema("osce")
+              .from("rubric_scores")
+              .select("*")
+              .in("evaluation_id", evalIds);
+            if (!scErr && scData) {
+              allScores = scData;
+            }
+          } catch (e) {
+            console.warn("Could not query rubric_scores:", e);
+          }
+        }
+
+        // Attach rubric_scores to each evaluation
+        evals.forEach((ev) => {
+          ev.rubric_scores = allScores.filter((s) => s.evaluation_id === ev.id);
+        });
+
+        // 5. Query participant answers for this session and station
+        let answersList = [];
+        try {
+          let ansQuery = supabase
+            .schema("osce")
+            .from("participant_answers")
+            .select("*")
+            .eq("session_id", historyId);
+
+          if (targetStation.id) {
+            ansQuery = ansQuery.eq("station_id", targetStation.id);
+          }
+          const { data: rawAns } = await ansQuery;
+          if (rawAns) answersList = rawAns;
+        } catch (e) {
+          console.warn("Could not query participant_answers:", e);
+        }
+
+        // 6. Query participants
+        let pList = [];
+        try {
+          const { data: rawPList } = await supabase
+            .schema("osce")
+            .from("session_participants")
+            .select("*")
+            .eq("session_id", historyId);
+          if (rawPList) pList = rawPList;
+        } catch (e) {
+          console.warn("Could not query session_participants:", e);
+        }
 
         const targetSession = sess || {
           id: historyId,
@@ -90,37 +182,167 @@ export default function ExaminerHistoryDetailPage() {
           status: "published",
         };
 
-        const targetStation = (stList && stList[0]) || {
-          title: "Stase Penugasan Dokter",
-          case_title: "Kasus Medis Skenario",
-        };
-
-        const totalEv = evals ? evals.length : (pList ? pList.length : 0);
+        const totalEv = evals && evals.length > 0 ? evals.length : (pList ? pList.length : 0);
         const avgScore = evals && evals.length > 0
           ? Math.round((evals.reduce((acc, e) => acc + Number(e.final_score_percentage || 0), 0) / evals.length) * 10) / 10
           : 0;
 
         const examineesMapped = (pList && pList.length > 0)
           ? pList.map((p, idx) => {
-              const matchedEval = evals ? evals.find(e => e.participant_id === p.user_id || e.participant_id === p.id) : null;
+              const rotRound = idx + 1;
+              const pUserId = p.user_id;
+              const pId = p.id;
+
+              // Match evaluation by user_id, id, session_participant_id, or rotation_round
+              let matchedEval = evals.find(
+                (e) =>
+                  (pUserId && e.participant_id === pUserId) ||
+                  (pId && e.participant_id === pId) ||
+                  (pId && e.session_participant_id === pId) ||
+                  Number(e.rotation_round) === Number(rotRound)
+              );
+
+              // Check localStorage backup if evaluation or rubric_scores is missing
+              let localRubricScores = null;
+              try {
+                const localKey1 = `osce_eval_${historyId}_${targetStation.id}_${pUserId}_${rotRound}`;
+                const localKey2 = `osce_eval_${historyId}_${targetStation.id}_${pId}_${rotRound}`;
+                const localStr = localStorage.getItem(localKey1) || localStorage.getItem(localKey2);
+                if (localStr) {
+                  const localObj = JSON.parse(localStr);
+                  if (!matchedEval && localObj.evaluation) {
+                    matchedEval = localObj.evaluation;
+                  }
+                  if (localObj.rubric_scores && Array.isArray(localObj.rubric_scores)) {
+                    localRubricScores = localObj.rubric_scores;
+                  }
+                }
+              } catch (e) {}
+
+              // Aggregate available rubric scores from DB or LocalStorage
+              const activeScores = (matchedEval?.rubric_scores && matchedEval.rubric_scores.length > 0)
+                ? matchedEval.rubric_scores
+                : (localRubricScores || []);
+
+              // Map detailed rubric item points
+              const rubricBreakdown = (targetStation.rubric_items || []).map((rItem, rIdx) => {
+                const foundScore = activeScores.find(
+                  (s) => s.rubric_item_id === rItem.id || String(s.rubric_item_id) === String(rItem.id)
+                ) || activeScores[rIdx];
+
+                let scorePoints = 0;
+                if (foundScore !== undefined && foundScore.score_given !== undefined && foundScore.score_given !== null) {
+                  scorePoints = Number(foundScore.score_given);
+                } else if (matchedEval?.final_score_percentage !== undefined && Number(matchedEval.final_score_percentage) > 0) {
+                  const maxPts = Number(rItem.max_points || 3);
+                  scorePoints = Math.round((Number(matchedEval.final_score_percentage) / 100) * maxPts);
+                }
+
+                return {
+                  question: rItem.question || rItem.title || `Item Rubrik #${rIdx + 1}`,
+                  points: scorePoints,
+                  max: Number(rItem.max_points || 3),
+                  weight: Number(rItem.weight || 1.0),
+                };
+              });
+
+              const matchedAns = answersList.find(
+                (a) =>
+                  (pUserId && a.participant_id === pUserId) ||
+                  (pId && a.participant_id === pId) ||
+                  (a.rotation_round && Number(a.rotation_round) === Number(rotRound))
+              );
+
+              const ddxList = [
+                matchedAns?.differential_dx_1,
+                matchedAns?.differential_dx_2,
+                matchedAns?.differential_dx_3,
+              ].filter(Boolean);
+
+              const masterConfigs =
+                targetStation?.station_auxiliary_configs ||
+                targetStation?.auxiliary_exam_configs ||
+                targetStation?.auxiliary_files ||
+                [];
+
+              let rawReq = matchedAns?.requested_auxiliary_json || [];
+              if (typeof rawReq === "string") {
+                try {
+                  rawReq = JSON.parse(rawReq);
+                } catch (e) {
+                  rawReq = [];
+                }
+              }
+              if (!Array.isArray(rawReq)) rawReq = [];
+
+              const parsedRequestedAux = rawReq.map((item, aIdx) => {
+                if (typeof item === "string") {
+                  const matchedMaster = masterConfigs.find(
+                    (c) =>
+                      c.id === item ||
+                      c.item_id === item ||
+                      String(c.name || "").trim().toLowerCase() === String(item || "").trim().toLowerCase()
+                  );
+                  if (matchedMaster) {
+                    return {
+                      id: matchedMaster.id || item,
+                      name: matchedMaster.name || item,
+                      category: matchedMaster.category || "PEMERIKSAAN PENUNJANG",
+                      matched_key: true,
+                      imageUrl: matchedMaster.image_url || matchedMaster.imageUrl || "",
+                      reportText: matchedMaster.report_text || matchedMaster.reportText || "",
+                    };
+                  }
+                  return {
+                    id: item || `aux-${aIdx}`,
+                    name: item.replace(/[_-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+                    category: "PEMERIKSAAN",
+                    matched_key: false,
+                    imageUrl: "",
+                    reportText: "Hasil dalam batas normal.",
+                  };
+                }
+
+                // If item is already an object
+                const itemId = item.id || item.item_id || item.code || `aux-${aIdx}`;
+                const itemName = item.name || item.title || item.label || (typeof itemId === "string" ? itemId.replace(/[_-]/g, " ") : "Pemeriksaan Penunjang");
+                const matchedMaster = masterConfigs.find(
+                  (c) =>
+                    (itemId && (c.id === itemId || c.item_id === itemId)) ||
+                    (itemName && String(c.name || "").trim().toLowerCase() === String(itemName).trim().toLowerCase())
+                );
+
+                return {
+                  id: itemId,
+                  name: matchedMaster?.name || itemName,
+                  category: matchedMaster?.category || item.category || "PEMERIKSAAN PENUNJANG",
+                  matched_key: Boolean(matchedMaster || item.matched_key || item.is_indicated),
+                  imageUrl: matchedMaster?.image_url || item.imageUrl || item.image_url || "",
+                  reportText: matchedMaster?.report_text || item.reportText || item.report_text || "",
+                };
+              });
+
+              const auxResults = parsedRequestedAux.filter(
+                (a) => a.imageUrl || a.reportText
+              );
+
               return {
-                nim: p.nim || p.email?.split("@")[0] || `202007100${idx + 1}`,
-                name: p.full_name || p.name || `Mahasiswa Klinik #${idx + 1}`,
-                avatar: p.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.nim || idx}`,
-                round: idx + 1,
-                score: matchedEval ? matchedEval.final_score_percentage : 0,
-                global_rating: matchedEval ? matchedEval.grs_rating : "BORDERLINE",
-                feedback: matchedEval ? matchedEval.examiner_notes : "Telah dievaluasi oleh penguji.",
-                rubric_breakdown: (matchedEval && matchedEval.rubric_scores)
-                  ? matchedEval.rubric_scores.map(s => ({ question: "Item Evaluasi Rubrik SKDI", points: s.score_given, max: 3 }))
-                  : [],
+                id: p.id,
+                nim: p.nim || p.email?.split("@")[0] || "-",
+                name: p.full_name || p.name || p.email || "-",
+                avatar: p.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.nim || p.id || idx}`,
+                round: rotRound,
+                score: matchedEval ? (matchedEval.final_score_percentage ?? matchedEval.total_score ?? 0) : null,
+                global_rating: matchedEval ? (matchedEval.grs_rating || "-") : "Belum Dinilai",
+                feedback: matchedEval ? (matchedEval.examiner_notes || "Tidak ada catatan penguji.") : "Belum dievaluasi.",
+                rubric_breakdown: rubricBreakdown,
                 student_answers: {
-                  wdx: "-",
-                  ddx: [],
-                  recipe: "-",
+                  wdx: matchedAns?.working_diagnosis || "-",
+                  ddx: ddxList.length > 0 ? ddxList : ["-"],
+                  recipe: matchedAns?.prescription_text || "-",
                 },
-                auxiliary_requested: [],
-                auxiliary_results: [],
+                auxiliary_requested: parsedRequestedAux,
+                auxiliary_results: auxResults,
               };
             })
           : [];
@@ -132,6 +354,8 @@ export default function ExaminerHistoryDetailPage() {
           location: targetSession.location_building || "Gedung Skill Lab Utama",
           station_name: targetStation.title,
           case_title: targetStation.case_title,
+          answer_key_diagnosis: targetStation.answer_key_diagnosis || "",
+          answer_key_prescription: targetStation.answer_key_prescription || "",
           evaluated_count: totalEv,
           avg_score: avgScore,
           examinees_detail: examineesMapped,
@@ -205,13 +429,6 @@ export default function ExaminerHistoryDetailPage() {
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => window.print()}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition active:scale-95 cursor-pointer"
-            >
-              <Printer size={15} />
-              Cetak
-            </button>
-            <button
               onClick={handleDownloadPdf}
               disabled={downloadingPdf}
               className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-blue-700 active:scale-95 transition cursor-pointer disabled:opacity-50"
@@ -224,7 +441,7 @@ export default function ExaminerHistoryDetailPage() {
               ) : (
                 <>
                   <Download size={15} />
-                  Unduh PDF Berita Acara
+                  Cetak / Unduh PDF Evaluasi
                 </>
               )}
             </button>
@@ -280,7 +497,7 @@ export default function ExaminerHistoryDetailPage() {
 
             return (
               <div
-                key={part.nim}
+                key={part.id || `examinee-${idx}-${part.nim || part.name}`}
                 className="overflow-hidden rounded-xl border border-slate-200 bg-white transition hover:border-blue-300 shadow-2xs"
               >
                 {/* Accordion Row Header */}
@@ -363,14 +580,14 @@ export default function ExaminerHistoryDetailPage() {
                           <div>
                             <span className="font-bold text-slate-700 block text-[11px]">Diagnosis Kerja (WDx):</span>
                             <p className="font-semibold text-slate-900 bg-blue-50/60 p-2 rounded-md border border-blue-100">
-                              {part.student_answers?.wdx || "STEMI Anteroseptal"}
+                              {part.student_answers?.wdx || "-"}
                             </p>
                           </div>
 
                           <div>
                             <span className="font-bold text-slate-700 block text-[11px]">Diagnosis Banding (DDx):</span>
                             <ul className="space-y-0.5 mt-0.5">
-                              {(part.student_answers?.ddx || ["Unstable Angina Pectoris", "Perikarditis Akut", "Diseksi Aorta"]).map((d, dIdx) => (
+                              {(part.student_answers?.ddx && part.student_answers.ddx.length > 0 ? part.student_answers.ddx : ["-"]).map((d, dIdx) => (
                                 <li key={dIdx} className="bg-slate-50 px-2 py-1 rounded-md text-slate-800 font-medium">
                                   {dIdx + 1}. {d}
                                 </li>
@@ -381,7 +598,7 @@ export default function ExaminerHistoryDetailPage() {
                           <div>
                             <span className="font-bold text-slate-700 block text-[11px]">Resep Medis:</span>
                             <pre className="bg-slate-50 p-2.5 rounded-md font-mono text-[11px] text-slate-900 whitespace-pre-line leading-relaxed border border-slate-200">
-                              {part.student_answers?.recipe || "R/ ISDN 5mg tab No III\n   S 1 dd tab 1 sublingual\n\nR/ Aspilet 80mg tab No IV\n   S 1 dd tab 4 kunyah"}
+                              {part.student_answers?.recipe || "-"}
                             </pre>
                           </div>
                         </div>
@@ -389,31 +606,20 @@ export default function ExaminerHistoryDetailPage() {
                         {/* Kunci Jawaban */}
                         <div className="rounded-lg border border-emerald-200 bg-white p-3 space-y-2 text-xs">
                           <span className="text-[10px] font-extrabold uppercase text-emerald-950 block border-b border-emerald-100 pb-1">
-                            Kunci Jawaban
+                            Kunci Jawaban Pedoman Stase
                           </span>
 
                           <div>
-                            <span className="font-bold text-emerald-900 block text-[11px]">Diagnosis Kerja (WDx):</span>
-                            <p className="font-bold text-emerald-950 bg-emerald-50 p-2 rounded-md border border-emerald-200">
-                              STEMI Anteroseptal (Infark Miokard Akut ST Elevasi V1-V4)
+                            <span className="font-bold text-emerald-900 block text-[11px]">Kunci Diagnosis:</span>
+                            <p className="font-bold text-emerald-950 bg-emerald-50 p-2 rounded-md border border-emerald-200 whitespace-pre-line">
+                              {historyItem?.answer_key_diagnosis || "Sesuai Standar Pedoman Diagnosis Kasus"}
                             </p>
                           </div>
 
                           <div>
-                            <span className="font-bold text-emerald-900 block text-[11px]">Diagnosis Banding (DDx):</span>
-                            <ul className="space-y-0.5 mt-0.5">
-                              {["Angina Pektoris Tidak Stabil (UAP)", "Diseksi Aorta Thorakalis", "Perikarditis Akut"].map((dk, dkIdx) => (
-                                <li key={dkIdx} className="bg-emerald-50/60 px-2 py-1 rounded-md text-emerald-950 font-semibold border border-emerald-100">
-                                  {dkIdx + 1}. {dk}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-
-                          <div>
-                            <span className="font-bold text-emerald-900 block text-[11px]">Resep Medis:</span>
+                            <span className="font-bold text-emerald-900 block text-[11px]">Kunci Resep & Tatalaksana:</span>
                             <pre className="bg-emerald-50/60 p-2.5 rounded-md font-mono text-[11px] text-emerald-950 whitespace-pre-line leading-relaxed font-semibold border border-emerald-200">
-                              {"R/ ISDN tab 5 mg No. III\n   S.1.d.d tab I sublingual\n\nR/ Asetosal tab 80 mg No. IV\n   S.1.d.d tab IV kunyah\n\nR/ Clopidogrel tab 75 mg No. IV\n   S.1.d.d tab IV"}
+                              {historyItem?.answer_key_prescription || "Sesuai Formularium & Pedoman Terapi Stase"}
                             </pre>
                           </div>
                         </div>
@@ -456,29 +662,47 @@ export default function ExaminerHistoryDetailPage() {
 
                       {(part.auxiliary_requested || []).length > 0 ? (
                         <div className="grid gap-2 sm:grid-cols-2">
-                          {part.auxiliary_requested.map((item, auxIdx) => (
-                            <div
-                              key={auxIdx}
-                              className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-2.5 shadow-2xs text-xs"
-                            >
-                              <div>
-                                <span className="rounded-md bg-purple-100 text-purple-800 text-[9px] font-extrabold px-1.5 py-0.5 mr-1.5">
-                                  {item.category}
-                                </span>
-                                <span className="font-bold text-slate-900">{item.name}</span>
-                              </div>
+                          {part.auxiliary_requested.map((item, auxIdx) => {
+                            const hasFile = Boolean(item.imageUrl || item.reportText);
+                            return (
+                              <div
+                                key={item.id || `aux-${auxIdx}-${item.name}`}
+                                onClick={() => {
+                                  if (hasFile) {
+                                    setAuxModalData({
+                                      isOpen: true,
+                                      results: [item],
+                                    });
+                                  }
+                                }}
+                                className={`flex items-center justify-between rounded-lg border p-2.5 shadow-2xs text-xs transition ${
+                                  hasFile
+                                    ? "border-purple-200 bg-white hover:border-purple-400 cursor-pointer"
+                                    : "border-slate-200 bg-white"
+                                }`}
+                              >
+                                <div className="flex items-center gap-1.5 min-w-0 pr-2">
+                                  <span className="rounded-md bg-purple-100 text-purple-800 text-[9px] font-extrabold px-1.5 py-0.5 shrink-0 uppercase">
+                                    {item.category || "PENUNJANG"}
+                                  </span>
+                                  <span className="font-bold text-slate-900 truncate">
+                                    {item.name || "Pemeriksaan Penunjang"}
+                                  </span>
+                                  {hasFile && <Eye size={12} className="text-purple-600 shrink-0 ml-1" />}
+                                </div>
 
-                              {item.matched_key ? (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
-                                  <CheckCircle2 size={10} /> Sesuai Indikasi
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
-                                  <AlertCircle size={10} /> Non-Indikasi
-                                </span>
-                              )}
-                            </div>
-                          ))}
+                                {item.matched_key ? (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md shrink-0">
+                                    <CheckCircle2 size={10} /> Sesuai Indikasi
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md shrink-0">
+                                    <AlertCircle size={10} /> Non-Indikasi
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       ) : (
                         <p className="text-[11px] text-slate-500 italic">

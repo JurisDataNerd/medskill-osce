@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   Award,
@@ -39,6 +39,14 @@ import {
 import AuxiliaryExamResultModal from "@/components/AuxiliaryExamResultModal";
 import ConfirmModal from "@/components/ConfirmModal";
 import ExaminerStationScheduleWidget from "@/features/examiner/components/ExaminerStationScheduleWidget";
+import ExaminerParticipantAnswerViewer from "@/features/examiner/components/ExaminerParticipantAnswerViewer";
+import ExaminerRubricEvaluationSheet from "@/features/examiner/components/ExaminerRubricEvaluationSheet";
+import ExaminerGlobalRatingSheet from "@/features/examiner/components/ExaminerGlobalRatingSheet";
+import ExaminerSessionsList from "@/features/examiner/components/ExaminerSessionsList";
+import ExaminerWaitingRoom from "@/features/examiner/components/ExaminerWaitingRoom";
+import ExaminerBreakStationView from "@/features/examiner/components/ExaminerBreakStationView";
+import ExaminerGoldStandardReference from "@/features/examiner/components/ExaminerGoldStandardReference";
+import { playOsceAudio, stopAllAudio } from "@/services/audioService";
 
 export default function ExaminerStagePage() {
   const { stageId, sessionId, id } = useParams();
@@ -115,17 +123,28 @@ export default function ExaminerStagePage() {
 
         let userProf = null;
         if (user) {
-          const { data: profData } = await supabase
-            .schema("public")
-            .from("profiles")
-            .select("full_name, email, university, specialty")
-            .eq("id", user.id)
-            .maybeSingle();
+          try {
+            const { data: profData, error: profErr } = await supabase
+              .schema("public")
+              .from("profiles")
+              .select("*")
+              .eq("id", user.id)
+              .maybeSingle();
 
-          if (profData) {
-            userProf = profData;
-            setCurrentUserProfile(profData);
-          } else {
+            if (!profErr && profData) {
+              userProf = profData;
+              setCurrentUserProfile(profData);
+            } else {
+              const fallbackProf = {
+                full_name: user.user_metadata?.full_name || user.email?.split("@")[0],
+                email: user.email,
+                specialty: user.user_metadata?.specialty,
+                university: user.user_metadata?.institution || user.user_metadata?.university,
+              };
+              userProf = fallbackProf;
+              setCurrentUserProfile(fallbackProf);
+            }
+          } catch (e) {
             const fallbackProf = {
               full_name: user.user_metadata?.full_name || user.email?.split("@")[0],
               email: user.email,
@@ -306,6 +325,21 @@ export default function ExaminerStagePage() {
 
           setStationData(mergedStation);
 
+          // Helper for valid Postgres osce.competency_area enum
+          const mapToValidCompetency = (comp) => {
+            if (!comp) return "ANAMNESIS";
+            const upper = String(comp).toUpperCase();
+            if (upper.includes("ANAMNES")) return "ANAMNESIS";
+            if (upper.includes("FISIK") || upper.includes("PHYSICAL")) return "PHYSICAL_EXAM";
+            if (upper.includes("PENUNJANG") || upper.includes("AUXILIARY") || upper.includes("LAB") || upper.includes("RADIO")) return "AUXILIARY_EXAM";
+            if (upper.includes("DIAGNOS") || upper.includes("DDX") || upper.includes("WDX")) return "DIAGNOSIS_DDX";
+            if (upper.includes("FARMAKO") || upper.includes("RESEP") || upper.includes("OBAT") || upper.includes("PHARMACO")) return "PHARMACOTHERAPY";
+            if (upper.includes("NON_FARMAKO") || upper.includes("EDUKASI") || upper.includes("NON_PHARMACO")) return "NON_PHARMACOTHERAPY";
+            if (upper.includes("KOMUNIKASI") || upper.includes("COMMUNIC") || upper.includes("SAMBUNG")) return "COMMUNICATION";
+            if (upper.includes("PROFES") || upper.includes("ETIK") || upper.includes("MORAL")) return "PROFESSIONALISM";
+            return "ANAMNESIS";
+          };
+
           // 3. Query rubric items explicitly from osce.rubric_items table
           let { data: rList } = await supabase
             .schema("osce")
@@ -323,17 +357,17 @@ export default function ExaminerStagePage() {
               itemsToInsert = qbItems.map((item, idx) => ({
                 station_id: st.id,
                 question_number: idx + 1,
-                title: item.title || item.question || item.name || `Item Rubrik #${idx + 1}`,
                 question: item.question || item.title || item.name || `Item Rubrik #${idx + 1}`,
-                description: item.description || item.answer_key || "",
                 answer_key: item.answer_key || item.description || "",
                 max_points: Number(item.max_points) || 3,
                 weight: Number(item.weight) || 1.0,
-                competency_area: item.competency_area || "KLINIS",
-                description_score_0: item.description_score_0 || item.descriptors?.[0] || "0: Tidak Dilakukan / Salah Total",
-                description_score_1: item.description_score_1 || item.descriptors?.[1] || "1: Minimal / Sebagian Salah",
-                description_score_2: item.description_score_2 || item.descriptors?.[2] || "2: Cukup / Memadai",
-                description_score_3: item.description_score_3 || item.descriptors?.[3] || "3: Sempurna & Lengkap",
+                competency_area: mapToValidCompetency(item.competency_area),
+                descriptors: {
+                  score_0: item.description_score_0 || item.descriptors?.score_0 || item.descriptors?.[0] || "0: Tidak Dilakukan / Salah Total",
+                  score_1: item.description_score_1 || item.descriptors?.score_1 || item.descriptors?.[1] || "1: Minimal / Sebagian Salah",
+                  score_2: item.description_score_2 || item.descriptors?.score_2 || item.descriptors?.[2] || "2: Cukup / Memadai",
+                  score_3: item.description_score_3 || item.descriptors?.score_3 || item.descriptors?.[3] || "3: Sempurna & Lengkap",
+                },
                 sort_order: idx,
               }));
             } else {
@@ -341,65 +375,65 @@ export default function ExaminerStagePage() {
                 {
                   station_id: st.id,
                   question_number: 1,
-                  title: "Komunikasi & Anamnesis Terarah",
                   question: "Komunikasi & Anamnesis Terarah",
-                  description: "Evaluasi ketepatan anamnesis dan empati klinis peserta.",
                   answer_key: mergedStation.participant_instructions || "Anamnesis terstruktur",
                   max_points: 3,
                   weight: 2.0,
                   competency_area: "ANAMNESIS",
-                  description_score_0: "0: Tidak dilakukan / Salah Total",
-                  description_score_1: "1: Minimal / Sebagian Salah",
-                  description_score_2: "2: Cukup / Memadai",
-                  description_score_3: "3: Sempurna & Lengkap",
+                  descriptors: {
+                    score_0: "0: Tidak dilakukan / Salah Total",
+                    score_1: "1: Minimal / Sebagian Salah",
+                    score_2: "2: Cukup / Memadai",
+                    score_3: "3: Sempurna & Lengkap",
+                  },
                   sort_order: 0,
                 },
                 {
                   station_id: st.id,
                   question_number: 2,
-                  title: "Pemeriksaan Fisik & Penunjang",
-                  question: "Pemeriksaan Fisik & Penunjang",
-                  description: "Evaluasi teknik pemeriksaan fisik dan usulan pemeriksaan penunjang.",
+                  question: "Pemeriksaan Fisik & Usulan Penunjang",
                   answer_key: "Pemeriksaan fisik & penunjang terarah",
                   max_points: 3,
                   weight: 3.0,
-                  competency_area: "PEMERIKSAAN_FISIK",
-                  description_score_0: "0: Tidak dilakukan / Salah Total",
-                  description_score_1: "1: Minimal / Sebagian Salah",
-                  description_score_2: "2: Cukup / Memadai",
-                  description_score_3: "3: Sempurna & Lengkap",
+                  competency_area: "PHYSICAL_EXAM",
+                  descriptors: {
+                    score_0: "0: Tidak dilakukan / Salah Total",
+                    score_1: "1: Minimal / Sebagian Salah",
+                    score_2: "2: Cukup / Memadai",
+                    score_3: "3: Sempurna & Lengkap",
+                  },
                   sort_order: 1,
                 },
                 {
                   station_id: st.id,
                   question_number: 3,
-                  title: "Diagnosis Kerja (WDx) & Diagnosis Banding (DDx)",
                   question: "Diagnosis Kerja (WDx) & Diagnosis Banding (DDx)",
-                  description: "Evaluasi formulasi diagnosis kerja utama dan diagnosis banding.",
                   answer_key: mergedStation.answer_key_diagnosis || "WDx & DDx sesuai kasus",
                   max_points: 3,
                   weight: 4.0,
-                  competency_area: "DIAGNOSIS",
-                  description_score_0: "0: Salah total",
-                  description_score_1: "1: Kurang tepat",
-                  description_score_2: "2: Tepat",
-                  description_score_3: "3: Sempurna",
+                  competency_area: "DIAGNOSIS_DDX",
+                  descriptors: {
+                    score_0: "0: Salah total",
+                    score_1: "1: Kurang tepat",
+                    score_2: "2: Tepat",
+                    score_3: "3: Sempurna",
+                  },
                   sort_order: 2,
                 },
                 {
                   station_id: st.id,
                   question_number: 4,
-                  title: "Tatalaksana Farmakoterapi & Resep Medis",
                   question: "Tatalaksana Farmakoterapi & Resep Medis",
-                  description: "Evaluasi penulisan resep dan tatalaksana farmakoterapi.",
                   answer_key: mergedStation.answer_key_prescription || "Resep medis terstruktur",
                   max_points: 3,
                   weight: 4.0,
-                  competency_area: "RESEP_MEDIS",
-                  description_score_0: "0: Resep salah total",
-                  description_score_1: "1: Dosis / aturan pakai kurang tepat",
-                  description_score_2: "2: Tepat",
-                  description_score_3: "3: Sempurna & Lengkap",
+                  competency_area: "PHARMACOTHERAPY",
+                  descriptors: {
+                    score_0: "0: Resep salah total",
+                    score_1: "1: Dosis / aturan pakai kurang tepat",
+                    score_2: "2: Tepat",
+                    score_3: "3: Sempurna & Lengkap",
+                  },
                   sort_order: 3,
                 },
               ];
@@ -688,9 +722,22 @@ export default function ExaminerStagePage() {
     };
   }, [activeSession?.id]);
 
+  const prevRemainingRef = useRef(null);
+
+  // Stop all audio when unmounting
+  useEffect(() => {
+    return () => {
+      stopAllAudio();
+    };
+  }, []);
+
   // Live Timer Local 1-second Tick derived from target_end_time
   useEffect(() => {
     if (!activeSession || !timerState) return;
+
+    const isLive =
+      (activeSession.status === "ongoing" || activeSession.status === "running") &&
+      timerState.phase === "running";
 
     const interval = setInterval(() => {
       const isPaused = timerState.phase === "paused" || activeSession.status === "paused";
@@ -700,6 +747,14 @@ export default function ExaminerStagePage() {
         isPaused
       );
       setRemainingSeconds(rem);
+
+      const prevRem = prevRemainingRef.current;
+      if (isLive && !isPaused && prevRem !== null && prevRem !== rem) {
+        if (prevRem > 120 && rem <= 120 && rem >= 115) playOsceAudio("warning_2min");
+        if (prevRem > 60 && rem <= 60 && rem >= 55) playOsceAudio("warning_1min");
+        if (prevRem > 0 && rem === 0) playOsceAudio("stop_transit");
+      }
+      prevRemainingRef.current = rem;
     }, 1000);
 
     return () => clearInterval(interval);
@@ -772,7 +827,37 @@ export default function ExaminerStagePage() {
     };
   }, [stationData?.id, currentParticipant?.id, currentParticipant?.user_id]);
 
-  // Fetch saved evaluation from Supabase whenever active examinee / station / rotation changes
+  // Memoized draft storage key for active examinee / station / rotation
+  const draftStorageKey = useMemo(() => {
+    if (!activeSession?.id || !stationData?.id || !currentParticipant) return null;
+    const examineeId = currentParticipant.user_id || currentParticipant.id;
+    const rotRound = activeRotationIndex + 1;
+    return `osce_examiner_draft_${activeSession.id}_${stationData.id}_${examineeId}_${rotRound}`;
+  }, [activeSession?.id, stationData?.id, currentParticipant?.id, currentParticipant?.user_id, activeRotationIndex]);
+
+  // Debounced auto-save draft to localStorage (Safety net before submit)
+  useEffect(() => {
+    if (!draftStorageKey || loading) return;
+    const timer = setTimeout(() => {
+      try {
+        if (rubricScores && Object.keys(rubricScores).length > 0) {
+          const draftData = {
+            rubricScores,
+            globalRating,
+            feedback,
+            savedAt: new Date().toISOString(),
+          };
+          localStorage.setItem(draftStorageKey, JSON.stringify(draftData));
+        }
+      } catch (e) {
+        console.warn("Could not save examiner draft to localStorage:", e);
+      }
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [draftStorageKey, rubricScores, globalRating, feedback, loading]);
+
+  // Fetch saved evaluation from Supabase or restore draft from localStorage whenever active examinee / station / rotation changes
   useEffect(() => {
     if (!activeSession?.id || !stationData?.id || !currentParticipant) return;
 
@@ -792,6 +877,7 @@ export default function ExaminerStagePage() {
           .maybeSingle();
 
         if (evalRecord) {
+          // Prioritas 1: Data resmi tersimpan di Supabase
           setGlobalRating(evalRecord.grs_rating || "SATISFACTORY");
           setFeedback(evalRecord.examiner_notes || "");
           const scoresMap = {};
@@ -800,13 +886,31 @@ export default function ExaminerStagePage() {
           });
           setRubricScores(scoresMap);
         } else {
-          setGlobalRating("SATISFACTORY");
-          setFeedback("");
-          const defaultScores = {};
-          rubricItems.forEach((r) => {
-            defaultScores[r.id] = 3;
-          });
-          setRubricScores(defaultScores);
+          // Prioritas 2: Cek apakah ada draft belum disubmit di localStorage
+          const localDraftStr = draftStorageKey ? localStorage.getItem(draftStorageKey) : null;
+          let draftLoaded = false;
+          if (localDraftStr) {
+            try {
+              const localDraft = JSON.parse(localDraftStr);
+              if (localDraft.globalRating) setGlobalRating(localDraft.globalRating);
+              if (localDraft.feedback !== undefined) setFeedback(localDraft.feedback);
+              if (localDraft.rubricScores && Object.keys(localDraft.rubricScores).length > 0) {
+                setRubricScores(localDraft.rubricScores);
+                draftLoaded = true;
+              }
+            } catch (e) {}
+          }
+
+          // Prioritas 3: Default bersih jika tidak ada draft
+          if (!draftLoaded) {
+            setGlobalRating("SATISFACTORY");
+            setFeedback("");
+            const defaultScores = {};
+            rubricItems.forEach((r) => {
+              defaultScores[r.id] = 3;
+            });
+            setRubricScores(defaultScores);
+          }
         }
       } catch (err) {
         console.warn("Could not load saved evaluation from Supabase:", err);
@@ -814,7 +918,7 @@ export default function ExaminerStagePage() {
     }
 
     loadSavedEvaluation();
-  }, [activeSession?.id, stationData?.id, currentParticipant?.id, currentParticipant?.user_id, activeRotationIndex, rubricItems]);
+  }, [activeSession?.id, stationData?.id, currentParticipant?.id, currentParticipant?.user_id, activeRotationIndex, rubricItems, draftStorageKey]);
 
   function handleScoreChange(itemId, val) {
     setRubricScores((prev) => ({
@@ -867,12 +971,21 @@ export default function ExaminerStagePage() {
         examiner_notes: feedback || null,
         rubric_scores: rubricItems.map((r) => ({
           rubric_item_id: r.id,
-          score_given: Number(rubricScores[r.id] || 0),
+          score_given: Number(rubricScores[r.id] ?? 3),
+          weight: Number(r.weight) || 1.0,
+          max_points: Number(r.max_points) || 3,
         })),
         is_locked: true,
       });
 
-      toast.success("Penilaian berhasil disimpan & dikunci!");
+      // Clear draft in localStorage after successful permanent sync
+      if (draftStorageKey) {
+        try {
+          localStorage.removeItem(draftStorageKey);
+        } catch (e) {}
+      }
+
+      toast.success("Penilaian berhasil disinkronkan & dikunci di Supabase!");
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
@@ -902,231 +1015,16 @@ export default function ExaminerStagePage() {
   }
 
   if (!activeSession || !stationData) {
-    const rawDoctorName = currentUserProfile?.full_name || "Dokter Penguji";
-    const doctorName = rawDoctorName.toLowerCase().startsWith("dr") ? rawDoctorName : `dr. ${rawDoctorName}`;
-    const doctorSpecialty = currentUserProfile?.specialty || "Spesialis Penguji OSCE";
-    const doctorInst = currentUserProfile?.university || "Fakultas Kedokteran";
-
     return (
-      <div className="space-y-6 max-w-7xl mx-auto py-2">
-        {/* Modern Hero Dashboard Banner */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-900 via-slate-900 to-indigo-950 p-6 sm:p-8 text-white shadow-xl">
-          <div className="relative z-10 flex flex-wrap items-center justify-between gap-6">
-            <div className="flex items-center gap-5">
-              <div className="h-16 w-16 rounded-2xl bg-blue-600/90 text-white flex items-center justify-center font-black text-2xl shadow-lg border-2 border-blue-400/30 shrink-0">
-                <Stethoscope size={30} />
-              </div>
-              <div className="space-y-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-full bg-blue-500/20 px-3 py-0.5 text-[10px] font-black text-blue-200 border border-blue-400/30 uppercase tracking-wider">
-                    Ruang Pengujian OSCE
-                  </span>
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold text-emerald-300 border border-emerald-400/30">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
-                    Status: Standby Penugasan
-                  </span>
-                </div>
-                <h1 className="text-xl sm:text-2xl font-black text-white">
-                  {doctorName}
-                </h1>
-                <p className="text-xs text-slate-300 font-medium">
-                  {doctorSpecialty} • {doctorInst}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => window.location.reload()}
-                className="inline-flex items-center gap-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 px-4 py-2.5 text-xs font-bold text-white transition active:scale-95 cursor-pointer backdrop-blur-xs"
-              >
-                <Activity size={15} />
-                Muat Ulang
-              </button>
-              <button
-                onClick={() => navigate("/examiner")}
-                className="inline-flex items-center gap-2 rounded-xl bg-rose-600 hover:bg-rose-700 px-4 py-2.5 text-xs font-bold text-white transition active:scale-95 shadow-md shadow-rose-600/30 cursor-pointer"
-              >
-                <LogOut size={15} />
-                Kembali ke Dashboard
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Section Header */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
-          <div>
-            <h2 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
-              <CalendarDays className="text-blue-600" size={20} />
-              Daftar Sesi Ujian Penugasan ({assignedSessionsList.length})
-            </h2>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">
-              Pilih kartu sesi ujian di bawah untuk masuk ke ruang pengujian stase Anda.
-            </p>
-          </div>
-        </div>
-
-        {assignedSessionsList.length > 0 ? (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {assignedSessionsList.map(({ session: s, assignment: a, station: st }) => {
-              const sStatus = String(s.status || "").toLowerCase();
-              const isOngoing = ["ongoing", "running", "waiting_room", "paused"].includes(sStatus);
-              const isCompleted = ["completed", "finished", "selesai"].includes(sStatus);
-              const isPublished = ["published", "scheduled"].includes(sStatus);
-              const isDraft = sStatus === "draft";
-
-              return (
-                <div
-                  key={s.id}
-                  onClick={() => {
-                    if (isCompleted) {
-                      navigate("/examiner/history");
-                    } else if (!isDraft) {
-                      setActiveSession(s);
-                      setStationData(st);
-                      navigate(`/examiner/stage/${st?.id || s.id}`);
-                    }
-                  }}
-                  className={`rounded-2xl border border-slate-200 bg-slate-50/70 p-5 space-y-4 shadow-2xs transition flex flex-col justify-between ${
-                    isDraft ? "opacity-70 cursor-not-allowed" : "hover:border-blue-300 hover:bg-white cursor-pointer active:scale-98"
-                  }`}
-                >
-                  <div className="space-y-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      {isOngoing && (
-                        <span className="rounded-md bg-emerald-100 text-emerald-900 border border-emerald-300 px-2.5 py-0.5 text-[10px] font-black uppercase inline-flex items-center gap-1">
-                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-ping" />
-                          Live Berlangsung
-                        </span>
-                      )}
-                      {isPublished && (
-                        <span className="rounded-md bg-blue-100 text-blue-900 border border-blue-300 px-2.5 py-0.5 text-[10px] font-black uppercase inline-flex items-center gap-1">
-                          Sesi Terjadwal
-                        </span>
-                      )}
-                      {isCompleted && (
-                        <span className="rounded-md bg-slate-200 text-slate-700 border border-slate-300 px-2.5 py-0.5 text-[10px] font-black uppercase inline-flex items-center gap-1">
-                          <CheckCircle2 size={11} className="text-slate-600" />
-                          Sesi Selesai
-                        </span>
-                      )}
-                      {isDraft && (
-                        <span className="rounded-md bg-amber-100 text-amber-900 border border-amber-300 px-2.5 py-0.5 text-[10px] font-black uppercase inline-flex items-center gap-1">
-                          Draft
-                        </span>
-                      )}
-
-                      <span className="rounded-md bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-[10px] font-black text-emerald-900 inline-flex items-center gap-1 uppercase">
-                        <CheckCircle2 size={11} className="text-emerald-700" />
-                        Pos #{st?.station_number || a?.assigned_station_number || 1}
-                      </span>
-                    </div>
-
-                    <div>
-                      <h4 className="text-sm font-extrabold text-slate-900">{s.title}</h4>
-                      <p className="text-xs text-slate-500 mt-1 line-clamp-2">
-                        {st
-                          ? `Pos Penugasan: Pos #${st.station_number} - ${st.case_title || st.title || "Kasus Medis"}`
-                          : s.description || "Sesi evaluasi sirkuit terpadu stase aktif."}
-                      </p>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 text-xs font-semibold text-slate-700">
-                      <div className="rounded-xl border border-slate-200 bg-white p-2.5 text-center">
-                        <span className="text-slate-400 text-[10px] block font-bold">Total Stase</span>
-                        <span className="font-black text-slate-900">{s.total_stations || 8} Pos</span>
-                      </div>
-                      <div className="rounded-xl border border-slate-200 bg-white p-2.5 text-center">
-                        <span className="text-slate-400 text-[10px] block font-bold">Durasi Stase</span>
-                        <span className="font-black text-slate-900">{s.station_duration_minutes || 12} Mnt</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="pt-3 border-t border-slate-200/60">
-                    {isCompleted ? (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate("/examiner/history");
-                        }}
-                        className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 bg-slate-200 hover:bg-slate-300 transition active:scale-95 shadow-sm cursor-pointer"
-                      >
-                        <History size={16} />
-                        Lihat Riwayat & Rekap
-                      </button>
-                    ) : isDraft ? (
-                      <button
-                        type="button"
-                        disabled
-                        className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-400 bg-slate-100 cursor-not-allowed border border-slate-200"
-                      >
-                        Belum Dipublikasikan
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className={`w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold text-white shadow-md transition active:scale-95 cursor-pointer ${
-                          isOngoing
-                            ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/30 animate-pulse"
-                            : "bg-blue-600 hover:bg-blue-700 shadow-blue-600/30"
-                        }`}
-                      >
-                        {isOngoing ? (
-                          <>
-                            <PlayCircle size={16} />
-                            Masuk Sesi Live
-                          </>
-                        ) : (
-                          <>
-                            <Play size={15} />
-                            Masuk Sesi
-                          </>
-                        )}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="rounded-3xl border border-dashed border-slate-200 bg-white p-10 text-center space-y-4 shadow-sm animate-in fade-in duration-200">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 border border-blue-200 shadow-xs">
-              <Stethoscope size={30} />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-base font-black text-slate-900">Belum Ada Sesi Ujian Penugasan</h3>
-              <p className="text-xs text-slate-500 max-w-md mx-auto font-medium leading-relaxed">
-                Anda belum memiliki jadwal penugasan stase aktif saat ini. Penugasan akan muncul di sini saat sesi dibuka oleh Admin.
-              </p>
-            </div>
-            <div className="pt-2 flex items-center justify-center gap-3">
-              <button
-                onClick={() => window.location.reload()}
-                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-5 py-2.5 text-xs font-bold text-white shadow-md transition active:scale-95 cursor-pointer"
-              >
-                <Activity size={15} />
-                Muat Ulang Jadwal
-              </button>
-            </div>
-          </div>
-        )}
-
-        <ConfirmModal
-          isOpen={confirmModal.isOpen}
-          onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
-          onConfirm={confirmModal.onConfirm}
-          title={confirmModal.title}
-          message={confirmModal.message}
-          confirmText={confirmModal.confirmText}
-          cancelText={confirmModal.cancelText}
-          variant={confirmModal.variant}
-          isAlert={confirmModal.isAlert}
-        />
-      </div>
+      <ExaminerSessionsList
+        currentUserProfile={currentUserProfile}
+        assignedSessionsList={assignedSessionsList}
+        setActiveSession={setActiveSession}
+        setStationData={setStationData}
+        navigate={navigate}
+        confirmModal={confirmModal}
+        setConfirmModal={setConfirmModal}
+      />
     );
   }
 
@@ -1135,467 +1033,31 @@ export default function ExaminerStagePage() {
   // Dedicated Waiting Room UI when session is scheduled/published but not yet started live by Admin
   if (!isOngoing) {
     return (
-      <div className="space-y-6 max-w-6xl mx-auto py-2">
-        {/* Realtime Broadcast Toast Overlay Component (Auto 5s & X Close Button) */}
-        {activeBroadcast && (
-          <div className="fixed top-5 right-5 z-[9999] max-w-md w-full animate-in slide-in-from-top-4 fade-in duration-200">
-            <div className="flex items-start justify-between gap-3 rounded-2xl border-2 border-indigo-500 bg-slate-900 p-4 text-white shadow-2xl backdrop-blur-md">
-              <div className="flex items-start gap-3 min-w-0">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md">
-                  <Megaphone size={20} className="animate-bounce text-white" />
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-indigo-300">
-                    <BellRing size={12} className="text-amber-400" />
-                    <span>Broadcast Admin Control Room</span>
-                    <span>•</span>
-                    <span>{activeBroadcast.time}</span>
-                  </div>
-                  <p className="font-bold text-xs text-slate-100 mt-1 leading-snug break-words">
-                    "{activeBroadcast.message}"
-                  </p>
-                </div>
-              </div>
+      <ExaminerWaitingRoom
+        activeBroadcast={activeBroadcast}
+        setActiveBroadcast={setActiveBroadcast}
+        activeSession={activeSession}
+        stationData={stationData}
+        participants={participants}
+        onlineUsers={onlineUsers}
+        rubricItems={rubricItems}
+        currentRoundNum={currentRoundNum}
+        setForceLiveView={setForceLiveView}
+        handleExitExaminerWaitingRoom={handleExitExaminerWaitingRoom}
+        confirmModal={confirmModal}
+        setConfirmModal={setConfirmModal}
+      />
+    );
+  }
 
-              <button
-                onClick={() => setActiveBroadcast(null)}
-                title="Tutup Pesan (Close)"
-                className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-white transition"
-              >
-                <X size={18} />
-              </button>
-            </div>
-          </div>
-        )}
-
-
-        {/* Clean Unified Waiting Room Header */}
-        <div className="rounded-3xl border border-slate-700 bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 p-6 text-white shadow-xl space-y-5">
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-700/80 pb-4">
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black uppercase tracking-wider text-amber-900 bg-amber-100 border border-amber-300 px-2.5 py-0.5 rounded-md inline-flex items-center gap-1.5">
-                  <Clock size={12} className="text-amber-700" />
-                  WAITING ROOM PENGUJI • STANDBY STASE
-                </span>
-                <span className="text-xs font-bold text-blue-300">
-                  {activeSession.title}
-                </span>
-              </div>
-              <h1 className="text-xl sm:text-2xl font-black text-white">
-                Pos Penugasan #{stationData.station_number}: {stationData.case_title || stationData.title || "Kasus Medis SKDI"}
-              </h1>
-              <p className="text-xs text-slate-300 font-medium">
-                Menunggu Admin Control Room memulai sesi ujian live. Layar akan otomatis beralih saat sesi dimulai.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3 shrink-0">
-              <button
-                onClick={() => setForceLiveView(true)}
-                className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 text-xs font-black text-white shadow-lg hover:bg-emerald-700 active:scale-95 transition"
-              >
-                <PlayCircle size={18} />
-                Masuk Lembar Penilaian Live
-              </button>
-              <button
-                onClick={handleExitExaminerWaitingRoom}
-                className="inline-flex items-center gap-2 rounded-2xl border border-rose-400/30 bg-rose-500/20 px-4 py-3 text-xs font-bold text-rose-200 hover:bg-rose-500/30 transition shadow-2xs"
-              >
-                <LogOut size={16} />
-                Keluar Waiting Room
-              </button>
-            </div>
-          </div>
-
-          {/* Quick Info Grid */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 text-xs">
-            <div className="rounded-2xl bg-white/10 p-3.5 border border-white/10">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Lokasi & Gedung</span>
-              <span className="font-extrabold text-white text-xs mt-0.5 block truncate">
-                {activeSession.location_building || "Gedung Skill Lab Kedokteran"}
-              </span>
-            </div>
-            <div className="rounded-2xl bg-white/10 p-3.5 border border-white/10">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Durasi Stase</span>
-              <span className="font-extrabold text-white text-xs mt-0.5 block">
-                {activeSession.station_duration_minutes || 12} Menit per Stase
-              </span>
-            </div>
-            <div className="rounded-2xl bg-white/10 p-3.5 border border-white/10">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Jumlah Station Pos</span>
-              <span className="font-extrabold text-white text-xs mt-0.5 block">
-                {activeSession.total_stations || 6} Pos Rotasi
-              </span>
-            </div>
-            <div className="rounded-2xl bg-white/10 p-3.5 border border-white/10">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Peserta Terdaftar</span>
-              <span className="font-extrabold text-emerald-400 text-xs mt-0.5 block">
-                {participants.length} Peserta Rotasi
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Embedded Examiner Station Rotation Schedule Widget */}
-        <ExaminerStationScheduleWidget
-          sessionId={activeSession.id}
-          stationNumber={stationData.station_number}
-          activeRound={currentRoundNum}
-        />
-
-        {/* Live Presence Standby Participants & Examiners Card */}
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-md space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
-            <div>
-              <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
-                <Users size={20} className="text-blue-600" />
-                Daftar Peserta Mahasiswa & Penguji Standby (Realtime Presence)
-              </h3>
-              <p className="text-xs text-slate-500 font-medium mt-0.5">
-                Pantau status kehadiran peserta dan dokter penguji yang terhubung live di ruang tunggu secara real-time.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="rounded-full bg-emerald-100 border border-emerald-300 px-3 py-1 text-xs font-bold text-emerald-900 flex items-center gap-1.5 animate-pulse">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                {onlineUsers.length} Online Terhubung
-              </span>
-            </div>
-          </div>
-
-          {/* Online Presence Grid */}
-          <div className="space-y-3">
-            <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">
-              Pengguna Terhubung di Ruang Tunggu ({onlineUsers.length}):
-            </h4>
-
-            {onlineUsers.length > 0 ? (
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {onlineUsers.map((u, idx) => (
-                  <div
-                    key={u.user_id || idx}
-                    className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50/80 p-3.5 shadow-2xs hover:bg-white transition"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700 font-extrabold text-sm border border-blue-200">
-                        {u.full_name ? u.full_name.charAt(0).toUpperCase() : "U"}
-                        <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 border-2 border-white" />
-                      </div>
-
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold text-slate-900 truncate">{u.full_name}</p>
-                        <p className="text-[10px] text-slate-500 truncate">
-                          {u.role === "examiner"
-                            ? `Dokter Penguji ${u.specialty ? `• ${u.specialty}` : ""}`
-                            : u.role === "admin"
-                            ? "Admin Control Room"
-                            : `Peserta ${u.nim ? `(NIM: ${u.nim})` : ""}`}
-                        </p>
-                      </div>
-                    </div>
-
-                    <span
-                      className={`rounded-md px-2 py-0.5 text-[9px] font-black uppercase shrink-0 ${
-                        u.role === "examiner"
-                          ? "bg-purple-100 text-purple-900 border border-purple-300"
-                          : u.role === "admin"
-                          ? "bg-amber-100 text-amber-900 border border-amber-300"
-                          : "bg-emerald-100 text-emerald-900 border border-emerald-300"
-                      }`}
-                    >
-                      {u.role === "examiner" ? "Penguji" : u.role === "admin" ? "Admin" : "Standby Live"}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-xs text-slate-500 font-medium">
-                Belum ada peserta atau penguji lain yang terhubung di ruang tunggu.
-              </div>
-            )}
-          </div>
-
-          {/* Enrolled Session Participants List */}
-          {participants && participants.length > 0 && (
-            <div className="pt-3 border-t border-slate-100 space-y-3">
-              <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                Daftar Peserta Terdaftar Sesi Ini ({participants.length} Peserta):
-              </h4>
-
-              <div className="overflow-x-auto rounded-2xl border border-slate-200">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-100 text-slate-700 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200">
-                    <tr>
-                      <th className="px-4 py-3">No</th>
-                      <th className="px-4 py-3">Nama Peserta</th>
-                      <th className="px-4 py-3">NIM</th>
-                      <th className="px-4 py-3">Stase Awalan Rotasi</th>
-                      <th className="px-4 py-3">Status Presensi</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 bg-white font-medium text-slate-800">
-                    {participants.map((p, idx) => {
-                      const isUserOnline = onlineUsers.some(
-                        (u) =>
-                          (u.user_id && (u.user_id === p.user_id || u.user_id === p.id)) ||
-                          (u.email && p.email && u.email.toLowerCase() === p.email.toLowerCase()) ||
-                          (u.full_name && p.full_name && u.full_name.toLowerCase().includes(p.full_name.toLowerCase()))
-                      );
-
-                      return (
-                        <tr key={p.id || idx} className="hover:bg-slate-50 transition">
-                          <td className="px-4 py-3 font-bold text-slate-500">{idx + 1}</td>
-                          <td className="px-4 py-3 font-bold text-slate-900">
-                            {p.full_name || p.name || p.email || `Peserta #${idx + 1}`}
-                          </td>
-                          <td className="px-4 py-3 text-slate-600">{p.nim || p.user_id?.slice(0, 8) || "-"}</td>
-                          <td className="px-4 py-3">
-                            <span className="rounded-md bg-blue-50 border border-blue-200 px-2 py-0.5 text-[10px] font-bold text-blue-900">
-                              Mulai Pos #{p.starting_station_number || ((idx % 6) + 1)}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">
-                            {isUserOnline ? (
-                              <span className="rounded-full bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 text-[10px] font-black text-emerald-900 inline-flex items-center gap-1">
-                                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                                Standby Online
-                              </span>
-                            ) : (
-                              <span className="rounded-full bg-slate-100 border border-slate-300 px-2.5 py-0.5 text-[10px] font-bold text-slate-500 inline-flex items-center gap-1">
-                                <span className="h-2 w-2 rounded-full bg-slate-400" />
-                                Offline / Belum Masuk
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Complete Station Scenario, Instructions, Gold Standard Keys & Rubric Preview Section */}
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-md space-y-6">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="rounded-md bg-blue-600 px-3 py-1 text-xs font-extrabold text-white">
-                  STASE #{stationData.station_number}
-                </span>
-                <span className="rounded-md bg-slate-100 border border-slate-200 px-3 py-1 text-xs font-bold text-slate-700">
-                  {stationData.system_organ || "Kardiovaskular"} • SKDI {stationData.skdi_level || "4A"}
-                </span>
-              </div>
-              <h3 className="text-lg font-black text-slate-900 flex items-center gap-2 mt-2">
-                <FileText size={20} className="text-blue-600" />
-                Detail Soal Stase, Skenario Medis & Kunci Rubrik Penilaian
-              </h3>
-              <p className="text-xs text-slate-500 font-medium mt-0.5">
-                Dokter Penguji dapat mempelajari seluruh instrumen penilaian, skenario, kunci diagnosis, resep, serta berkas penunjang secara lengkap di ruang tunggu.
-              </p>
-            </div>
-          </div>
-
-          {/* Skenario Kasus Medis Naratif */}
-          <div>
-            <h4 className="font-bold text-slate-900 text-xs uppercase mb-1 flex items-center gap-1.5">
-              <Stethoscope size={15} className="text-blue-600" />
-              Skenario Kasus Medis Utama
-            </h4>
-            <p className="text-slate-700 bg-slate-50 border border-slate-200 p-4 rounded-2xl leading-relaxed text-xs font-medium">
-              {stationData.scenario || "Pasien datang dengan keluhan spesifik sesuai skenario stase medis ini. Peserta diwajibkan melakukan anamnesis terarah, pemeriksaan fisik kardiovaskular / spesifik, dan penetapan diagnosis kerja."}
-            </p>
-          </div>
-
-          {/* Instructions Side-by-Side */}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <h4 className="font-bold text-slate-900 text-xs uppercase mb-1">Instruksi Peserta Ujian</h4>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-slate-700 whitespace-pre-line text-xs font-medium leading-relaxed">
-                {stationData.participant_instructions || stationData.participant_instruction || "1. Lakukan anamnesis terarah.\n2. Lakukan pemeriksaan fisik sesuai standar SOP.\n3. Sampaikan diagnosis kerja & terapi."}
-              </div>
-            </div>
-
-            <div>
-              <h4 className="font-bold text-slate-900 text-xs uppercase mb-1">Instruksi Dokter Penguji (Panduan Observasi)</h4>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-slate-700 whitespace-pre-line text-xs font-medium leading-relaxed">
-                {stationData.examiner_instructions || stationData.examiner_instruction || "Amati kepatuhan prosedur sterilitas tangan, ketepatan auskultasi/pemeriksaan fisik, dan penyampaian edukasi ke pasien."}
-              </div>
-            </div>
-          </div>
-
-          {/* Kunci Jawaban Baku Diagnosis & Resep Medis (Gold Standard) */}
-          {(stationData.answer_key_diagnosis || stationData.answer_key_prescription) && (
-            <div className="grid gap-4 sm:grid-cols-2 border-t border-slate-100 pt-4">
-              {stationData.answer_key_diagnosis && (
-                <div>
-                  <h4 className="font-bold text-slate-900 text-xs uppercase mb-1 flex items-center gap-1.5">
-                    <CheckCircle2 size={15} className="text-emerald-600" />
-                    Kunci Diagnosis Kerja (WDx) & Banding (DDx)
-                  </h4>
-                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 text-xs font-medium text-emerald-950 leading-relaxed whitespace-pre-line">
-                    {stationData.answer_key_diagnosis}
-                  </div>
-                </div>
-              )}
-
-              {stationData.answer_key_prescription && (
-                <div>
-                  <h4 className="font-bold text-slate-900 text-xs uppercase mb-1 flex items-center gap-1.5">
-                    <FileSpreadsheet size={15} className="text-blue-600" />
-                    Kunci Jawaban Resep Medis Baku
-                  </h4>
-                  <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-4 text-xs font-medium text-blue-950 leading-relaxed font-mono whitespace-pre-line">
-                    {stationData.answer_key_prescription}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Berkas Penunjang (Auxiliary Exam Configs) */}
-          {(() => {
-            const auxConfigs = stationData.station_auxiliary_configs || stationData.auxiliary_exam_configs || stationData.auxiliary_files || [];
-            return (
-              <div className="border-t border-slate-100 pt-4 space-y-2">
-                <h4 className="font-bold text-slate-900 text-xs uppercase mb-1 flex items-center justify-between">
-                  <span>Berkas Penunjang Tambahan (Radiologi / EKG / Lab)</span>
-                  <span className="text-blue-600 text-[11px] font-semibold">
-                    {auxConfigs.length} Berkas Terdaftar
-                  </span>
-                </h4>
-
-                {auxConfigs.length > 0 ? (
-                  <div className="flex flex-wrap gap-3">
-                    {auxConfigs.map((aux, aIdx) => {
-                      const imgUrl = aux.image_url || aux.imageUrl || aux.file_url;
-                      const reportNote = aux.report_text || aux.reportText;
-                      return (
-                        <div key={aIdx} className="rounded-2xl bg-blue-50/80 border border-blue-200 p-3 text-xs space-y-1.5 max-w-sm flex-1">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="font-bold text-blue-950">{aux.name || aux.title || "Berkas Penunjang"}</span>
-                            <span className="text-[10px] bg-blue-200 text-blue-900 px-2 py-0.5 rounded font-extrabold uppercase">{aux.category || "Radiologi"}</span>
-                          </div>
-                          {reportNote && (
-                            <p className="text-[11px] text-slate-700 font-medium leading-relaxed">Catatan: {reportNote}</p>
-                          )}
-                          {imgUrl && (
-                            <a
-                              href={imgUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1.5 text-[11px] font-extrabold text-blue-700 hover:underline mt-1 bg-white border border-blue-200 px-2.5 py-1 rounded-lg shadow-2xs"
-                            >
-                              <ExternalLink size={13} className="text-blue-600" />
-                              <span>Lihat Lampiran Hasil / Drive</span>
-                            </a>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className="text-[11px] text-slate-400 italic">Belum ada berkas penunjang yang dikonfigurasi untuk stase ini.</p>
-                )}
-              </div>
-            );
-          })()}
-
-          {/* Complete Rubric Items List with 4-Level Descriptors */}
-          <div className="border-t border-slate-100 pt-4 space-y-3">
-            <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center justify-between">
-              <span className="flex items-center gap-2">
-                <Award size={16} className="text-blue-600" />
-                Checklist Rubrik Penilaian SKDI ({rubricItems.length} Item Rubrik):
-              </span>
-              <span className="text-blue-600 text-[11px] font-semibold">
-                Skor 0 - 3 Standar AIPKI
-              </span>
-            </h4>
-
-            {rubricItems.length > 0 ? (
-              <div className="space-y-3">
-                {rubricItems.map((item, idx) => {
-                  const descObj = typeof item.descriptors === "object" && item.descriptors ? item.descriptors : {};
-                  const s0 = item.description_score_0 || descObj.score_0 || descObj[0] || descObj["0"] || "Tidak dilakukan / Salah total";
-                  const s1 = item.description_score_1 || descObj.score_1 || descObj[1] || descObj["1"] || "Minimal / Sebagian salah";
-                  const s2 = item.description_score_2 || descObj.score_2 || descObj[2] || descObj["2"] || "Cukup / Memadai";
-                  const s3 = item.description_score_3 || descObj.score_3 || descObj[3] || descObj["3"] || "Sempurna & Lengkap";
-
-                  return (
-                    <div key={item.id || idx} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 space-y-2.5 shadow-2xs">
-                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/60 pb-2">
-                        <div className="flex items-center gap-2">
-                          <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-600 font-extrabold text-white text-xs">
-                            #{idx + 1}
-                          </span>
-                          <h5 className="text-xs font-bold text-slate-900">
-                            {item.question || item.title || item.name}
-                          </h5>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <span className="rounded-md bg-blue-100 text-blue-900 text-[10px] font-extrabold px-2.5 py-0.5 border border-blue-200">
-                            Bobot x{item.weight || 1}
-                          </span>
-                          <span className="rounded-md bg-emerald-100 text-emerald-900 text-[10px] font-extrabold px-2.5 py-0.5 border border-emerald-200">
-                            Maks {item.max_points || 3} Poin
-                          </span>
-                        </div>
-                      </div>
-
-                      {(item.answer_key || item.description) && (
-                        <p className="text-[11px] font-medium text-emerald-900 bg-emerald-50 border border-emerald-200 p-2 rounded-xl">
-                          <strong>Kunci Jawaban:</strong> {item.answer_key || item.description}
-                        </p>
-                      )}
-
-                      {/* 4-Level Descriptors Grid (0-3) */}
-                      <div className="grid gap-2 sm:grid-cols-4 text-[11px] pt-1">
-                        <div className="rounded-xl border border-rose-200 bg-rose-50/50 p-2 text-rose-900">
-                          <span className="font-extrabold text-[10px] uppercase block text-rose-700">Skor 0</span>
-                          <p className="mt-0.5 leading-snug">{s0}</p>
-                        </div>
-                        <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-2 text-amber-900">
-                          <span className="font-extrabold text-[10px] uppercase block text-amber-700">Skor 1</span>
-                          <p className="mt-0.5 leading-snug">{s1}</p>
-                        </div>
-                        <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-2 text-blue-900">
-                          <span className="font-extrabold text-[10px] uppercase block text-blue-700">Skor 2</span>
-                          <p className="mt-0.5 leading-snug">{s2}</p>
-                        </div>
-                        <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-2 text-emerald-900">
-                          <span className="font-extrabold text-[10px] uppercase block text-emerald-700">Skor 3</span>
-                          <p className="mt-0.5 leading-snug">{s3}</p>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="text-xs text-slate-400 italic">Belum ada item rubrik penilaian yang tersimpan pada stase ini.</p>
-            )}
-          </div>
-        </div>
-
-        <ConfirmModal
-          isOpen={confirmModal.isOpen}
-          onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
-          onConfirm={confirmModal.onConfirm}
-          title={confirmModal.title}
-          message={confirmModal.message}
-          confirmText={confirmModal.confirmText}
-          cancelText={confirmModal.cancelText}
-          variant={confirmModal.variant}
-          isAlert={confirmModal.isAlert}
-        />
-      </div>
+  if (stationData?.is_break) {
+    return (
+      <ExaminerBreakStationView
+        stationData={stationData}
+        timerState={timerState}
+        remainingSeconds={remainingSeconds}
+        handleExitExaminerWaitingRoom={handleExitExaminerWaitingRoom}
+      />
     );
   }
 
@@ -1903,322 +1365,39 @@ export default function ExaminerStagePage() {
         <div className="grid gap-6 lg:grid-cols-12">
           {/* LEFT PANEL: LIVE CANDIDATE FEED & ANSWERS (5 Cols) */}
           <div className="lg:col-span-5 space-y-6">
-            {/* Candidate Header Profile & Step Progress Card */}
-            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-md">
-                    <UserCheck size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-extrabold text-slate-900 leading-tight">
-                      {currentParticipant ? (currentParticipant.full_name || currentParticipant.name) : "Belum Ada Peserta di Pos Stase"}
-                    </h3>
-                    <p className="text-[11px] font-bold text-blue-600">
-                      NIM: {currentParticipant ? (currentParticipant.nim || "—") : "—"} • Mahasiswa Klinik
-                    </p>
-                  </div>
-                </div>
-
-                <span className="rounded-full bg-emerald-100 border border-emerald-300 px-3 py-1 text-[10px] font-black text-emerald-900 uppercase">
-                  LIVE UJIAN
-                </span>
-              </div>
-
-              {/* Step Progress Badge Bar */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-[11px] font-bold text-slate-600">
-                  <span>Tahapan Pengerjaan Stase:</span>
-                  <span className="text-blue-600 font-extrabold">Tahap 4 dari 4 (Diagnosis & Resep)</span>
-                </div>
-                <div className="grid grid-cols-4 gap-1">
-                  <div className="h-2 rounded-full bg-emerald-500" title="1. Anamnesis" />
-                  <div className="h-2 rounded-full bg-emerald-500" title="2. Pemeriksaan Fisik" />
-                  <div className="h-2 rounded-full bg-emerald-500" title="3. Penunjang" />
-                  <div className="h-2 rounded-full bg-blue-600 animate-pulse" title="4. Diagnosis & Resep" />
-                </div>
-              </div>
-            </div>
-
-            {/* Candidate Answers Live Display Card */}
-            <div className="rounded-3xl border border-blue-200 bg-blue-50/40 p-5 shadow-xs space-y-4">
-              <div className="flex items-center justify-between border-b border-blue-200/60 pb-3">
-                <h3 className="text-xs font-black text-blue-950 uppercase tracking-wider flex items-center gap-2">
-                  <FileSpreadsheet size={16} className="text-blue-600" />
-                  Lembar Isian Live Peserta
-                </h3>
-                <span className="text-[10px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-md">
-                  Sync Real-Time
-                </span>
-              </div>
-
-              {/* 1. Differential Diagnoses DDx */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-extrabold text-slate-500 uppercase block">
-                  1. Diagnosis Banding (DDx):
-                </label>
-                <div className="rounded-xl border border-slate-200 bg-white p-3 text-xs shadow-2xs">
-                  {renderDifferentialDiagnosis(liveAnswer)}
-                </div>
-              </div>
-
-              {/* 2. Working Diagnosis WDx */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-extrabold text-slate-500 uppercase block">
-                  2. Diagnosis Kerja Utama (WDx):
-                </label>
-                <div className="rounded-xl border border-slate-200 bg-white p-3 text-xs font-bold text-slate-900 leading-relaxed whitespace-pre-line shadow-2xs">
-                  {liveAnswer?.working_diagnosis || (currentParticipant ? "Peserta belum mengisi WDx" : "Belum ada peserta di stase ini")}
-                </div>
-              </div>
-
-              {/* 3. Prescription Text Area */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-extrabold text-slate-500 uppercase block">
-                  3. Penulisan Resep Obat (Farmakoterapi / Rx):
-                </label>
-                <div className="rounded-xl border border-slate-200 bg-white p-3 text-xs font-mono text-slate-900 leading-relaxed whitespace-pre-line shadow-2xs">
-                  {liveAnswer?.prescription_text || "Belum ada penulisan resep obat oleh peserta"}
-                </div>
-              </div>
-
-              {/* Opened Auxiliary Tests List */}
-              <div className="space-y-1 pt-1">
-                <div className="flex items-center justify-between">
-                  <label className="text-[10px] font-extrabold text-slate-500 uppercase block">
-                    Berkas Penunjang yang Diberikan ke Peserta:
-                  </label>
-                  {safeParseAuxiliaryList(liveAnswer).length > 0 && (
-                    <button
-                      onClick={() => setSelectedAuxModalResults(safeParseAuxiliaryList(liveAnswer))}
-                      className="text-[10px] font-extrabold text-blue-600 hover:text-blue-800 underline flex items-center gap-1 cursor-pointer"
-                    >
-                      <Eye size={12} /> Buka Semua ({safeParseAuxiliaryList(liveAnswer).length})
-                    </button>
-                  )}
-                </div>
-
-                <div className="flex flex-wrap gap-1.5">
-                  {safeParseAuxiliaryList(liveAnswer).length > 0 ? (
-                    safeParseAuxiliaryList(liveAnswer).map((aux, aIdx) => (
-                      <button
-                        key={aIdx}
-                        onClick={() => setSelectedAuxModalResults([aux])}
-                        className="rounded-md bg-emerald-100 border border-emerald-300 px-2.5 py-1 text-[10px] font-extrabold text-emerald-900 inline-flex items-center gap-1 hover:bg-emerald-200 transition cursor-pointer active:scale-95 shadow-2xs"
-                        title="Klik untuk membuka pratinjau berkas penunjang"
-                      >
-                        <CheckCircle2 size={12} className="text-emerald-700" />
-                        {aux.name}
-                        <Eye size={11} className="text-emerald-700 ml-0.5" />
-                      </button>
-                    ))
-                  ) : (
-                    <span className="text-[11px] font-semibold text-slate-400">
-                      Belum ada berkas penunjang yang diminta oleh peserta pada stase ini.
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
+            <ExaminerParticipantAnswerViewer
+              currentParticipant={currentParticipant}
+              liveAnswer={liveAnswer}
+              renderDifferentialDiagnosis={renderDifferentialDiagnosis}
+              safeParseAuxiliaryList={safeParseAuxiliaryList}
+              onOpenAuxiliaryModal={(results) => setSelectedAuxModalResults(results)}
+            />
           </div>
 
           {/* RIGHT PANEL: SIDE-BY-SIDE GOLD STANDARD & SCORING (7 Cols) */}
           <div className="lg:col-span-7 space-y-6">
             {/* Gold Standard Reference Key Accordion (Side-by-Side Comparison) */}
-            <div className="rounded-3xl border border-emerald-300 bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-950 p-6 text-white shadow-lg space-y-4">
-              <div className="flex items-center justify-between border-b border-emerald-400/30 pb-3">
-                <div className="flex items-center gap-2">
-                  <span className="rounded-md bg-emerald-500 text-slate-950 px-2.5 py-0.5 text-[10px] font-black uppercase">
-                    GOLD STANDARD REFERENCE
-                  </span>
-                  <h3 className="text-sm font-black text-white">
-                    Acuan Kunci Jawaban Resmi Admin
-                  </h3>
-                </div>
-                <button
-                  onClick={() => setShowScenario(!showScenario)}
-                  className="text-xs font-bold text-emerald-300 hover:text-white transition underline"
-                >
-                  {showScenario ? "Sembunyikan Skenario" : "Lihat Skenario Lengkap"}
-                </button>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2 text-xs">
-                <div className="rounded-2xl bg-white/10 p-3.5 border border-white/10 space-y-1">
-                  <span className="text-[10px] font-extrabold text-emerald-300 uppercase block">Kunci Diagnosis (WDx & DDx):</span>
-                  <p className="font-semibold text-slate-100 leading-relaxed whitespace-pre-line">
-                    {stationData?.answer_key_diagnosis || "Belum ada kunci diagnosis yang dikonfigurasi untuk stase ini."}
-                  </p>
-                </div>
-
-                <div className="rounded-2xl bg-white/10 p-3.5 border border-white/10 space-y-1">
-                  <span className="text-[10px] font-extrabold text-emerald-300 uppercase block">Kunci Resep Baku (Rx):</span>
-                  <p className="font-semibold text-slate-100 leading-relaxed font-mono whitespace-pre-line">
-                    {stationData?.answer_key_prescription || "Belum ada kunci resep obat yang dikonfigurasi untuk stase ini."}
-                  </p>
-                </div>
-
-                {/* Master Kunci Berkas Penunjang Tambahan */}
-                {(() => {
-                  const masterAux = stationData?.station_auxiliary_configs || stationData?.auxiliary_exam_configs || stationData?.auxiliary_files || [];
-                  if (!masterAux || masterAux.length === 0) return null;
-                  return (
-                    <div className="rounded-2xl bg-white/10 p-3.5 border border-white/10 space-y-1.5 sm:col-span-2">
-                      <span className="text-[10px] font-extrabold text-emerald-300 uppercase block">Kunci Berkas Penunjang Baku (Radiologi / EKG / Lab):</span>
-                      <div className="flex flex-wrap gap-2 pt-0.5">
-                        {masterAux.map((aux, aIdx) => (
-                          <button
-                            key={aIdx}
-                            type="button"
-                            onClick={() => setSelectedAuxModalResults([aux])}
-                            className="rounded-lg bg-emerald-500/20 border border-emerald-400/50 px-3 py-1.5 text-xs font-bold text-emerald-200 hover:bg-emerald-500/40 transition inline-flex items-center gap-1.5 shadow-2xs cursor-pointer"
-                          >
-                            <span>{aux.name || aux.title || "Berkas Penunjang"}</span>
-                            <span className="text-[9px] bg-emerald-400/30 text-emerald-200 px-1.5 py-0.5 rounded font-extrabold">{aux.category || "RADIOLOGI"}</span>
-                            <Eye size={13} className="text-emerald-300 ml-1" />
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {stationData?.answer_key_physical_exam && (
-                  <div className="rounded-2xl bg-white/10 p-3.5 border border-white/10 space-y-1 sm:col-span-2">
-                    <span className="text-[10px] font-extrabold text-emerald-300 uppercase block">Kunci Pemeriksaan Fisik Baku:</span>
-                    <p className="font-semibold text-slate-100 leading-relaxed whitespace-pre-line">
-                      {stationData.answer_key_physical_exam}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {showScenario && (
-                <div className="rounded-2xl bg-slate-900/90 border border-emerald-400/40 p-4 space-y-2 text-xs text-slate-200 animate-in fade-in duration-200">
-                  <p><strong>Skenario Klinis:</strong> {stationData?.scenario || "Skenario kasus medis terstandar untuk stase ini."}</p>
-                  <p><strong>Instruksi Penguji:</strong> {stationData?.examiner_instructions || "Amati kesantunan, komunikasi, dan keterampilan klinis peserta."}</p>
-                </div>
-              )}
-            </div>
+            <ExaminerGoldStandardReference
+              stationData={stationData}
+              showScenario={showScenario}
+              setShowScenario={setShowScenario}
+              onSelectAuxModalResults={(res) => setSelectedAuxModalResults(res)}
+            />
 
             {/* Rubric Scoring Items List */}
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xs space-y-5">
-              <h2 className="text-sm font-black text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
-                <Award size={18} className="text-blue-600" />
-                Rubrik Penilaian Objektif Deskriptor SKDI ({rubricItems.length} Item Penilaian)
-              </h2>
-
-              <div className="space-y-4">
-                {rubricItems.map((rub, rIdx) => {
-                  const scoreVal = rubricScores[rub.id] ?? 3;
-                  const itemTitle = rub.title || rub.question || rub.name || `Item Rubrik #${rIdx + 1}`;
-                  const itemDesc = rub.description || rub.answer_key || "";
-                  const desc0 = rub.description_score_0 || rub.descriptors?.[0] || "0: Tidak Dilakukan / Salah Total";
-                  const desc1 = rub.description_score_1 || rub.descriptors?.[1] || "1: Minimal / Sebagian Salah";
-                  const desc2 = rub.description_score_2 || rub.descriptors?.[2] || "2: Cukup / Memadai";
-                  const desc3 = rub.description_score_3 || rub.descriptors?.[3] || "3: Sempurna & Lengkap";
-
-                  const opts = [
-                    { val: 0, label: "Poin 0", desc: desc0, short: "Salah Total" },
-                    { val: 1, label: "Poin 1", desc: desc1, short: "Minimal" },
-                    { val: 2, label: "Poin 2", desc: desc2, short: "Memadai" },
-                    { val: 3, label: "Poin 3", desc: desc3, short: "Sempurna" },
-                  ];
-
-                  return (
-                    <div key={rub.id || rIdx} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <span className="rounded-md bg-blue-100 text-blue-900 px-2 py-0.5 text-[10px] font-extrabold uppercase mr-2">
-                            Bobot x{rub.weight || 1}
-                          </span>
-                          <h3 className="text-xs font-extrabold text-slate-900 inline">
-                            {rIdx + 1}. {itemTitle}
-                          </h3>
-                          {itemDesc && (
-                            <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                              {itemDesc}
-                            </p>
-                          )}
-                        </div>
-                        <span className="text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-md shrink-0">
-                          Skor: {scoreVal} / {rub.max_points || 3} Pts
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-4 gap-2 pt-1">
-                        {opts.map((opt) => (
-                          <button
-                            key={opt.val}
-                            type="button"
-                            onClick={() => handleScoreChange(rub.id, opt.val)}
-                            title={opt.desc}
-                            className={`rounded-xl border p-2.5 text-center text-xs font-bold transition flex flex-col items-center justify-center gap-0.5 ${
-                              scoreVal === opt.val
-                                ? "bg-blue-600 text-white border-blue-600 shadow-md"
-                                : "bg-white text-slate-700 border-slate-200 hover:border-blue-300"
-                            }`}
-                          >
-                            <span>{opt.label}</span>
-                            <span className="text-[9px] font-medium opacity-80 line-clamp-1">{opt.desc || opt.short}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <ExaminerRubricEvaluationSheet
+              rubricItems={rubricItems}
+              rubricScores={rubricScores}
+              onScoreChange={handleScoreChange}
+            />
 
             {/* Global Performance Rating Scale (GRS) & Feedback Form */}
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xs space-y-5">
-              <h2 className="text-sm font-black text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
-                <UserCheck size={18} className="text-purple-600" />
-                Global Performance Rating Scale (GRS) & Feedback Kualitatif
-              </h2>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-2">
-                    Penilaian Kualitatif Holistik (Global Rating Scale):
-                  </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {[
-                      { value: "SUPERIOR", label: "Superior (Sangat Baik)" },
-                      { value: "SATISFACTORY", label: "Satisfactory (Lulus)" },
-                      { value: "BORDERLINE", label: "Borderline (Ragu)" },
-                      { value: "UNSATISFACTORY", label: "Unsatisfactory (Tidak Lulus)" },
-                    ].map((g) => (
-                      <button
-                        key={g.value}
-                        type="button"
-                        onClick={() => setGlobalRating(g.value)}
-                        className={`rounded-xl border p-3 text-center text-xs font-bold transition ${
-                          globalRating === g.value
-                            ? "bg-purple-600 text-white border-purple-600 shadow-md"
-                            : "bg-slate-50 text-slate-700 border-slate-200 hover:border-purple-300"
-                        }`}
-                      >
-                        {g.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Catatan Feedback Kualitatif Dokter Penguji:
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={feedback}
-                    onChange={(e) => setFeedback(e.target.value)}
-                    placeholder="Berikan saran perbaikan atau pujian atas teknik komunikasi dan tindakan klinis peserta..."
-                    className="w-full rounded-xl border border-slate-200 p-3 text-xs font-medium text-slate-900 focus:border-purple-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-            </div>
+            <ExaminerGlobalRatingSheet
+              globalRating={globalRating}
+              setGlobalRating={setGlobalRating}
+              feedback={feedback}
+              setFeedback={setFeedback}
+            />
           </div>
         </div>
       </div>

@@ -65,6 +65,9 @@ export default function CreateCasePage() {
   const [examinerInstructions, setExaminerInstructions] = useState("");
 
   // Tab 2: Gold Standard Answer Keys
+  const [wdxKey, setWdxKey] = useState("");
+  const [ddxKeys, setDdxKeys] = useState(["", ""]);
+  const [recipeKey, setRecipeKey] = useState("");
   const [answerKeyDiagnosis, setAnswerKeyDiagnosis] = useState("");
   const [answerKeyPrescription, setAnswerKeyPrescription] = useState("");
 
@@ -88,7 +91,20 @@ export default function CreateCasePage() {
   ]);
 
   // Tab 4: Auxiliary Exam Configs
+  const [auxAnswerKey, setAuxAnswerKey] = useState("");
   const [auxiliaryConfigs, setAuxiliaryConfigs] = useState([]);
+
+  function addDdxKey() {
+    setDdxKeys((prev) => [...prev, ""]);
+  }
+
+  function removeDdxKey(idx) {
+    setDdxKeys((prev) => prev.filter((_, i) => i !== idx));
+  }
+
+  function updateDdxKey(idx, val) {
+    setDdxKeys((prev) => prev.map((item, i) => (i === idx ? val : item)));
+  }
 
   // Draft Auto-save & Exit Confirmation State
   const [showRestoreDraftBanner, setShowRestoreDraftBanner] = useState(false);
@@ -123,8 +139,12 @@ export default function CreateCasePage() {
       scenario,
       participantInstructions,
       examinerInstructions,
+      wdxKey,
+      ddxKeys,
+      recipeKey,
       answerKeyDiagnosis,
       answerKeyPrescription,
+      auxAnswerKey,
       rubricItems,
       auxiliaryConfigs,
       updatedAt: new Date().toISOString(),
@@ -144,8 +164,12 @@ export default function CreateCasePage() {
     scenario,
     participantInstructions,
     examinerInstructions,
+    wdxKey,
+    ddxKeys,
+    recipeKey,
     answerKeyDiagnosis,
     answerKeyPrescription,
+    auxAnswerKey,
     rubricItems,
     auxiliaryConfigs,
   ]);
@@ -173,8 +197,12 @@ export default function CreateCasePage() {
       if (data.scenario !== undefined) setScenario(data.scenario);
       if (data.participantInstructions !== undefined) setParticipantInstructions(data.participantInstructions);
       if (data.examinerInstructions !== undefined) setExaminerInstructions(data.examinerInstructions);
+      if (data.wdxKey !== undefined) setWdxKey(data.wdxKey);
+      if (data.ddxKeys && Array.isArray(data.ddxKeys)) setDdxKeys(data.ddxKeys);
+      if (data.recipeKey !== undefined) setRecipeKey(data.recipeKey);
       if (data.answerKeyDiagnosis !== undefined) setAnswerKeyDiagnosis(data.answerKeyDiagnosis);
       if (data.answerKeyPrescription !== undefined) setAnswerKeyPrescription(data.answerKeyPrescription);
+      if (data.auxAnswerKey !== undefined) setAuxAnswerKey(data.auxAnswerKey);
       if (data.rubricItems && data.rubricItems.length > 0) setRubricItems(data.rubricItems);
       if (data.auxiliaryConfigs) setAuxiliaryConfigs(data.auxiliaryConfigs);
 
@@ -218,11 +246,29 @@ export default function CreateCasePage() {
           setTitle(data.case_title || data.title || "");
           setSystemOrgan(data.system_organ || "Kardiovaskular");
           setSkdiLevel(data.skdi_level || "4A (Tuntas Mandiri)");
+          setDurationMinutes(data.duration_minutes || 12);
           setScenario(data.scenario || "");
           setParticipantInstructions(data.participant_instructions || "");
           setExaminerInstructions(data.examiner_instructions || "");
-          setAnswerKeyDiagnosis(data.answer_key_diagnosis || "");
-          setAnswerKeyPrescription(data.answer_key_prescription || "");
+          setAuxAnswerKey(data.auxiliary_answer_key || "");
+
+          let parsedWdx = data.answer_key_diagnosis || "";
+          let parsedDdxArr = [];
+          if (data.gold_standard_keys) {
+            parsedWdx = data.gold_standard_keys.wdx || parsedWdx;
+            if (Array.isArray(data.gold_standard_keys.ddx)) parsedDdxArr = [...data.gold_standard_keys.ddx];
+            else if (typeof data.gold_standard_keys.ddx === "string") parsedDdxArr = [data.gold_standard_keys.ddx];
+          } else if (data.answer_key_ddx) {
+            parsedDdxArr = [data.answer_key_ddx];
+          }
+          if (parsedDdxArr.length === 0) parsedDdxArr = ["", ""];
+
+          const parsedRecipe = data.answer_key_prescription || data.gold_standard_keys?.recipe || "";
+          setWdxKey(parsedWdx);
+          setDdxKeys(parsedDdxArr);
+          setRecipeKey(parsedRecipe);
+          setAnswerKeyDiagnosis(parsedWdx);
+          setAnswerKeyPrescription(parsedRecipe);
 
           if (data.checklist_items && data.checklist_items.length > 0) {
             setRubricItems(
@@ -252,6 +298,7 @@ export default function CreateCasePage() {
                 category: cfg.category || "PEMERIKSAAN",
                 imageUrl: cfg.image_storage_path || cfg.imageUrl || "",
                 reportText: cfg.report_text || cfg.reportText || "",
+                matched_key: cfg.matched_key !== false,
               }))
             );
           }
@@ -345,6 +392,9 @@ export default function CreateCasePage() {
     try {
       setSaving(true);
 
+      const finalWdx = wdxKey || answerKeyDiagnosis;
+      const finalRecipe = recipeKey || answerKeyPrescription;
+
       const casePayload = {
         title,
         case_title: title,
@@ -353,8 +403,15 @@ export default function CreateCasePage() {
         scenario,
         participant_instructions: participantInstructions,
         examiner_instructions: examinerInstructions,
-        answer_key_diagnosis: answerKeyDiagnosis,
-        answer_key_prescription: answerKeyPrescription,
+        answer_key_diagnosis: finalWdx,
+        answer_key_prescription: finalRecipe,
+        answer_key_ddx: Array.isArray(ddxKeys) ? ddxKeys.filter(Boolean).join(", ") : "",
+        auxiliary_answer_key: auxAnswerKey,
+        gold_standard_keys: {
+          wdx: finalWdx,
+          ddx: ddxKeys.filter(Boolean),
+          recipe: finalRecipe,
+        },
       };
 
       let savedCase;
@@ -395,6 +452,7 @@ export default function CreateCasePage() {
         category: cfg.category || "LAIN-LAIN",
         image_storage_path: cfg.imageUrl || cfg.image_storage_path || null,
         report_text: cfg.reportText || cfg.report_text || null,
+        matched_key: cfg.matched_key !== false,
         sort_order: idx,
       }));
 
@@ -583,6 +641,14 @@ export default function CreateCasePage() {
       {/* Tab 2: Gold Standard Answer Keys */}
       {activeTab === 2 && (
         <CaseAnswerKeyTab
+          wdxKey={wdxKey}
+          setWdxKey={setWdxKey}
+          ddxKeys={ddxKeys}
+          addDdxKey={addDdxKey}
+          removeDdxKey={removeDdxKey}
+          updateDdxKey={updateDdxKey}
+          recipeKey={recipeKey}
+          setRecipeKey={setRecipeKey}
           answerKeyDiagnosis={answerKeyDiagnosis}
           setAnswerKeyDiagnosis={setAnswerKeyDiagnosis}
           answerKeyPrescription={answerKeyPrescription}
@@ -604,6 +670,8 @@ export default function CreateCasePage() {
       {/* Tab 4: Auxiliary Exam Configs */}
       {activeTab === 4 && (
         <CaseAuxiliaryTab
+          auxAnswerKey={auxAnswerKey}
+          setAuxAnswerKey={setAuxAnswerKey}
           auxiliaryConfigs={auxiliaryConfigs}
           setAuxiliaryConfigs={setAuxiliaryConfigs}
         />

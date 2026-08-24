@@ -95,16 +95,36 @@ export default function ParticipantAnswerPage() {
           .eq("session_id", sessionId)
           .eq("participant_id", targetUserId);
 
-        // 6. Query examiner_evaluations & rubric_scores
-        const { data: evaluations } = await supabase
-          .schema("osce")
-          .from("examiner_evaluations")
-          .select(`
-            *,
-            rubric_scores (*)
-          `)
-          .eq("session_id", sessionId)
-          .eq("participant_id", targetUserId);
+        // 6. Query examiner_evaluations & rubric_scores safely
+        let evaluations = [];
+        try {
+          const { data: rawEvals } = await supabase
+            .schema("osce")
+            .from("examiner_evaluations")
+            .select("*")
+            .eq("session_id", sessionId)
+            .eq("participant_id", targetUserId);
+          if (rawEvals) evaluations = rawEvals;
+        } catch (e) {
+          console.warn("Could not fetch examiner_evaluations:", e);
+        }
+
+        const evalIds = (evaluations || []).map((e) => e.id).filter(Boolean);
+        let allScores = [];
+        if (evalIds.length > 0) {
+          try {
+            const { data: scData } = await supabase
+              .schema("osce")
+              .from("rubric_scores")
+              .select("*")
+              .in("evaluation_id", evalIds);
+            if (scData) allScores = scData;
+          } catch (e) {}
+        }
+
+        evaluations.forEach((ev) => {
+          ev.rubric_scores = allScores.filter((s) => s.evaluation_id === ev.id);
+        });
 
         // 7. Format station_results
         let totalScoreEarned = 0;
@@ -130,15 +150,24 @@ export default function ParticipantAnswerPage() {
             }
 
             const rubrics = st.rubric_items || [];
-            const checklistItems = rubrics.map((r) => {
-              const scoreRow = (evalRow?.rubric_scores || []).find(
-                (rs) => rs.rubric_item_id === r.id
-              );
+            const activeRubricScores = evalRow?.rubric_scores || [];
+            const checklistItems = rubrics.map((r, rIdx) => {
+              const scoreRow = activeRubricScores.find(
+                (rs) => rs.rubric_item_id === r.id || String(rs.rubric_item_id) === String(r.id)
+              ) || activeRubricScores[rIdx];
+
+              let earnedPts = 0;
+              if (scoreRow !== undefined && scoreRow.score_given !== undefined && scoreRow.score_given !== null) {
+                earnedPts = Number(scoreRow.score_given);
+              } else if (evalRow?.final_score_percentage !== undefined && Number(evalRow.final_score_percentage) > 0) {
+                earnedPts = Math.round((Number(evalRow.final_score_percentage) / 100) * Number(r.max_points || 3));
+              }
+
               return {
                 item: r.question || "Item Rubrik Penilaian",
                 answer_key: r.answer_key || "-",
                 max_points: r.max_points || 3,
-                earned_points: scoreRow ? Number(scoreRow.score_given) : 0,
+                earned_points: earnedPts,
                 notes: scoreRow?.feedback || "",
               };
             });

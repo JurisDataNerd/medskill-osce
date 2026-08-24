@@ -40,9 +40,8 @@ export async function exportElementToPdf(element, options = {}) {
     await html2pdf().set(opt).from(element).save();
     return true;
   } catch (err) {
-    console.error("html2pdf generation error, falling back to window.print():", err);
-    window.print();
-    return false;
+    console.error("Gagal membuat PDF menggunakan html2pdf:", err);
+    throw err;
   }
 }
 

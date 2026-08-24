@@ -54,9 +54,22 @@ import LiveTimerControlHeader from "@/features/admin/components/live/LiveTimerCo
 import LiveOnlinePresenceGrid from "@/features/admin/components/live/LiveOnlinePresenceGrid";
 import LiveStationMonitorGrid from "@/features/admin/components/live/LiveStationMonitorGrid";
 import LiveBroadcastModal from "@/features/admin/components/live/LiveBroadcastModal";
+import { playOsceAudio } from "@/services/audioService";
 
-// Web Audio API Bell Synthesizer (No external file dependencies needed)
+// Web Audio API Bell Synthesizer + MP3/Voiceover Audio Engine
 function playOsceBell(type = "warning") {
+  if (type === "start") {
+    playOsceAudio("start_exam");
+  } else if (type === "warning") {
+    playOsceAudio("warning_2min");
+  } else if (type === "rotation") {
+    playOsceAudio("stop_transit");
+  } else if (type === "finish") {
+    playOsceAudio("finish_exam");
+  } else if (type === "broadcast") {
+    playOsceAudio("admin_broadcast");
+  }
+
   try {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (!AudioContext) return;

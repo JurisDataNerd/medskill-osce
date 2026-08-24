@@ -53,7 +53,7 @@ export default function ParticipantNavbar() {
           onClick={() => navigate("/participant")}
           className="flex items-center gap-3 cursor-pointer group"
         >
-          <img src="/favicon.svg" alt="Praxis Logo" className="h-10 w-10 object-contain rounded-xl shadow-md group-hover:scale-105 transition transform" />
+          <img src="/logo_biru.avif" alt="Praxis Logo" className="h-9 w-9 object-contain group-hover:scale-105 transition transform" />
           <div>
             <h1 className="text-base font-black text-slate-900 leading-tight group-hover:text-blue-600 transition">
               Portal Peserta OSCE MedSkill
