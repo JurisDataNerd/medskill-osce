@@ -79,6 +79,16 @@ export default function QuestionBankSelectModal({
     "THT-KL",
     "Pediatri",
     "Digestif",
+    "Saraf",
+    "Psikiatri",
+    "Indera",
+    "Respirasi",
+    "Kardiovaskular",
+    "GEH",
+    "Ginjal dan Saluran kemih",
+    "Hemato, Imunologi, dan Infeksi",
+    "Muskuloskeletal",
+    "Integumen"
   ];
 
   const filteredCases = catalog.filter((item) => {
@@ -149,11 +159,10 @@ export default function QuestionBankSelectModal({
                 key={org}
                 type="button"
                 onClick={() => setSelectedOrgan(org)}
-                className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition shrink-0 border ${
-                  selectedOrgan === org
+                className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition shrink-0 border ${selectedOrgan === org
                     ? "bg-blue-600 border-blue-600 text-white shadow-2xs"
                     : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
-                }`}
+                  }`}
               >
                 {org === "ALL" ? "Semua Organ" : org}
               </button>
