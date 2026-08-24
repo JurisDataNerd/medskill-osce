@@ -275,9 +275,9 @@ export default function ParticipantPersonalScheduleWidget({
               <div className="grid gap-3 sm:grid-cols-2 text-xs">
                 {/* Station Title */}
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Stase</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Pos Stase</span>
                   <p className="font-bold text-slate-900 text-xs mt-0.5">
-                    {item.isBreak ? "Stase Istirahat" : item.caseTitle || item.stationTitle || `Stase Ujian ${item.stationNum}`}
+                    {item.isBreak ? "Stase Istirahat" : `Pos Stase ${item.stationNum}`}
                   </p>
                 </div>
 

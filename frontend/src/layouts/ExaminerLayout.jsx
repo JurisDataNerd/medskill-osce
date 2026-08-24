@@ -70,8 +70,9 @@ export default function ExaminerLayout({ children }) {
       if (!user) return;
       try {
         const { data, error } = await supabase
+          .schema("public")
           .from("profiles")
-          .select("full_name, email, avatar_url, university")
+          .select("*")
           .eq("id", user.id)
           .maybeSingle();
 
@@ -106,7 +107,7 @@ export default function ExaminerLayout({ children }) {
         <div className="border-b border-slate-200 p-4 flex items-center h-20">
           {!isCollapsed ? (
             <div className="flex items-center gap-2.5 min-w-0 px-2">
-              <img src="/favicon.svg" alt="Praxis Logo" className="h-10 w-10 shrink-0 object-contain rounded-xl shadow-md" />
+              <img src="/logo_biru.avif" alt="Praxis Logo" className="h-9 w-9 shrink-0 object-contain" />
               <div className="min-w-0">
                 <h1 className="text-xl font-black text-slate-900 tracking-tight leading-none truncate">
                   Praxis <span className="text-blue-600">OSCE</span>
@@ -118,7 +119,7 @@ export default function ExaminerLayout({ children }) {
             </div>
           ) : (
             <div className="w-full flex justify-center">
-              <img src="/favicon.svg" alt="Praxis Logo" className="h-10 w-10 object-contain rounded-xl shadow-md" />
+              <img src="/logo_biru.avif" alt="Praxis Logo" className="h-8 w-8 object-contain" />
             </div>
           )}
         </div>

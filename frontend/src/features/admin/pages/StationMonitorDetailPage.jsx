@@ -48,13 +48,13 @@ export default function StationMonitorDetailPage() {
           .maybeSingle();
 
         if (st) {
-          const [examiners, participants, evaluations, rList] = await Promise.all([
+          const [examiners, participants, evaluationsRaw, rList] = await Promise.all([
             fetchSessionExaminers(st.session_id).catch(() => []),
             fetchSessionParticipants(st.session_id).catch(() => []),
             supabase
               .schema("osce")
               .from("examiner_evaluations")
-              .select("*, rubric_scores (*)")
+              .select("*")
               .eq("station_id", st.id)
               .then((res) => res.data || [])
               .catch(() => []),
@@ -68,6 +68,24 @@ export default function StationMonitorDetailPage() {
               .catch(() => []),
           ]);
 
+          const evalIds = (evaluationsRaw || []).map((e) => e.id).filter(Boolean);
+          let allScores = [];
+          if (evalIds.length > 0) {
+            try {
+              const { data: scData } = await supabase
+                .schema("osce")
+                .from("rubric_scores")
+                .select("*")
+                .in("evaluation_id", evalIds);
+              if (scData) allScores = scData;
+            } catch (e) {}
+          }
+
+          const evaluations = (evaluationsRaw || []).map((ev) => ({
+            ...ev,
+            rubric_scores: allScores.filter((s) => s.evaluation_id === ev.id),
+          }));
+
           const examiner = examiners.find(
             (e) => Number(e.assigned_station_number || e.station_number) === Number(st.station_number)
           );
@@ -75,23 +93,15 @@ export default function StationMonitorDetailPage() {
           const stationRubrics =
             rList && rList.length > 0
               ? rList
-              : st.rubric_items && st.rubric_items.length > 0
-              ? st.rubric_items
-              : [
-                  { id: "r1", title: "Anamnesis Terarah & Riwayat Nyeri Dada", max_points: 3 },
-                  { id: "r2", title: "Pemeriksaan Fisik Tanda Vital & Katup Jantung", max_points: 3 },
-                  { id: "r3", title: "Pemeriksaan Penunjang EKG 12 Lead & Enzim Jantung", max_points: 3 },
-                  { id: "r4", title: "Formulasi Diagnosis Kerja (STEMI Inferior) & DDx", max_points: 3 },
-                  { id: "r5", title: "Penulisan Resep Dual Antiplatelet (DAPT)", max_points: 3 },
-                ];
+              : (st.rubric_items || []);
 
-          const rawExName = examiner?.full_name || examiner?.name || examiner?.email || "";
-          let doctorName = rawExName ? rawExName.trim() : "Tidak ada data";
+          const doctorName = examiner?.full_name || st.assigned_examiner || "Dokter Penguji";
 
           setStationData({
             id: st.id,
-            station_number: st.station_number,
-            name: st.title || `Stase ${st.station_number}`,
+            session_id: st.session_id,
+            station_number: st.station_number || 1,
+            title: st.title || `Stase ${st.station_number}`,
             case_title: st.case_title || "Kasus Medis Terstandar",
             system_organ: st.system_organ || "Kardiovaskular",
             skdi_level: st.skdi_level || "4A (Tuntas Mandiri)",
@@ -103,23 +113,25 @@ export default function StationMonitorDetailPage() {
               const pId = p.user_id || p.id;
               const ev = (evaluations || []).find((e) => e.participant_id === pId || e.participant_id === p.id);
 
-              let mappedScores = [];
-              if (ev && ev.rubric_scores && ev.rubric_scores.length > 0) {
-                mappedScores = ev.rubric_scores.map((sc) => {
-                  const matchRub = stationRubrics.find((r) => r.id === sc.rubric_item_id);
-                  return {
-                    item: matchRub?.title || matchRub?.name || matchRub?.question || `Item Rubrik #${sc.rubric_item_id}`,
-                    score: sc.score_given,
-                    max_score: matchRub?.max_points || 3,
-                  };
-                });
-              } else {
-                mappedScores = stationRubrics.map((r, rIdx) => ({
+              const activeScores = (ev && ev.rubric_scores && ev.rubric_scores.length > 0) ? ev.rubric_scores : [];
+              const mappedScores = stationRubrics.map((r, rIdx) => {
+                const matchScore = activeScores.find(
+                  (sc) => sc.rubric_item_id === r.id || String(sc.rubric_item_id) === String(r.id)
+                ) || activeScores[rIdx];
+
+                let scoreVal = 0;
+                if (matchScore !== undefined && matchScore.score_given !== undefined && matchScore.score_given !== null) {
+                  scoreVal = Number(matchScore.score_given);
+                } else if (ev?.final_score_percentage !== undefined && Number(ev.final_score_percentage) > 0) {
+                  scoreVal = Math.round((Number(ev.final_score_percentage) / 100) * Number(r.max_points || 3));
+                }
+
+                return {
                   item: r.title || r.name || r.question || `Item Rubrik #${rIdx + 1}`,
-                  score: 0,
-                  max_score: r.max_points || 3,
-                }));
-              }
+                  score: scoreVal,
+                  max_score: Number(r.max_points || 3),
+                };
+              });
 
               return {
                 id: p.id || `p-${idx}`,

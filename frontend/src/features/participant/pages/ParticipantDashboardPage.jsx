@@ -75,8 +75,9 @@ export default function ParticipantDashboardPage() {
         if (currentUser) {
           try {
             const { data: prof } = await supabase
+              .schema("public")
               .from("profiles")
-              .select("full_name, nim, institution, university")
+              .select("*")
               .eq("id", currentUser.id)
               .maybeSingle();
             if (prof) {

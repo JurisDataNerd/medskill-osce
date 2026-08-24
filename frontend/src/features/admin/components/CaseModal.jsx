@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { SYSTEM_ORGAN_LIST, SKDI_LEVEL_LIST } from "@/constants/medicalSystems";
 
 export default function CaseModal({
   open,
@@ -19,8 +20,8 @@ export default function CaseModal({
       setSystemOrgan(initialData.system_organ || "Kardiovaskular");
       setSkdiLevel(initialData.skdi_level || "4A (Tuntas Mandiri)");
       setChiefComplaint(initialData.chief_complaint || "");
-      setAnamnesis(initialData.anamnesis_instruction || "");
-      setPhysical(initialData.physical_instruction || "");
+      setAnamnesis(initialData.anamnesis || "");
+      setPhysical(initialData.physical_examination || "");
     } else {
       setTitle("");
       setSystemOrgan("Kardiovaskular");
@@ -33,50 +34,36 @@ export default function CaseModal({
 
   if (!open) return null;
 
-  function handleSubmit(e) {
+  const handleSubmit = (e) => {
     e.preventDefault();
-
     onSave({
       title,
       system_organ: systemOrgan,
       skdi_level: skdiLevel,
       chief_complaint: chiefComplaint,
-      anamnesis_instruction: anamnesis,
-      physical_instruction: physical,
+      anamnesis,
+      physical_examination: physical,
     });
-  }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
-      <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-          <div>
-            <h2 className="text-xl font-black text-slate-900">
-              {initialData ? "Edit Kasus Medis Bank Soal" : "Buat Kasus Medis Baru"}
-            </h2>
-            <p className="text-xs text-slate-500">
-              Input data kasus, sistem organ SKDI, dan instruksi pengerjaan.
-            </p>
-          </div>
-
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 text-2xl font-bold"
-          >
-            ×
-          </button>
-        </div>
+      <div className="w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+        <h2 className="mb-4 text-base font-black text-slate-900 border-b border-slate-100 pb-3">
+          {initialData ? "Edit Kasus Medis" : "Tambah Kasus Medis Baru"}
+        </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
           <div>
             <label className="mb-1 block font-bold text-slate-700 uppercase">
-              Judul Kasus Medis
+              Judul Kasus (Diagnosis / Masalah Klinis)
             </label>
             <input
-              className="w-full rounded-xl border border-slate-200 p-3 text-xs text-slate-900 font-bold focus:border-blue-500 focus:outline-none"
+              type="text"
+              className="w-full rounded-xl border border-slate-200 p-3 text-xs text-slate-900 font-semibold focus:border-blue-500 focus:outline-none"
+              placeholder="misal: Infark Miokard Akut (STEMI Anteroseptal)"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="misal: Nyeri Dada Khas Infark Miokard (STEMI)"
               required
             />
           </div>
@@ -91,14 +78,11 @@ export default function CaseModal({
                 value={systemOrgan}
                 onChange={(e) => setSystemOrgan(e.target.value)}
               >
-                <option value="Kardiovaskular">Kardiovaskular</option>
-                <option value="Respirasi">Respirasi</option>
-                <option value="Neurologi">Neurologi</option>
-                <option value="Digestif">Digestif</option>
-                <option value="Muskuloskeletal">Muskuloskeletal</option>
-                <option value="Endokrin">Endokrin & Metabolik</option>
-                <option value="Urologi">Urologi & Nefrologi</option>
-                <option value="Lainnya">Sistem Organ Lainnya</option>
+                {SYSTEM_ORGAN_LIST.map((org) => (
+                  <option key={org} value={org}>
+                    {org}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -111,10 +95,11 @@ export default function CaseModal({
                 value={skdiLevel}
                 onChange={(e) => setSkdiLevel(e.target.value)}
               >
-                <option value="4A (Tuntas Mandiri)">4A (Tuntas Mandiri)</option>
-                <option value="3B (Gawat Darurat)">3B (Gawat Darurat)</option>
-                <option value="3A (Non-Gawat Darurat)">3A (Non-Gawat Darurat)</option>
-                <option value="2 (Diagnosis)">2 (Diagnosis Dasar)</option>
+                {SKDI_LEVEL_LIST.map((lvl) => (
+                  <option key={lvl.value} value={lvl.value}>
+                    {lvl.value}
+                  </option>
+                ))}
               </select>
             </div>
           </div>

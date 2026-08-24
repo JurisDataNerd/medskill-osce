@@ -175,7 +175,7 @@ function formatAuthErrorMessage(error) {
       <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl space-y-6">
         {/* Brand Header */}
         <div className="text-center space-y-1">
-          <img src="/favicon.svg" alt="Praxis Logo" className="mx-auto h-14 w-14 object-contain rounded-2xl shadow-md" />
+          <img src="/logo_biru.avif" alt="Praxis Logo" className="mx-auto h-12 w-12 object-contain" />
           <h1 className="text-2xl font-black text-slate-900 tracking-tight pt-2">
             Praxis <span className="text-blue-600">OSCE</span>
           </h1>

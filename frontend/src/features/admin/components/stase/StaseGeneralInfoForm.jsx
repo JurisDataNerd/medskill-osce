@@ -1,4 +1,5 @@
 import { UserCheck, CheckCircle2, AlertCircle } from "lucide-react";
+import { SYSTEM_ORGAN_LIST } from "@/constants/medicalSystems";
 
 export default function StaseGeneralInfoForm({
   caseTitle,
@@ -56,13 +57,11 @@ export default function StaseGeneralInfoForm({
               onChange={(e) => setSystemOrgan(e.target.value)}
               className="w-full rounded-xl border border-slate-200 p-3 text-xs text-slate-800 focus:border-blue-500 focus:outline-none font-medium"
             >
-              <option value="Kardiovaskular">Kardiovaskular</option>
-              <option value="Respirasi">Respirasi</option>
-              <option value="Neurologi">Neurologi</option>
-              <option value="Digestif">Digestif</option>
-              <option value="Muskuloskeletal">Muskuloskeletal</option>
-              <option value="Endokrin">Endokrin & Metabolik</option>
-              <option value="Urologi">Urologi & Nefrologi</option>
+              {SYSTEM_ORGAN_LIST.map((org) => (
+                <option key={org} value={org}>
+                  {org}
+                </option>
+              ))}
             </select>
           </div>
 

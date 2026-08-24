@@ -423,14 +423,6 @@ export default function SessionRotationScheduleView({ sessionId, activeRound = n
             <div className="flex items-center gap-1.5">
               <button
                 type="button"
-                onClick={() => window.print()}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition active:scale-95 cursor-pointer"
-              >
-                <Printer size={15} className="text-slate-500" />
-                Cetak
-              </button>
-              <button
-                type="button"
                 onClick={handleDownloadSchedulePdf}
                 disabled={downloadingPdf}
                 className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-md hover:bg-blue-700 active:scale-95 transition cursor-pointer disabled:opacity-50"
@@ -443,7 +435,7 @@ export default function SessionRotationScheduleView({ sessionId, activeRound = n
                 ) : (
                   <>
                     <Download size={15} />
-                    Unduh PDF
+                    Cetak / Unduh Jadwal (PDF)
                   </>
                 )}
               </button>

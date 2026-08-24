@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabaseClient";
+import { playOsceAudio } from "@/services/audioService";
 
 // ─────────────────────────────────────────────────────────────────
 // PURE UTILITY
@@ -24,18 +25,7 @@ export const calcRemainingSeconds = calcRemaining;
  * Checks for /sounds/broadcast.mp3 in public folder, with Web Audio API synthesizer as zero-latency fallback.
  */
 export function playBroadcastNotificationSound() {
-  try {
-    const audio = new Audio("/sounds/broadcast.mp3");
-    audio.volume = 0.8;
-    const playPromise = audio.play();
-    if (playPromise !== undefined) {
-      playPromise.catch(() => {
-        synthesizeChimeSound();
-      });
-    }
-  } catch {
-    synthesizeChimeSound();
-  }
+  playOsceAudio("admin_broadcast");
 }
 
 function synthesizeChimeSound() {
@@ -157,6 +147,17 @@ export function subscribeToSession(sessionId, {
   // Direct WebSocket Broadcast Event (Instant 0ms latency)
   channel.on("broadcast", { event: "announcement" }, (payload) => {
     triggerBroadcast(payload);
+  });
+
+  // Direct WebSocket Bell Trigger Event (Instant 0ms latency)
+  channel.on("broadcast", { event: "play_bell" }, (payload) => {
+    const data = payload.payload || payload;
+    const bType = data.bell_type || "warning";
+    if (bType === "start") playOsceAudio("start_exam");
+    else if (bType === "warning") playOsceAudio("warning_2min");
+    else if (bType === "rotation") playOsceAudio("stop_transit");
+    else if (bType === "finish") playOsceAudio("finish_exam");
+    else if (bType === "broadcast") playOsceAudio("admin_broadcast");
   });
 
   // Direct WebSocket Session Finished Event (Instant 0ms latency)

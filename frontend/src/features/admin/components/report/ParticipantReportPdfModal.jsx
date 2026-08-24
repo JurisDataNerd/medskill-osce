@@ -65,13 +65,6 @@ export default function ParticipantReportPdfModal({
 
           <div className="flex items-center gap-2">
             <button
-              onClick={handlePrint}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3.5 py-2 text-xs font-bold text-slate-200 hover:bg-slate-700 hover:text-white transition cursor-pointer"
-            >
-              <Printer size={15} />
-              Cetak
-            </button>
-            <button
               onClick={handleDownloadPdf}
               disabled={downloading}
               className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-blue-700 active:scale-95 transition cursor-pointer disabled:opacity-50"
@@ -89,13 +82,13 @@ export default function ParticipantReportPdfModal({
               ) : (
                 <>
                   <Download size={15} />
-                  Unduh PDF
+                  Cetak / Unduh Transkrip PDF
                 </>
               )}
             </button>
             <button
               onClick={onClose}
-              className="rounded-xl border border-slate-800 p-2 text-slate-400 hover:bg-slate-800 hover:text-white transition cursor-pointer ml-1"
+              className="rounded-xl border border-slate-700 bg-slate-800 p-2 text-slate-300 hover:bg-slate-700 hover:text-white transition cursor-pointer ml-1"
             >
               <X size={18} />
             </button>

@@ -1,16 +1,34 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Pencil, Trash2, Search, Filter, BookOpen, Layers, Award } from "lucide-react";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Search,
+  Filter,
+  BookOpen,
+  Layers,
+  Award,
+  Download,
+  Upload,
+  FileDown,
+  RotateCw,
+} from "lucide-react";
+import { toast } from "sonner";
 
 import AdminLayout from "@/layouts/AdminLayout";
 import CaseModal from "@/features/admin/components/CaseModal";
 import ConfirmModal from "@/components/ConfirmModal";
+import QuestionBankImportModal from "@/features/admin/components/QuestionBankImportModal";
+import { SYSTEM_ORGAN_LIST } from "@/constants/medicalSystems";
 
 import {
   getCases,
   createCase,
   updateCase,
   deleteCase,
+  exportQuestionBankToJson,
+  downloadQuestionBankTemplateJson,
 } from "@/services/case.service";
 
 export default function CasesPage() {
@@ -23,6 +41,10 @@ export default function CasesPage() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedOrgan, setSelectedOrgan] = useState("ALL");
+
+  // Import / Export State
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   async function loadCases() {
     try {
@@ -40,6 +62,24 @@ export default function CasesPage() {
   useEffect(() => {
     loadCases();
   }, []);
+
+  async function handleExportJson() {
+    if (cases.length === 0) {
+      toast.warning("Tidak ada kasus medis untuk diekspor.");
+      return;
+    }
+
+    try {
+      setExporting(true);
+      await exportQuestionBankToJson();
+      toast.success("Seluruh Bank Soal berhasil diekspor ke file JSON!");
+    } catch (err) {
+      console.error("Error exporting cases to JSON:", err);
+      toast.error(`Gagal mengekspor data: ${err.message}`);
+    } finally {
+      setExporting(false);
+    }
+  }
 
   async function handleSave(payload) {
     if (selected) {
@@ -79,6 +119,7 @@ export default function CasesPage() {
       setDeleting(true);
       await deleteCase(targetCaseToDelete.id);
       setCases((prev) => prev.filter((c) => c.id !== targetCaseToDelete.id));
+      toast.success("Kasus medis berhasil dihapus.");
     } catch (e) {
       console.error("Error deleting case:", e);
       setAlertModal({
@@ -118,13 +159,54 @@ export default function CasesPage() {
           </p>
         </div>
 
-        <button
-          onClick={() => navigate("/admin/cases/create")}
-          className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-xs font-extrabold text-white shadow-xs hover:bg-blue-700 active:scale-95 transition cursor-pointer"
-        >
-          <Plus size={16} />
-          Buat Kasus Baru
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Download Template Button */}
+          <button
+            type="button"
+            onClick={downloadQuestionBankTemplateJson}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 hover:border-slate-300 transition cursor-pointer"
+            title="Unduh contoh template JSON untuk impor massal"
+          >
+            <FileDown size={15} className="text-slate-500" />
+            Template JSON
+          </button>
+
+          {/* Export JSON Button */}
+          <button
+            type="button"
+            onClick={handleExportJson}
+            disabled={exporting || cases.length === 0}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 hover:border-slate-300 active:scale-95 transition disabled:opacity-50 cursor-pointer"
+            title="Ekspor seluruh kasus di bank soal ke file .JSON"
+          >
+            {exporting ? (
+              <RotateCw size={15} className="animate-spin text-blue-600" />
+            ) : (
+              <Download size={15} className="text-blue-600" />
+            )}
+            Ekspor JSON
+          </button>
+
+          {/* Import JSON Button */}
+          <button
+            type="button"
+            onClick={() => setImportModalOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50/80 px-4 py-2.5 text-xs font-bold text-blue-700 shadow-2xs hover:bg-blue-100/80 active:scale-95 transition cursor-pointer"
+            title="Impor bulk banyak kasus sekaligus dari file .JSON lokal laptop"
+          >
+            <Upload size={15} />
+            Impor JSON (Bulk)
+          </button>
+
+          {/* Create New Case Button */}
+          <button
+            onClick={() => navigate("/admin/cases/create")}
+            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-xs font-extrabold text-white shadow-xs hover:bg-blue-700 active:scale-95 transition cursor-pointer"
+          >
+            <Plus size={16} />
+            Buat Kasus Baru
+          </button>
+        </div>
       </div>
 
       {/* Filter & Search Bar */}
@@ -151,22 +233,11 @@ export default function CasesPage() {
           <span className="text-slate-400 font-bold flex items-center gap-1 mr-1">
             <Filter size={13} /> Filter Organ:
           </span>
-          {[
-            "ALL",
-            "Kardiovaskular",
-            "Respirasi",
-            "Neurologi",
-            "Digestif",
-            "Muskuloskeletal",
-            "Endokrin",
-            "Urologi",
-            "Pediatri",
-            "THT-KL",
-          ].map((org) => (
+          {["ALL", ...SYSTEM_ORGAN_LIST].map((org) => (
             <button
               key={org}
               onClick={() => setSelectedOrgan(org)}
-              className={`px-3 py-1 rounded-lg text-[11px] font-bold transition border ${
+              className={`px-3 py-1 rounded-lg text-[11px] font-bold transition border cursor-pointer ${
                 selectedOrgan === org
                   ? "bg-blue-600 border-blue-600 text-white shadow-2xs"
                   : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
@@ -227,8 +298,8 @@ export default function CasesPage() {
 
                   <button
                     type="button"
-                    onClick={() => requestDeleteCase(item)}
-                    className="rounded-xl border border-rose-200 p-2 text-rose-600 hover:bg-rose-50 transition"
+                    onClick={() => handleRequestDelete(item)}
+                    className="rounded-xl border border-rose-200 p-2 text-rose-600 hover:bg-rose-50 transition cursor-pointer"
                     title="Hapus Kasus"
                   >
                     <Trash2 size={16} />
@@ -265,6 +336,13 @@ export default function CasesPage() {
           setSelected(null);
         }}
         onSave={handleSave}
+      />
+
+      {/* Bulk Import Question Bank Modal */}
+      <QuestionBankImportModal
+        isOpen={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onImportSuccess={loadCases}
       />
 
       {/* Delete Case Confirmation Modal */}

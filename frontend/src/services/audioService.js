@@ -51,8 +51,27 @@ const AUDIO_ASSETS = {
   },
 };
 
-// Track played events to prevent double audio triggers in single second
+// Track played events to prevent double audio triggers
 const lastPlayedEvents = new Map();
+let currentAudioInstance = null;
+
+/**
+ * Stop any active audio playback and speech synthesis
+ */
+export function stopAllAudio() {
+  if (currentAudioInstance) {
+    try {
+      currentAudioInstance.pause();
+      currentAudioInstance.currentTime = 0;
+    } catch (e) {}
+    currentAudioInstance = null;
+  }
+  if ("speechSynthesis" in window) {
+    try {
+      window.speechSynthesis.cancel();
+    } catch (e) {}
+  }
+}
 
 /**
  * Main audio trigger function
@@ -65,15 +84,18 @@ export function playOsceAudio(key, force = false) {
 
   const now = Date.now();
   const lastTime = lastPlayedEvents.get(key) || 0;
-  if (!force && now - lastTime < 4000) {
-    // Prevent duplicate trigger within 4 seconds
+  if (!force && now - lastTime < 6000) {
+    // Prevent duplicate trigger within 6 seconds
     return;
   }
   lastPlayedEvents.set(key, now);
 
   try {
+    stopAllAudio();
+
     const audio = new Audio(asset.mp3);
     audio.volume = 0.9;
+    currentAudioInstance = audio;
     const playPromise = audio.play();
 
     if (playPromise !== undefined) {

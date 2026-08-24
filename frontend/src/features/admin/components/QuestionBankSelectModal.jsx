@@ -11,6 +11,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { fetchQuestionBankCatalog } from "@/services/questionBankService";
+import { SYSTEM_ORGAN_LIST } from "@/constants/medicalSystems";
 
 export default function QuestionBankSelectModal({
   isOpen,
@@ -18,13 +19,15 @@ export default function QuestionBankSelectModal({
   onSelectCase,
 }) {
   const [catalog, setCatalog] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedOrgan, setSelectedOrgan] = useState("ALL");
+  const [selectedDifficulty, setSelectedDifficulty] = useState("ALL");
+  const [selectedCaseId, setSelectedCaseId] = useState(null);
 
   useEffect(() => {
-    if (!isOpen) return;
     async function loadCatalog() {
+      if (!isOpen) return;
       try {
         setLoading(true);
         const data = await fetchQuestionBankCatalog();

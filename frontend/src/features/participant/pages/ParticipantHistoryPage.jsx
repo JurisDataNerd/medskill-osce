@@ -103,10 +103,10 @@ export default function ParticipantHistoryPage() {
         </div>
 
         {/* Metric Overview Cards */}
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2">
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs space-y-1">
             <span className="text-xs text-slate-400 font-bold block uppercase tracking-wider">
-              Total Ujian Diikuti
+              Total Sesi Ujian Diikuti
             </span>
             <div className="flex items-baseline gap-2">
               <span className="text-2xl font-black text-slate-900">{historyList.length}</span>
@@ -116,24 +116,7 @@ export default function ParticipantHistoryPage() {
 
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs space-y-1">
             <span className="text-xs text-slate-400 font-bold block uppercase tracking-wider">
-              Rata-Rata Nilai Sesi
-            </span>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-black text-blue-600">
-                {(() => {
-                  const evs = historyList.filter((i) => i.has_evaluations);
-                  if (evs.length === 0) return "-";
-                  const avg = evs.reduce((acc, curr) => acc + Number(curr.final_score || 0), 0) / evs.length;
-                  return `${avg.toFixed(1)}%`;
-                })()}
-              </span>
-              <span className="text-xs text-slate-500 font-bold">Kumulatif</span>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs space-y-1">
-            <span className="text-xs text-slate-400 font-bold block uppercase tracking-wider">
-              Status Kelulusan OSCE
+              Status Riwayat Penilaian
             </span>
             <div className="flex items-center gap-2 pt-0.5">
               {(() => {
@@ -141,20 +124,14 @@ export default function ParticipantHistoryPage() {
                 if (evs.length === 0) {
                   return (
                     <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-100 border border-amber-300 px-3 py-1 text-xs font-bold text-amber-900">
-                      Belum Ada Evaluasi
+                      Menunggu Penilaian Penguji
                     </span>
                   );
                 }
-                const isPassedAll = evs.every((i) => i.passed);
-                return isPassedAll ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-100 border border-emerald-300 px-3 py-1 text-xs font-black text-emerald-900">
+                return (
+                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-blue-100 border border-blue-300 px-3 py-1 text-xs font-black text-blue-900">
                     <CheckCircle2 size={15} />
-                    LULUS
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-rose-100 border border-rose-300 px-3 py-1 text-xs font-black text-rose-900">
-                    <XCircle size={15} />
-                    PERLU REMIDI
+                    {evs.length} Sesi Terbit Penilaian
                   </span>
                 );
               })()}
@@ -167,7 +144,7 @@ export default function ParticipantHistoryPage() {
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
             <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
               <Award size={20} className="text-blue-600" />
-              Daftar Transkrip Sesi Ujian OSCE ({filteredHistory.length} Sesi)
+              Daftar Riwayat Penilaian Sesi Ujian OSCE ({filteredHistory.length} Sesi)
             </h3>
 
             <div className="relative">
@@ -193,20 +170,20 @@ export default function ParticipantHistoryPage() {
                     <div className="flex items-center justify-between">
                       <span
                         className={`rounded-md px-2.5 py-0.5 text-[10px] font-black uppercase inline-flex items-center gap-1 ${
-                          item.passed
-                            ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
-                            : "bg-rose-100 text-rose-900 border border-rose-300"
+                          item.has_evaluations
+                            ? "bg-blue-100 text-blue-900 border border-blue-300"
+                            : "bg-amber-100 text-amber-900 border border-amber-300"
                         }`}
                       >
-                        {item.passed ? (
+                        {item.has_evaluations ? (
                           <>
-                            <CheckCircle2 size={12} className="text-emerald-700" />
-                            LULUS
+                            <CheckCircle2 size={12} className="text-blue-700" />
+                            Penilaian Tersedia
                           </>
                         ) : (
                           <>
-                            <XCircle size={12} className="text-rose-700" />
-                            TIDAK LULUS
+                            <Activity size={12} className="text-amber-700" />
+                            Sedang Dinilai
                           </>
                         )}
                       </span>
@@ -226,12 +203,12 @@ export default function ParticipantHistoryPage() {
 
                     <div className="grid grid-cols-2 gap-2 text-xs font-semibold text-slate-700">
                       <div className="rounded-xl border border-slate-200 bg-white p-2.5 text-center">
-                        <span className="text-slate-400 text-[10px] block font-bold">Total Stase</span>
-                        <span className="font-black text-slate-900">{item.total_stations} Stase Aktif</span>
+                        <span className="text-slate-400 text-[10px] block font-bold">Jumlah Stase</span>
+                        <span className="font-black text-slate-900">{item.total_stations} Stase Rotasi</span>
                       </div>
                       <div className="rounded-xl border border-slate-200 bg-white p-2.5 text-center">
-                        <span className="text-slate-400 text-[10px] block font-bold">Nilai Akhir</span>
-                        <span className="font-black text-blue-700">{item.final_score}%</span>
+                        <span className="text-slate-400 text-[10px] block font-bold">Status Sesi</span>
+                        <span className="font-bold text-slate-800">{item.status}</span>
                       </div>
                     </div>
                   </div>
@@ -239,10 +216,10 @@ export default function ParticipantHistoryPage() {
                   <div className="pt-3 border-t border-slate-200/60 flex items-center gap-2">
                     <button
                       onClick={() => navigate(`/participant/results/${item.session_id}`)}
-                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-blue-700 active:scale-95 transition"
+                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-blue-700 active:scale-95 transition cursor-pointer"
                     >
                       <FileText size={15} />
-                      Lihat Transkrip PDF
+                      Lihat Rincian Penilaian Stase
                     </button>
                   </div>
                 </div>

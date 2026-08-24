@@ -36,8 +36,10 @@ export default function SessionDetailPage() {
   const [session, setSession] = useState(null);
   const [stages, setStages] = useState([]);
   const [expandedStageIndex, setExpandedStageIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   async function loadDetail() {
+    setLoading(true);
     try {
       const data = await fetchSessionById(id);
       if (data) {
@@ -51,6 +53,8 @@ export default function SessionDetailPage() {
       console.warn("Could not fetch session detail from Supabase:", err);
       setSession(null);
       setStages([]);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -58,11 +62,85 @@ export default function SessionDetailPage() {
     loadDetail();
   }, [id]);
 
+  if (loading) {
+    return (
+      <AdminLayout>
+        <div className="space-y-6 animate-pulse">
+          {/* Back link & Header Skeleton */}
+          <div className="mb-6 space-y-4">
+            <div className="h-4 w-36 rounded-md bg-slate-200" />
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="space-y-2">
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-64 rounded-xl bg-slate-200" />
+                  <div className="h-6 w-24 rounded-full bg-slate-200" />
+                </div>
+                <div className="h-4 w-80 max-w-full rounded-md bg-slate-200" />
+              </div>
+              <div className="flex gap-2">
+                <div className="h-9 w-36 rounded-xl bg-slate-200" />
+                <div className="h-9 w-28 rounded-xl bg-slate-200" />
+              </div>
+            </div>
+          </div>
+
+          {/* 4 Summary Cards Skeleton */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3 shadow-2xs">
+                <div className="flex items-center justify-between">
+                  <div className="h-4 w-28 rounded bg-slate-200" />
+                  <div className="h-8 w-8 rounded-xl bg-slate-100" />
+                </div>
+                <div className="h-6 w-36 rounded bg-slate-200" />
+                <div className="h-3 w-24 rounded bg-slate-100" />
+              </div>
+            ))}
+          </div>
+
+          {/* Inline Participants Section Skeleton */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="h-5 w-48 rounded bg-slate-200" />
+              <div className="h-8 w-24 rounded-xl bg-slate-200" />
+            </div>
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-12 w-full rounded-xl bg-slate-100" />
+              ))}
+            </div>
+          </div>
+
+          {/* Rotation Schedule Section Skeleton */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs space-y-4">
+            <div className="h-5 w-56 rounded bg-slate-200" />
+            <div className="h-36 w-full rounded-xl bg-slate-100" />
+          </div>
+        </div>
+      </AdminLayout>
+    );
+  }
+
   if (!session) {
     return (
       <AdminLayout>
-        <div className="rounded-xl border border-slate-200 bg-white p-12 text-center text-slate-500">
-          Sesi tidak ditemukan.
+        <div className="flex min-h-[400px] flex-col items-center justify-center rounded-3xl border border-dashed border-slate-300 bg-white p-12 text-center shadow-xs space-y-4">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 border border-amber-200">
+            <Layers size={32} />
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-base font-bold text-slate-900">Sesi OSCE Tidak Ditemukan</h3>
+            <p className="text-xs text-slate-500 max-w-sm">
+              Sesi ujian dengan ID ini tidak tersedia di database atau telah dihapus oleh panitia.
+            </p>
+          </div>
+          <button
+            onClick={() => navigate("/admin/sessions")}
+            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-xs font-bold text-white shadow-md hover:bg-blue-700 active:scale-95 transition cursor-pointer"
+          >
+            <ArrowLeft size={16} />
+            Kembali ke Daftar Sesi
+          </button>
         </div>
       </AdminLayout>
     );
