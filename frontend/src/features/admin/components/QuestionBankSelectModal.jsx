@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { fetchQuestionBankCatalog } from "@/services/questionBankService";
 import { SYSTEM_ORGAN_LIST } from "@/constants/medicalSystems";
+import { parseDiagnosisText } from "@/utils/diagnosisParser";
 
 export default function QuestionBankSelectModal({
   isOpen,
@@ -33,22 +34,22 @@ export default function QuestionBankSelectModal({
         const data = await fetchQuestionBankCatalog();
         if (data && data.length > 0) {
           const normalized = data.map((item) => {
-            const wdx = item.answer_key_wdx || item.answer_key_diagnosis || item.wdx || item.gold_standard_keys?.wdx || "";
-            const ddx1 = item.answer_key_ddx1 || (Array.isArray(item.gold_standard_keys?.ddx) ? item.gold_standard_keys.ddx[0] : "") || (item.answer_key_ddx ? item.answer_key_ddx.split(",")[0]?.trim() : "") || "";
-            const ddx2 = item.answer_key_ddx2 || (Array.isArray(item.gold_standard_keys?.ddx) ? item.gold_standard_keys.ddx[1] : "") || (item.answer_key_ddx ? item.answer_key_ddx.split(",")[1]?.trim() : "") || "";
-            const ddx3 = item.answer_key_ddx3 || (Array.isArray(item.gold_standard_keys?.ddx) ? item.gold_standard_keys.ddx[2] : "") || (item.answer_key_ddx ? item.answer_key_ddx.split(",")[2]?.trim() : "") || "";
-            const prescription = item.answer_key_prescription || item.recipe || item.gold_standard_keys?.recipe || "";
+            const parsedObj = parseDiagnosisText(item.answer_key_diagnosis || item.answer_key_wdx || "");
+            const wdx = item.answer_key_wdx || parsedObj.wdx || "";
+            const ddxList = (parsedObj.ddxList && parsedObj.ddxList.length > 0) ? parsedObj.ddxList : ["", ""];
+            const prescription = item.answer_key_prescription || "";
 
             return {
               ...item,
               case_title: item.case_title || item.title,
               answer_key_wdx: wdx,
-              answer_key_ddx1: ddx1,
-              answer_key_ddx2: ddx2,
-              answer_key_ddx3: ddx3,
+              ddxKeys: ddxList,
+              answer_key_ddx1: ddxList[0] || "",
+              answer_key_ddx2: ddxList[1] || "",
+              answer_key_ddx3: ddxList[2] || "",
               answer_key_diagnosis: item.answer_key_diagnosis || wdx,
               answer_key_prescription: prescription,
-              answer_key_ddx: item.answer_key_ddx || [ddx1, ddx2, ddx3].filter(Boolean).join(", "),
+              answer_key_ddx: ddxList.filter(Boolean).join(", "),
               checklist_items:
                 item.checklist_items ||
                 (item.question_bank_rubric_items || []).map((r) => ({

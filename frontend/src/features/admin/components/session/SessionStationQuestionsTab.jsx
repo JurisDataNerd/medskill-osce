@@ -14,6 +14,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import AdminAuxiliaryExamBuilder from "@/features/admin/components/AdminAuxiliaryExamBuilder";
+import { formatDiagnosisText, parseDiagnosisText } from "@/utils/diagnosisParser";
 
 export default function SessionStationQuestionsTab({
   stationsConfig,
@@ -36,6 +37,59 @@ export default function SessionStationQuestionsTab({
   handleNextTab,
 }) {
   const activeStation = stationsConfig[selectedStationIndex] || stationsConfig[0];
+
+  const parsedDiagObj = parseDiagnosisText(activeStation?.answer_key_diagnosis || activeStation?.answer_key_wdx || "");
+  const activeWdxVal = activeStation?.answer_key_wdx || parsedDiagObj.wdx || "";
+
+  // Derive dynamic DDx list for activeStation
+  const activeDdxList = (() => {
+    if (!activeStation) return ["", ""];
+    if (Array.isArray(activeStation.ddxKeys) && activeStation.ddxKeys.length > 0) {
+      return activeStation.ddxKeys;
+    }
+    if (Array.isArray(activeStation.gold_standard_keys?.ddx) && activeStation.gold_standard_keys.ddx.length > 0) {
+      return activeStation.gold_standard_keys.ddx;
+    }
+    if (parsedDiagObj.ddxList && parsedDiagObj.ddxList.length > 0) {
+      return parsedDiagObj.ddxList;
+    }
+    const explicit = [activeStation.answer_key_ddx1, activeStation.answer_key_ddx2, activeStation.answer_key_ddx3].filter(Boolean);
+    if (explicit.length > 0) return explicit;
+
+    if (activeStation.answer_key_ddx && typeof activeStation.answer_key_ddx === "string") {
+      const splitted = activeStation.answer_key_ddx.split(",").map((s) => s.trim()).filter(Boolean);
+      if (splitted.length > 0) return splitted;
+    }
+    return ["", ""];
+  })();
+
+  const updateStationDiagnosisData = (newWdx, newDdxList, newRecipe) => {
+    if (!activeStation) return;
+    const wdx = newWdx !== undefined ? newWdx : activeWdxVal;
+    const ddxArr = newDdxList !== undefined ? newDdxList : activeDdxList;
+    const recipe = newRecipe !== undefined ? newRecipe : (activeStation.answer_key_prescription || "");
+
+    const filteredDdx = ddxArr.filter(Boolean);
+    const combinedDiag = formatDiagnosisText(wdx, filteredDdx);
+
+    setStationsConfig((prev) =>
+      prev.map((item, i) =>
+        i === selectedStationIndex
+          ? {
+              ...item,
+              answer_key_wdx: wdx,
+              answer_key_ddx1: ddxArr[0] || "",
+              answer_key_ddx2: ddxArr[1] || "",
+              answer_key_ddx3: ddxArr[2] || "",
+              ddxKeys: ddxArr,
+              answer_key_ddx: filteredDdx.join(", "),
+              answer_key_diagnosis: combinedDiag || wdx,
+              answer_key_prescription: recipe,
+            }
+          : item
+      )
+    );
+  };
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-6">
@@ -507,158 +561,89 @@ export default function SessionStationQuestionsTab({
             />
           </div>
 
-          {/* Kunci Jawaban Diagnosis (3 Diagnosis: WDx, DDx 1, DDx 2) & Resep Medis Baku */}
-          <div className="border-t border-slate-200 pt-5 space-y-4">
+          {/* Kunci Jawaban Diagnosis Medis Baku (WDx & Dynamic DDx List) & Resep Medis Baku */}
+          <div className="border-t border-slate-200 pt-5 space-y-6">
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-bold text-slate-900 uppercase flex items-center gap-1.5">
                 <CheckCircle2 size={16} className="text-emerald-600" />
-                Kunci Jawaban Diagnosis Medis (WDx, DDx 1, DDx 2) & Resep Medis Baku
+                Kunci Jawaban Diagnosis Medis (WDx, DDx) & Resep Medis Baku
               </h4>
               <span className="text-[10px] font-extrabold text-slate-500 bg-slate-100 px-2 py-0.5 rounded uppercase">
                 Kunci Baku Stase
               </span>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div>
-                <label className="mb-1 block text-xs font-bold text-slate-800">
-                  1. Diagnosis Kerja Utama (WDx)
-                </label>
-                <textarea
-                  rows={3}
-                  placeholder="Tuliskan kunci diagnosis kerja utama (WDx) secara lengkap..."
-                  value={activeStation.answer_key_wdx || ""}
-                  onChange={(e) => {
-                    const wdx = e.target.value;
-                    const ddx1 = activeStation.answer_key_ddx1 || "";
-                    const ddx2 = activeStation.answer_key_ddx2 || "";
-                    const combined = [
-                      wdx ? `WDx (Diagnosis Kerja Utama): ${wdx}` : "",
-                      ddx1 ? `DDx 1 (Diagnosis Banding 1): ${ddx1}` : "",
-                      ddx2 ? `DDx 2 (Diagnosis Banding 2): ${ddx2}` : "",
-                    ].filter(Boolean).join("\n");
-
-                    setStationsConfig((prev) =>
-                      prev.map((item, i) =>
-                        i === selectedStationIndex
-                          ? {
-                              ...item,
-                              answer_key_wdx: wdx,
-                              answer_key_diagnosis: combined || wdx,
-                              answer_key_ddx: [ddx1, ddx2].filter(Boolean).join(", "),
-                              gold_standard_keys: {
-                                wdx,
-                                ddx: [ddx1, ddx2].filter(Boolean),
-                                recipe: item.answer_key_prescription || "",
-                              },
-                            }
-                          : item
-                      )
-                    );
-                  }}
-                  className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs font-bold text-slate-900 focus:border-blue-500 leading-relaxed"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-xs font-bold text-slate-800">
-                  2. Diagnosis Banding 1 (DDx 1)
-                </label>
-                <textarea
-                  rows={3}
-                  placeholder="Tuliskan kunci diagnosis banding 1 (DDx 1)..."
-                  value={activeStation.answer_key_ddx1 || ""}
-                  onChange={(e) => {
-                    const ddx1 = e.target.value;
-                    const wdx = activeStation.answer_key_wdx || "";
-                    const ddx2 = activeStation.answer_key_ddx2 || "";
-                    const combined = [
-                      wdx ? `WDx (Diagnosis Kerja Utama): ${wdx}` : "",
-                      ddx1 ? `DDx 1 (Diagnosis Banding 1): ${ddx1}` : "",
-                      ddx2 ? `DDx 2 (Diagnosis Banding 2): ${ddx2}` : "",
-                    ].filter(Boolean).join("\n");
-
-                    setStationsConfig((prev) =>
-                      prev.map((item, i) =>
-                        i === selectedStationIndex
-                          ? {
-                              ...item,
-                              answer_key_ddx1: ddx1,
-                              answer_key_diagnosis: combined || wdx,
-                              answer_key_ddx: [ddx1, ddx2].filter(Boolean).join(", "),
-                              gold_standard_keys: {
-                                wdx,
-                                ddx: [ddx1, ddx2].filter(Boolean),
-                                recipe: item.answer_key_prescription || "",
-                              },
-                            }
-                          : item
-                      )
-                    );
-                  }}
-                  className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs font-medium text-slate-800 focus:border-blue-500 leading-relaxed"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-xs font-bold text-slate-800">
-                  3. Diagnosis Banding 2 (DDx 2)
-                </label>
-                <textarea
-                  rows={3}
-                  placeholder="Tuliskan kunci diagnosis banding 2 (DDx 2)..."
-                  value={activeStation.answer_key_ddx2 || ""}
-                  onChange={(e) => {
-                    const ddx2 = e.target.value;
-                    const wdx = activeStation.answer_key_wdx || "";
-                    const ddx1 = activeStation.answer_key_ddx1 || "";
-                    const combined = [
-                      wdx ? `WDx (Diagnosis Kerja Utama): ${wdx}` : "",
-                      ddx1 ? `DDx 1 (Diagnosis Banding 1): ${ddx1}` : "",
-                      ddx2 ? `DDx 2 (Diagnosis Banding 2): ${ddx2}` : "",
-                    ].filter(Boolean).join("\n");
-
-                    setStationsConfig((prev) =>
-                      prev.map((item, i) =>
-                        i === selectedStationIndex
-                          ? {
-                              ...item,
-                              answer_key_ddx2: ddx2,
-                              answer_key_diagnosis: combined || wdx,
-                              answer_key_ddx: [ddx1, ddx2].filter(Boolean).join(", "),
-                              gold_standard_keys: {
-                                wdx,
-                                ddx: [ddx1, ddx2].filter(Boolean),
-                                recipe: item.answer_key_prescription || "",
-                              },
-                            }
-                          : item
-                      )
-                    );
-                  }}
-                  className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs font-medium text-slate-800 focus:border-blue-500 leading-relaxed"
-                />
-              </div>
-            </div>
-
+            {/* 1. Diagnosis Kerja Utama (WDx) */}
             <div>
-              <label className="mb-1 block text-xs font-bold text-slate-800">
-                Kunci Jawaban Resep Medis Baku (Farmakoterapi)
+              <label className="block text-xs font-bold text-slate-800 uppercase mb-1">
+                1. Kunci Diagnosis Kerja Utama Baku (Working Diagnosis - WDx)
               </label>
               <textarea
                 rows={3}
+                placeholder="Tuliskan kunci diagnosis kerja utama (WDx) secara lengkap..."
+                value={activeStation.answer_key_wdx || ""}
+                onChange={(e) => updateStationDiagnosisData(e.target.value, undefined, undefined)}
+                className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs font-bold text-slate-900 focus:border-blue-500 leading-relaxed"
+              />
+            </div>
+
+            {/* 2. Diagnosis Banding (DDx) Dynamic List */}
+            <div>
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-2">
+                <label className="block text-xs font-bold text-slate-800 uppercase">
+                  2. Kunci Diagnosis Banding Baku (Differential Diagnosis - DDx)
+                </label>
+                <button
+                  type="button"
+                  onClick={() => updateStationDiagnosisData(undefined, [...activeDdxList, ""], undefined)}
+                  className="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer"
+                >
+                  <Plus size={14} /> Tambah DDx
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {activeDdxList.map((ddxVal, dIdx) => (
+                  <div key={dIdx} className="flex items-start gap-2">
+                    <span className="text-xs font-bold text-slate-400 w-6 mt-2.5">{dIdx + 1}.</span>
+                    <textarea
+                      rows={2}
+                      value={ddxVal}
+                      onChange={(e) => {
+                        const updated = activeDdxList.map((item, i) => (i === dIdx ? e.target.value : item));
+                        updateStationDiagnosisData(undefined, updated, undefined);
+                      }}
+                      placeholder={`Tuliskan kunci diagnosis banding #${dIdx + 1} (DDx ${dIdx + 1})...`}
+                      className="flex-1 rounded-xl border border-slate-200 p-2.5 text-xs text-slate-800 font-semibold focus:border-blue-500 focus:outline-none leading-relaxed bg-white"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const filtered = activeDdxList.filter((_, i) => i !== dIdx);
+                        updateStationDiagnosisData(undefined, filtered, undefined);
+                      }}
+                      className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg mt-1 cursor-pointer"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                ))}
+                {activeDdxList.length === 0 && (
+                  <p className="text-xs text-slate-400 italic">Belum ada item diagnosis banding (DDx). Klik "+ Tambah DDx" di atas.</p>
+                )}
+              </div>
+            </div>
+
+            {/* 3. Kunci Penulisan Resep Medis Baku */}
+            <div>
+              <label className="block text-xs font-bold text-slate-800 uppercase mb-1">
+                3. Kunci Penulisan Resep Medis Baku (Prescription Sheet Key)
+              </label>
+              <textarea
+                rows={4}
                 placeholder="R/ Aspirin tab 80 mg No. IV..."
                 value={activeStation.answer_key_prescription || ""}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setStationsConfig((prev) =>
-                    prev.map((item, i) =>
-                      i === selectedStationIndex
-                        ? { ...item, answer_key_prescription: val }
-                        : item
-                    )
-                  );
-                }}
+                onChange={(e) => updateStationDiagnosisData(undefined, undefined, e.target.value)}
                 className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs font-mono text-slate-900 leading-relaxed"
               />
             </div>

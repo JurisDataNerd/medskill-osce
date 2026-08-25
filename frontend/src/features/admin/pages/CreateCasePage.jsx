@@ -29,6 +29,7 @@ import CaseScenarioTab from "@/features/admin/components/case/CaseScenarioTab";
 import CaseAnswerKeyTab from "@/features/admin/components/case/CaseAnswerKeyTab";
 import CaseRubricTab from "@/features/admin/components/case/CaseRubricTab";
 import CaseAuxiliaryTab from "@/features/admin/components/case/CaseAuxiliaryTab";
+import { formatDiagnosisText, parseDiagnosisText } from "@/utils/diagnosisParser";
 
 export default function CreateCasePage() {
   const { id } = useParams();
@@ -254,45 +255,7 @@ export default function CreateCasePage() {
           setExaminerInstructions(data.examiner_instructions || "");
           setAuxAnswerKey(data.auxiliary_answer_key || "");
 
-          let parsedWdx = data.answer_key_wdx || data.answer_key_diagnosis || "";
-          let d1 = data.answer_key_ddx1 || "";
-          let d2 = data.answer_key_ddx2 || "";
-          let d3 = data.answer_key_ddx3 || "";
-          let parsedDdxArr = [d1, d2, d3].filter(Boolean);
-
-          if (data.gold_standard_keys && typeof data.gold_standard_keys === "object") {
-            if (!parsedWdx && data.gold_standard_keys.wdx) parsedWdx = data.gold_standard_keys.wdx;
-            if (parsedDdxArr.length === 0) {
-              if (Array.isArray(data.gold_standard_keys.ddx)) {
-                parsedDdxArr = data.gold_standard_keys.ddx.filter(Boolean);
-              } else if (typeof data.gold_standard_keys.ddx === "string" && data.gold_standard_keys.ddx.trim()) {
-                parsedDdxArr = [data.gold_standard_keys.ddx.trim()];
-              }
-            }
-          }
-
-          if (parsedDdxArr.length === 0 && data.answer_key_ddx) {
-            parsedDdxArr = data.answer_key_ddx.split(",").map((s) => s.trim()).filter(Boolean);
-          }
-
-          // Smart multi-line extraction fallback if answer_key_diagnosis has combined text
-          if (parsedWdx && (parsedWdx.includes("\n") || /wdx|ddx|kerja|banding/i.test(parsedWdx))) {
-            const lines = parsedWdx.split("\n");
-            let extractedWdx = "";
-            const extractedDdx = [];
-            lines.forEach((l) => {
-              if (/wdx|kerja/i.test(l)) {
-                extractedWdx = l.replace(/^(wdx|diagnosis kerja utama|diagnosis kerja|kerja)[\s:]*/i, "").trim();
-              } else if (/ddx|banding/i.test(l)) {
-                const cleanDdx = l.replace(/^(ddx\s*\d*|diagnosis banding\s*\d*|banding\s*\d*)[\s:]*/i, "").trim();
-                if (cleanDdx) extractedDdx.push(cleanDdx);
-              }
-            });
-            if (extractedWdx) parsedWdx = extractedWdx;
-            if (extractedDdx.length > 0 && parsedDdxArr.length === 0) parsedDdxArr = extractedDdx;
-          }
-
-          if (parsedDdxArr.length === 0) parsedDdxArr = ["", ""];
+          const { wdx: parsedWdx, ddxList: parsedDdxArr } = parseDiagnosisText(data.answer_key_diagnosis || data.answer_key_wdx || "");
 
           const parsedRecipe = data.answer_key_prescription || data.gold_standard_keys?.recipe || "";
           setWdxKey(parsedWdx);
@@ -428,10 +391,9 @@ export default function CreateCasePage() {
 
       const finalWdx = (wdxKey || answerKeyDiagnosis || "").trim();
       const finalRecipe = (recipeKey || answerKeyPrescription || "").trim();
-      const ddx1 = (ddxKeys[0] || "").trim();
-      const ddx2 = (ddxKeys[1] || "").trim();
-      const ddx3 = (ddxKeys[2] || "").trim();
-      const finalDdxArr = [ddx1, ddx2, ddx3].filter(Boolean);
+      const finalDdxArr = Array.isArray(ddxKeys) ? ddxKeys.map((s) => (s || "").trim()).filter(Boolean) : [];
+
+      const combinedDiag = formatDiagnosisText(finalWdx, finalDdxArr);
 
       const casePayload = {
         title,
@@ -441,19 +403,8 @@ export default function CreateCasePage() {
         scenario,
         participant_instructions: participantInstructions,
         examiner_instructions: examinerInstructions,
-        answer_key_wdx: finalWdx,
-        answer_key_ddx1: ddx1,
-        answer_key_ddx2: ddx2,
-        answer_key_ddx3: ddx3,
-        answer_key_diagnosis: finalWdx,
+        answer_key_diagnosis: combinedDiag || finalWdx,
         answer_key_prescription: finalRecipe,
-        answer_key_ddx: finalDdxArr.join(", "),
-        auxiliary_answer_key: auxAnswerKey,
-        gold_standard_keys: {
-          wdx: finalWdx,
-          ddx: finalDdxArr,
-          recipe: finalRecipe,
-        },
       };
 
       let savedCase;

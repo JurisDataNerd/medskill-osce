@@ -89,8 +89,8 @@ export async function createCase(payload) {
     scenario: payload.scenario || payload.chief_complaint || "",
     participant_instructions: payload.participant_instructions || payload.anamnesis_instruction || "",
     examiner_instructions: payload.examiner_instructions || payload.physical_instruction || "",
-    answer_key_diagnosis: payload.answer_key_diagnosis || null,
-    answer_key_prescription: payload.answer_key_prescription || null,
+    answer_key_diagnosis: payload.answer_key_diagnosis ?? null,
+    answer_key_prescription: payload.answer_key_prescription ?? null,
   };
 
   const { data: newCase, error } = await supabase
@@ -116,8 +116,8 @@ export async function updateCase(id, payload) {
     scenario: payload.scenario || payload.chief_complaint,
     participant_instructions: payload.participant_instructions || payload.anamnesis_instruction,
     examiner_instructions: payload.examiner_instructions || payload.physical_instruction,
-    answer_key_diagnosis: payload.answer_key_diagnosis,
-    answer_key_prescription: payload.answer_key_prescription,
+    answer_key_diagnosis: payload.answer_key_diagnosis ?? null,
+    answer_key_prescription: payload.answer_key_prescription ?? null,
     updated_at: new Date().toISOString(),
   };
 
