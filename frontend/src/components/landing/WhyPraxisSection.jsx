@@ -6,35 +6,27 @@ export default function WhyPraxisSection() {
   const benefits = [
     {
       icon: Stethoscope,
-      badge: "Manfaat 01",
       title: "Latihan Anamnesis Adaptif",
       description:
         "Pertajam teknik penggalian informasi medis, empati, dan alur anamnesis sistematis sebelum terjun ke stase nyata.",
-      highlight: "Simulasi AI Pasien Standar Interaktif",
     },
     {
       icon: Clock,
-      badge: "Manfaat 02",
       title: "Manajemen Waktu Stase",
       description:
         "Biasakan ritme membaca petunjuk, tindakan pemeriksaan, serta perumusan diagnosis dan terapi secara efisien.",
-      highlight: "Timer Sinkron & Pacing Realistis",
     },
     {
       icon: Target,
-      badge: "Manfaat 03",
       title: "Rubrik Penilaian Terstandar",
       description:
         "Evaluasi hasil ujian mengacu pada rubrik baku nasional sehingga evaluasi performa klinis terukur jelas.",
-      highlight: "Standar Penilaian OSCE Nasional",
     },
     {
       icon: Award,
-      badge: "Manfaat 04",
       title: "Kesiapan Mental Ujian",
       description:
         "Simulasi realistis yang mempersiapkan mental dan fokus menghadapi ujian OSCE sungguhan dengan tenang.",
-      highlight: "Kesiapan Mental & Kepercayaan Diri",
     },
   ];
 
@@ -80,11 +72,8 @@ export default function WhyPraxisSection() {
                 key={idx}
                 itemClassName="bg-white text-[#0D3A68] border border-white/20 shadow-2xl p-8 sm:p-12 rounded-[2.5rem]"
               >
-                <div className="flex flex-col justify-between h-full min-h-[200px] sm:min-h-[240px]">
+                <div className="flex flex-col justify-between h-full min-h-[160px] sm:min-h-[180px]">
                   <div className="flex items-center justify-between gap-4 mb-6">
-                    <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#0D3A68]/10 border border-[#0D3A68]/20 text-[#0D3A68] text-xs sm:text-sm font-extrabold uppercase tracking-wide">
-                      <span>{item.badge}</span>
-                    </div>
                     <div className="flex h-14 w-14 sm:h-16 sm:w-16 shrink-0 items-center justify-center rounded-2xl bg-[#0D3A68] text-[#C9A227] shadow-lg">
                       <Icon size={30} />
                     </div>
@@ -97,15 +86,6 @@ export default function WhyPraxisSection() {
                     <p className="text-base sm:text-lg text-slate-600 font-medium leading-relaxed max-w-2xl">
                       {item.description}
                     </p>
-                  </div>
-
-                  <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
-                    <span className="text-xs sm:text-sm font-bold text-[#C9A227] uppercase tracking-wider">
-                      {item.highlight}
-                    </span>
-                    <span className="text-xs sm:text-sm font-semibold text-slate-400">
-                      0{idx + 1} / 0{benefits.length}
-                    </span>
                   </div>
                 </div>
               </ScrollStackItem>
