@@ -65,6 +65,10 @@ export default function AiProofSection() {
               <img
                 src="/praxis.png"
                 alt="Tampilan Fitur Simulasi Anamnesis AI Praxis"
+                loading="lazy"
+                decoding="async"
+                width="800"
+                height="450"
                 className="w-full h-auto object-cover rounded-2xl border border-slate-200 shadow-sm"
               />
             </motion.div>

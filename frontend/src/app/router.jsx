@@ -1,5 +1,7 @@
+import { lazy, Suspense } from "react";
 import { createBrowserRouter, Outlet } from "react-router-dom";
 
+// Public pages (immediate or light)
 import LandingPage from "@/pages/LandingPage";
 import LoginPage from "@/pages/LoginPage";
 import AuthCallbackPage from "@/pages/AuthCallbackPage";
@@ -7,56 +9,65 @@ import UnauthorizedPage from "@/pages/UnauthorizedPage";
 
 import ProtectedRoute from "@/routes/ProtectedRoute";
 
-// ======================
-// ADMIN
-// ======================
+// Loading fallback component
+const PageLoader = () => (
+  <div className="min-h-screen w-full flex items-center justify-center bg-slate-50">
+    <div className="flex flex-col items-center gap-3">
+      <div className="h-9 w-9 animate-spin rounded-full border-3 border-[#0D3A68] border-t-transparent" />
+      <span className="text-xs font-semibold text-slate-500">Memuat halaman...</span>
+    </div>
+  </div>
+);
 
-import AdminPage from "@/features/admin/pages/AdminPage";
-import AdminLiveMonitorPage from "@/features/admin/pages/LiveMonitorPage";
-import SessionsPage from "@/features/admin/pages/SessionsPage";
-import SessionDetailPage from "@/features/admin/pages/SessionDetailPage";
-import ParticipantsPage from "@/features/admin/pages/ParticipantsPage";
-import ParticipantDetailPage from "@/features/admin/pages/ParticipantDetailPage";
-import ExaminersPage from "@/features/admin/pages/ExaminersPage";
-import ReportsPage from "@/features/admin/pages/ReportsPage";
-import SessionParticipantsPage from "@/features/admin/pages/SessionParticipantsPage";
-import SessionExaminersPage from "@/features/admin/pages/SessionExaminersPage";
-import StageQuestionPage from "@/features/admin/pages/StageQuestionPage";
-import CreateSessionPage from "@/features/admin/pages/CreateSessionPage";
-import CasesPage from "@/features/admin/pages/CasesPage";
-import CreateCasePage from "@/features/admin/pages/CreateCasePage";
-import SettingsPage from "@/features/admin/pages/SettingsPage";
-import ParticipantAnswerPage from "@/features/admin/pages/ParticipantAnswerPage";
-import StationMonitorDetailPage from "@/features/admin/pages/StationMonitorDetailPage";
-import SessionRotationSchedulePage from "@/features/admin/pages/SessionRotationSchedulePage";
-
+const Lazy = (Component) => (props) => (
+  <Suspense fallback={<PageLoader />}>
+    <Component {...props} />
+  </Suspense>
+);
 
 // ======================
-// PARTICIPANT
+// ADMIN (Lazy Loaded)
 // ======================
-
-import ParticipantDashboardPage from "@/features/participant/pages/ParticipantDashboardPage";
-import ParticipantSessionPage from "@/features/participant/pages/ParticipantSessionPage";
-import ParticipantResultDetailPage from "@/features/participant/pages/ParticipantResultDetailPage";
-import ParticipantHistoryPage from "@/features/participant/pages/ParticipantHistoryPage";
-
+const AdminPage = Lazy(lazy(() => import("@/features/admin/pages/AdminPage")));
+const AdminLiveMonitorPage = Lazy(lazy(() => import("@/features/admin/pages/LiveMonitorPage")));
+const SessionsPage = Lazy(lazy(() => import("@/features/admin/pages/SessionsPage")));
+const SessionDetailPage = Lazy(lazy(() => import("@/features/admin/pages/SessionDetailPage")));
+const ParticipantsPage = Lazy(lazy(() => import("@/features/admin/pages/ParticipantsPage")));
+const ParticipantDetailPage = Lazy(lazy(() => import("@/features/admin/pages/ParticipantDetailPage")));
+const ExaminersPage = Lazy(lazy(() => import("@/features/admin/pages/ExaminersPage")));
+const ReportsPage = Lazy(lazy(() => import("@/features/admin/pages/ReportsPage")));
+const SessionParticipantsPage = Lazy(lazy(() => import("@/features/admin/pages/SessionParticipantsPage")));
+const SessionExaminersPage = Lazy(lazy(() => import("@/features/admin/pages/SessionExaminersPage")));
+const StageQuestionPage = Lazy(lazy(() => import("@/features/admin/pages/StageQuestionPage")));
+const CreateSessionPage = Lazy(lazy(() => import("@/features/admin/pages/CreateSessionPage")));
+const CasesPage = Lazy(lazy(() => import("@/features/admin/pages/CasesPage")));
+const CreateCasePage = Lazy(lazy(() => import("@/features/admin/pages/CreateCasePage")));
+const SettingsPage = Lazy(lazy(() => import("@/features/admin/pages/SettingsPage")));
+const ParticipantAnswerPage = Lazy(lazy(() => import("@/features/admin/pages/ParticipantAnswerPage")));
+const StationMonitorDetailPage = Lazy(lazy(() => import("@/features/admin/pages/StationMonitorDetailPage")));
+const SessionRotationSchedulePage = Lazy(lazy(() => import("@/features/admin/pages/SessionRotationSchedulePage")));
+const AdminProfilePage = Lazy(lazy(() => import("@/features/admin/pages/AdminProfilePage")));
 
 // ======================
-// EXAMINER
+// PARTICIPANT (Lazy Loaded)
 // ======================
+const ParticipantDashboardPage = Lazy(lazy(() => import("@/features/participant/pages/ParticipantDashboardPage")));
+const ParticipantSessionPage = Lazy(lazy(() => import("@/features/participant/pages/ParticipantSessionPage")));
+const ParticipantResultDetailPage = Lazy(lazy(() => import("@/features/participant/pages/ParticipantResultDetailPage")));
+const ParticipantHistoryPage = Lazy(lazy(() => import("@/features/participant/pages/ParticipantHistoryPage")));
+const ParticipantProfilePage = Lazy(lazy(() => import("@/features/participant/pages/ParticipantProfilePage")));
 
-import ExaminerLayout from "@/layouts/ExaminerLayout";
-import ExaminerDashboardPage from "@/features/examiner/pages/DashboardPage";
-import ExaminerLiveMonitorPage from "@/features/examiner/pages/LiveMonitorPage";
-import ExaminerFeedbackPage from "@/features/examiner/pages/FeedbackPage";
-import ExaminerStagePage from "@/features/examiner/pages/ExaminerStagePage";
-import ExaminerHistoryPage from "@/features/examiner/pages/ExaminerHistoryPage";
-import ExaminerHistoryDetailPage from "@/features/examiner/pages/ExaminerHistoryDetailPage";
-import ExaminerProfilePage from "@/features/examiner/pages/ExaminerProfilePage";
-import ParticipantProfilePage from "@/features/participant/pages/ParticipantProfilePage";
-import AdminProfilePage from "@/features/admin/pages/AdminProfilePage";
-
-
+// ======================
+// EXAMINER (Lazy Loaded)
+// ======================
+const ExaminerLayout = Lazy(lazy(() => import("@/layouts/ExaminerLayout")));
+const ExaminerDashboardPage = Lazy(lazy(() => import("@/features/examiner/pages/DashboardPage")));
+const ExaminerLiveMonitorPage = Lazy(lazy(() => import("@/features/examiner/pages/LiveMonitorPage")));
+const ExaminerFeedbackPage = Lazy(lazy(() => import("@/features/examiner/pages/FeedbackPage")));
+const ExaminerStagePage = Lazy(lazy(() => import("@/features/examiner/pages/ExaminerStagePage")));
+const ExaminerHistoryPage = Lazy(lazy(() => import("@/features/examiner/pages/ExaminerHistoryPage")));
+const ExaminerHistoryDetailPage = Lazy(lazy(() => import("@/features/examiner/pages/ExaminerHistoryDetailPage")));
+const ExaminerProfilePage = Lazy(lazy(() => import("@/features/examiner/pages/ExaminerProfilePage")));
 
 function ExaminerRoot() {
   return (
@@ -166,7 +177,6 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
   },
-
 
   {
     path: "/admin/sessions/:id/participants",
@@ -334,7 +344,6 @@ export const router = createBrowserRouter([
     ),
   },
 
-
   // ==================================================
   // EXAMINER
   // ==================================================
@@ -387,7 +396,6 @@ export const router = createBrowserRouter([
         path: "profile",
         element: <ExaminerProfilePage />,
       },
-
       {
         path: "feedback/:answerId",
         element: <ExaminerFeedbackPage />,

@@ -243,6 +243,10 @@ export default function HeroSection() {
               }}
               src="/praxis_1.png"
               alt="Maskot Utama Praxis"
+              fetchPriority="high"
+              decoding="async"
+              width="440"
+              height="440"
               className="w-full max-h-[380px] sm:max-h-[440px] object-contain drop-shadow-lg transition-transform duration-300"
             />
           </motion.div>
