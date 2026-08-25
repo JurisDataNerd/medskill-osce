@@ -750,7 +750,14 @@ export default function ParticipantSessionPage() {
   useEffect(() => {
     if (!sessionId || !isSessionLive) return;
 
-    if (viewMode === "live_round" && roundSecondsLeft === 0) {
+    const isPaused =
+      globalTimerState?.phase === "paused" ||
+      globalTimerState?.phase?.startsWith("paused") ||
+      sessionDetail?.status === "paused";
+
+    if (isPaused) return;
+
+    if (viewMode === "live_round" && roundSecondsLeft === 0 && globalTimerState?.target_end_time) {
       if (!activeStationInfo?.is_break) {
         performAutoSave({ current_step: examStep, status: "submitted" });
         if (sessionId && currentRound) {
@@ -758,7 +765,7 @@ export default function ParticipantSessionPage() {
         }
       }
       handleFinishActiveRound();
-    } else if (viewMode === "transit" && transitSecondsLeft === 0) {
+    } else if (viewMode === "transit" && transitSecondsLeft === 0 && globalTimerState?.target_end_time) {
       const isInitial = globalTimerState?.phase === "initial_transition";
       const targetR = isInitial
         ? 1
@@ -766,7 +773,7 @@ export default function ParticipantSessionPage() {
       setCurrentRound(targetR);
       setViewMode("live_round");
       setExamStep(1);
-    } else if (viewMode === "round_break" && breakSecondsLeft === 0) {
+    } else if (viewMode === "round_break" && breakSecondsLeft === 0 && globalTimerState?.target_end_time) {
       const nextR = currentRound + 1;
       setCurrentRound(nextR);
       setViewMode("live_round");
@@ -783,8 +790,10 @@ export default function ParticipantSessionPage() {
     totalRoundsInSession,
     globalTimerState?.phase,
     globalTimerState?.round_number,
+    globalTimerState?.target_end_time,
     examStep,
     activeStationInfo?.is_break,
+    sessionDetail?.status,
   ]);
 
   function formatTime(secs) {
@@ -897,6 +906,13 @@ export default function ParticipantSessionPage() {
   }
 
   function handleFinishActiveRound() {
+    const isPaused =
+      globalTimerState?.phase === "paused" ||
+      globalTimerState?.phase?.startsWith("paused") ||
+      sessionDetail?.status === "paused";
+
+    if (isPaused) return;
+
     if (currentRound >= totalRoundsInSession) {
       // Seluruh 6 Ronde Selesai -> Halaman Terimakasih Ujian
       setViewMode("completed");

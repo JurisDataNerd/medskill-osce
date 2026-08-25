@@ -545,6 +545,12 @@ export default function SessionStationQuestionsTab({
                               ...item,
                               answer_key_wdx: wdx,
                               answer_key_diagnosis: combined || wdx,
+                              answer_key_ddx: [ddx1, ddx2].filter(Boolean).join(", "),
+                              gold_standard_keys: {
+                                wdx,
+                                ddx: [ddx1, ddx2].filter(Boolean),
+                                recipe: item.answer_key_prescription || "",
+                              },
                             }
                           : item
                       )
@@ -579,6 +585,12 @@ export default function SessionStationQuestionsTab({
                               ...item,
                               answer_key_ddx1: ddx1,
                               answer_key_diagnosis: combined || wdx,
+                              answer_key_ddx: [ddx1, ddx2].filter(Boolean).join(", "),
+                              gold_standard_keys: {
+                                wdx,
+                                ddx: [ddx1, ddx2].filter(Boolean),
+                                recipe: item.answer_key_prescription || "",
+                              },
                             }
                           : item
                       )
@@ -613,6 +625,12 @@ export default function SessionStationQuestionsTab({
                               ...item,
                               answer_key_ddx2: ddx2,
                               answer_key_diagnosis: combined || wdx,
+                              answer_key_ddx: [ddx1, ddx2].filter(Boolean).join(", "),
+                              gold_standard_keys: {
+                                wdx,
+                                ddx: [ddx1, ddx2].filter(Boolean),
+                                recipe: item.answer_key_prescription || "",
+                              },
                             }
                           : item
                       )

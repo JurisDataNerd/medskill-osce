@@ -488,9 +488,9 @@ export default function CreateSessionPage() {
                 foundSession.stations.map((st, idx) => {
                   const rawDiag = st.answer_key_diagnosis || "";
                   const diagLines = rawDiag.split("\n");
-                  let wdx = st.answer_key_wdx || "";
-                  let ddx1 = st.answer_key_ddx1 || "";
-                  let ddx2 = st.answer_key_ddx2 || "";
+                  let wdx = st.answer_key_wdx || st.gold_standard_keys?.wdx || "";
+                  let ddx1 = st.answer_key_ddx1 || (Array.isArray(st.gold_standard_keys?.ddx) ? st.gold_standard_keys.ddx[0] : "") || (st.answer_key_ddx ? st.answer_key_ddx.split(",")[0]?.trim() : "") || "";
+                  let ddx2 = st.answer_key_ddx2 || (Array.isArray(st.gold_standard_keys?.ddx) ? st.gold_standard_keys.ddx[1] : "") || (st.answer_key_ddx ? st.answer_key_ddx.split(",")[1]?.trim() : "") || "";
 
                   if (!wdx && rawDiag) {
                     diagLines.forEach((l) => {
@@ -714,8 +714,8 @@ export default function CreateSessionPage() {
 
           const diagLines = rawDiag ? rawDiag.split("\n") : [];
           let wdx = bankCase.answer_key_wdx || bankCase.wdx || bankCase.gold_standard_keys?.wdx || "";
-          let ddx1 = bankCase.answer_key_ddx1 || (Array.isArray(bankCase.gold_standard_keys?.ddx) ? bankCase.gold_standard_keys.ddx[0] : "") || "";
-          let ddx2 = bankCase.answer_key_ddx2 || (Array.isArray(bankCase.gold_standard_keys?.ddx) ? bankCase.gold_standard_keys.ddx[1] : "") || "";
+          let ddx1 = bankCase.answer_key_ddx1 || (Array.isArray(bankCase.gold_standard_keys?.ddx) ? bankCase.gold_standard_keys.ddx[0] : "") || (bankCase.answer_key_ddx ? bankCase.answer_key_ddx.split(",")[0]?.trim() : "") || "";
+          let ddx2 = bankCase.answer_key_ddx2 || (Array.isArray(bankCase.gold_standard_keys?.ddx) ? bankCase.gold_standard_keys.ddx[1] : "") || (bankCase.answer_key_ddx ? bankCase.answer_key_ddx.split(",")[1]?.trim() : "") || "";
 
           if (!wdx && rawDiag) {
             diagLines.forEach((l) => {

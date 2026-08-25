@@ -32,33 +32,45 @@ export default function QuestionBankSelectModal({
         setLoading(true);
         const data = await fetchQuestionBankCatalog();
         if (data && data.length > 0) {
-          const normalized = data.map((item) => ({
-            ...item,
-            case_title: item.case_title || item.title,
-            answer_key_diagnosis: item.answer_key_diagnosis || item.wdx || item.gold_standard_keys?.wdx || "",
-            answer_key_prescription: item.answer_key_prescription || item.recipe || item.gold_standard_keys?.recipe || "",
-            answer_key_ddx: item.answer_key_ddx || (Array.isArray(item.gold_standard_keys?.ddx) ? item.gold_standard_keys.ddx.join(", ") : "") || "",
-            checklist_items:
-              item.checklist_items ||
-              (item.question_bank_rubric_items || []).map((r) => ({
-                id: r.id,
-                question: r.question,
-                answer_key: r.answer_key,
-                max_points: r.max_points || 3,
-                weight: r.weight || 1.0,
-                competency_area: r.competency_area,
-                descriptors: r.descriptors,
-              })),
-            auxiliary_exam_configs:
-              item.auxiliary_exam_configs ||
-              (item.question_bank_auxiliary_configs || []).map((a) => ({
-                itemId: a.item_id,
-                name: a.name,
-                category: a.category,
-                imageUrl: a.image_storage_path,
-                reportText: a.report_text,
-              })),
-          }));
+          const normalized = data.map((item) => {
+            const wdx = item.answer_key_wdx || item.answer_key_diagnosis || item.wdx || item.gold_standard_keys?.wdx || "";
+            const ddx1 = item.answer_key_ddx1 || (Array.isArray(item.gold_standard_keys?.ddx) ? item.gold_standard_keys.ddx[0] : "") || (item.answer_key_ddx ? item.answer_key_ddx.split(",")[0]?.trim() : "") || "";
+            const ddx2 = item.answer_key_ddx2 || (Array.isArray(item.gold_standard_keys?.ddx) ? item.gold_standard_keys.ddx[1] : "") || (item.answer_key_ddx ? item.answer_key_ddx.split(",")[1]?.trim() : "") || "";
+            const ddx3 = item.answer_key_ddx3 || (Array.isArray(item.gold_standard_keys?.ddx) ? item.gold_standard_keys.ddx[2] : "") || (item.answer_key_ddx ? item.answer_key_ddx.split(",")[2]?.trim() : "") || "";
+            const prescription = item.answer_key_prescription || item.recipe || item.gold_standard_keys?.recipe || "";
+
+            return {
+              ...item,
+              case_title: item.case_title || item.title,
+              answer_key_wdx: wdx,
+              answer_key_ddx1: ddx1,
+              answer_key_ddx2: ddx2,
+              answer_key_ddx3: ddx3,
+              answer_key_diagnosis: item.answer_key_diagnosis || wdx,
+              answer_key_prescription: prescription,
+              answer_key_ddx: item.answer_key_ddx || [ddx1, ddx2, ddx3].filter(Boolean).join(", "),
+              checklist_items:
+                item.checklist_items ||
+                (item.question_bank_rubric_items || []).map((r) => ({
+                  id: r.id,
+                  question: r.question,
+                  answer_key: r.answer_key,
+                  max_points: r.max_points || 3,
+                  weight: r.weight || 1.0,
+                  competency_area: r.competency_area,
+                  descriptors: r.descriptors,
+                })),
+              auxiliary_exam_configs:
+                item.auxiliary_exam_configs ||
+                (item.question_bank_auxiliary_configs || []).map((a) => ({
+                  itemId: a.item_id,
+                  name: a.name,
+                  category: a.category,
+                  imageUrl: a.image_storage_path,
+                  reportText: a.report_text,
+                })),
+            };
+          });
           setCatalog(normalized);
         } else {
           setCatalog([]);

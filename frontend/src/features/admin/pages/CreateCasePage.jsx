@@ -128,10 +128,11 @@ export default function CreateCasePage() {
     }
   }, [isEdit]);
 
-  // Auto-save form state to localStorage
+  const draftKey = `medskill_create_case_draft_${id || "new"}`;
+
+  // Auto-save form state to localStorage continuously
   useEffect(() => {
-    if (isEdit || isSubmitted) return;
-    if (!title || !title.trim()) return;
+    if (isSubmitted) return;
 
     const draftData = {
       title,
@@ -152,12 +153,12 @@ export default function CreateCasePage() {
     };
 
     try {
-      localStorage.setItem("medskill_create_case_draft", JSON.stringify(draftData));
+      localStorage.setItem(draftKey, JSON.stringify(draftData));
     } catch (err) {
       console.error("Error saving case draft to localStorage:", err);
     }
   }, [
-    isEdit,
+    draftKey,
     isSubmitted,
     title,
     systemOrgan,
@@ -253,15 +254,20 @@ export default function CreateCasePage() {
           setExaminerInstructions(data.examiner_instructions || "");
           setAuxAnswerKey(data.auxiliary_answer_key || "");
 
-          let parsedWdx = data.answer_key_diagnosis || "";
-          let parsedDdxArr = [];
+          let parsedWdx = data.answer_key_wdx || data.answer_key_diagnosis || "";
+          let d1 = data.answer_key_ddx1 || "";
+          let d2 = data.answer_key_ddx2 || "";
+          let d3 = data.answer_key_ddx3 || "";
+          let parsedDdxArr = [d1, d2, d3].filter(Boolean);
 
           if (data.gold_standard_keys && typeof data.gold_standard_keys === "object") {
-            if (data.gold_standard_keys.wdx) parsedWdx = data.gold_standard_keys.wdx;
-            if (Array.isArray(data.gold_standard_keys.ddx)) {
-              parsedDdxArr = data.gold_standard_keys.ddx.filter(Boolean);
-            } else if (typeof data.gold_standard_keys.ddx === "string" && data.gold_standard_keys.ddx.trim()) {
-              parsedDdxArr = [data.gold_standard_keys.ddx.trim()];
+            if (!parsedWdx && data.gold_standard_keys.wdx) parsedWdx = data.gold_standard_keys.wdx;
+            if (parsedDdxArr.length === 0) {
+              if (Array.isArray(data.gold_standard_keys.ddx)) {
+                parsedDdxArr = data.gold_standard_keys.ddx.filter(Boolean);
+              } else if (typeof data.gold_standard_keys.ddx === "string" && data.gold_standard_keys.ddx.trim()) {
+                parsedDdxArr = [data.gold_standard_keys.ddx.trim()];
+              }
             }
           }
 
@@ -420,8 +426,12 @@ export default function CreateCasePage() {
     try {
       setSaving(true);
 
-      const finalWdx = wdxKey || answerKeyDiagnosis;
-      const finalRecipe = recipeKey || answerKeyPrescription;
+      const finalWdx = (wdxKey || answerKeyDiagnosis || "").trim();
+      const finalRecipe = (recipeKey || answerKeyPrescription || "").trim();
+      const ddx1 = (ddxKeys[0] || "").trim();
+      const ddx2 = (ddxKeys[1] || "").trim();
+      const ddx3 = (ddxKeys[2] || "").trim();
+      const finalDdxArr = [ddx1, ddx2, ddx3].filter(Boolean);
 
       const casePayload = {
         title,
@@ -431,13 +441,17 @@ export default function CreateCasePage() {
         scenario,
         participant_instructions: participantInstructions,
         examiner_instructions: examinerInstructions,
+        answer_key_wdx: finalWdx,
+        answer_key_ddx1: ddx1,
+        answer_key_ddx2: ddx2,
+        answer_key_ddx3: ddx3,
         answer_key_diagnosis: finalWdx,
         answer_key_prescription: finalRecipe,
-        answer_key_ddx: Array.isArray(ddxKeys) ? ddxKeys.filter(Boolean).join(", ") : "",
+        answer_key_ddx: finalDdxArr.join(", "),
         auxiliary_answer_key: auxAnswerKey,
         gold_standard_keys: {
           wdx: finalWdx,
-          ddx: ddxKeys.filter(Boolean),
+          ddx: finalDdxArr,
           recipe: finalRecipe,
         },
       };
@@ -488,6 +502,7 @@ export default function CreateCasePage() {
         await supabase.schema("osce").from("question_bank_auxiliary_configs").insert(formattedAux);
       }
 
+      localStorage.removeItem(draftKey);
       localStorage.removeItem("medskill_create_case_draft");
       setIsSubmitted(true);
       toast.success(`Kasus Medis "${title}" berhasil disimpan!`);

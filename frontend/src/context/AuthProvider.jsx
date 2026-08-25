@@ -18,8 +18,8 @@ export function AuthProvider({ children }) {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  async function load(session) {
-    setLoading(true);
+  async function load(session, isInitial = false) {
+    if (isInitial) setLoading(true);
 
     setSession(session);
     setUser(session?.user ?? null);
@@ -111,13 +111,13 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      load(data.session);
+      load(data.session, true);
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      load(session);
+      load(session, false);
     });
 
     const handleUnload = async () => {
