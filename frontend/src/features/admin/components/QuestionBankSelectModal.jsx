@@ -34,14 +34,29 @@ export default function QuestionBankSelectModal({
         const data = await fetchQuestionBankCatalog();
         if (data && data.length > 0) {
           const normalized = data.map((item) => {
-            const parsedObj = parseDiagnosisText(item.answer_key_diagnosis || item.answer_key_wdx || "");
-            const wdx = item.answer_key_wdx || parsedObj.wdx || "";
-            const ddxList = (parsedObj.ddxList && parsedObj.ddxList.length > 0) ? parsedObj.ddxList : ["", ""];
-            const prescription = item.answer_key_prescription || "";
+            const goldKeys = item.gold_standard_keys || {};
+            const parsedObj = parseDiagnosisText(item.answer_key_diagnosis || item.answer_key_wdx || goldKeys.wdx || "");
+            const wdx = item.answer_key_wdx || goldKeys.wdx || parsedObj.wdx || "";
+
+            let ddxList = [];
+            if (Array.isArray(item.ddxKeys) && item.ddxKeys.length > 0) {
+              ddxList = item.ddxKeys.filter(Boolean);
+            } else if (Array.isArray(goldKeys.ddx) && goldKeys.ddx.length > 0) {
+              ddxList = goldKeys.ddx.filter(Boolean);
+            } else if (parsedObj.ddxList && parsedObj.ddxList.filter(Boolean).length > 0) {
+              ddxList = parsedObj.ddxList.filter(Boolean);
+            } else if (typeof item.answer_key_ddx === "string" && item.answer_key_ddx.trim()) {
+              ddxList = item.answer_key_ddx.split(",").map((s) => s.trim()).filter(Boolean);
+            } else {
+              ddxList = [item.answer_key_ddx1, item.answer_key_ddx2, item.answer_key_ddx3].filter(Boolean);
+            }
+            if (ddxList.length === 0) ddxList = ["", ""];
+
+            const prescription = item.answer_key_prescription || goldKeys.recipe || "";
 
             return {
               ...item,
-              case_title: item.case_title || item.title,
+              case_title: item.case_title || item.title || "Kasus Medis",
               answer_key_wdx: wdx,
               ddxKeys: ddxList,
               answer_key_ddx1: ddxList[0] || "",
@@ -54,21 +69,25 @@ export default function QuestionBankSelectModal({
                 item.checklist_items ||
                 (item.question_bank_rubric_items || []).map((r) => ({
                   id: r.id,
-                  question: r.question,
-                  answer_key: r.answer_key,
+                  question: r.question || r.title || "",
+                  answer_key: r.answer_key || r.description || "",
                   max_points: r.max_points || 3,
                   weight: r.weight || 1.0,
-                  competency_area: r.competency_area,
-                  descriptors: r.descriptors,
+                  competency_area: r.competency_area || "ANAMNESIS",
+                  descriptors: r.descriptors || {},
                 })),
               auxiliary_exam_configs:
                 item.auxiliary_exam_configs ||
                 (item.question_bank_auxiliary_configs || []).map((a) => ({
-                  itemId: a.item_id,
-                  name: a.name,
-                  category: a.category,
-                  imageUrl: a.image_storage_path,
-                  reportText: a.report_text,
+                  itemId: a.item_id || a.itemId || a.id,
+                  item_id: a.item_id || a.itemId || a.id,
+                  name: a.name || a.title || "Berkas Penunjang",
+                  category: a.category || "LAIN-LAIN",
+                  imageUrl: a.image_storage_path || a.imageUrl || a.file_url || "",
+                  image_storage_path: a.image_storage_path || a.imageUrl || a.file_url || "",
+                  reportText: a.report_text || a.reportText || "",
+                  report_text: a.report_text || a.reportText || "",
+                  matched_key: a.matched_key !== false,
                 })),
             };
           });

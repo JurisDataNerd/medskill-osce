@@ -700,42 +700,73 @@ export default function CreateSessionPage() {
   }
 
   function handleApplyQuestionBankCase(bankCase) {
+    if (!bankCase) return;
     setStationsConfig((prev) =>
       prev.map((item, i) => {
         if (i === selectedStationIndex) {
-          const rawDiag = bankCase.answer_key_diagnosis || bankCase.wdx || "";
-          const rawRecipe = bankCase.answer_key_prescription || bankCase.recipe || "";
+          const goldKeys = bankCase.gold_standard_keys || {};
+          const rawDiag = bankCase.answer_key_diagnosis || bankCase.wdx || goldKeys.wdx || "";
+          const rawRecipe = bankCase.answer_key_prescription || bankCase.recipe || goldKeys.recipe || "";
 
           const parsedObj = parseDiagnosisText(rawDiag);
-          const wdx = bankCase.answer_key_wdx || parsedObj.wdx || "";
-          let ddxArr = Array.isArray(bankCase.ddxKeys) && bankCase.ddxKeys.length > 0
-            ? bankCase.ddxKeys.filter(Boolean)
-            : (parsedObj.ddxList && parsedObj.ddxList.length > 0 ? parsedObj.ddxList : ["", ""]);
+          const wdx = bankCase.answer_key_wdx || goldKeys.wdx || parsedObj.wdx || "";
+          let ddxArr = [];
+          if (Array.isArray(bankCase.ddxKeys) && bankCase.ddxKeys.length > 0) {
+            ddxArr = bankCase.ddxKeys.filter(Boolean);
+          } else if (Array.isArray(goldKeys.ddx) && goldKeys.ddx.length > 0) {
+            ddxArr = goldKeys.ddx.filter(Boolean);
+          } else if (parsedObj.ddxList && parsedObj.ddxList.filter(Boolean).length > 0) {
+            ddxArr = parsedObj.ddxList.filter(Boolean);
+          } else if (typeof bankCase.answer_key_ddx === "string" && bankCase.answer_key_ddx.trim()) {
+            ddxArr = bankCase.answer_key_ddx.split(",").map((s) => s.trim()).filter(Boolean);
+          } else {
+            ddxArr = [bankCase.answer_key_ddx1, bankCase.answer_key_ddx2, bankCase.answer_key_ddx3].filter(Boolean);
+          }
+
+          if (ddxArr.length === 0) ddxArr = ["", ""];
+
+          const combinedDiag = formatDiagnosisText(wdx, ddxArr.filter(Boolean));
 
           return {
             ...item,
             is_break: false,
-            case_title: bankCase.case_title || bankCase.title,
+            case_title: bankCase.case_title || bankCase.title || "Kasus Medis",
             system_organ: bankCase.system_organ || item.system_organ || null,
             skdi_level: bankCase.skdi_level || item.skdi_level || null,
             scenario: bankCase.scenario || "",
             participant_instructions: bankCase.participant_instructions || "",
             examiner_instructions: bankCase.examiner_instructions || "",
-            answer_key_diagnosis: rawDiag,
+            answer_key_diagnosis: combinedDiag || rawDiag,
             answer_key_prescription: rawRecipe,
             answer_key_wdx: wdx,
             answer_key_ddx1: ddxArr[0] || "",
             answer_key_ddx2: ddxArr[1] || "",
             answer_key_ddx3: ddxArr[2] || "",
             ddxKeys: ddxArr,
-            answer_key_ddx: ddxArr.join(", "),
-            checklist_items: bankCase.checklist_items
-              ? bankCase.checklist_items.map((chk, idx) => ({
-                  ...chk,
-                  id: `c${item.station_number}-${Date.now()}-${idx}`,
-                }))
-              : [],
-            auxiliary_exam_configs: bankCase.auxiliary_exam_configs || [],
+            answer_key_ddx: ddxArr.filter(Boolean).join(", "),
+            question_bank_id: bankCase.id || null,
+            checklist_items: (bankCase.checklist_items || bankCase.question_bank_rubric_items || []).map((chk, idx) => ({
+              ...chk,
+              id: chk.id || `c${item.station_number}-${Date.now()}-${idx}`,
+              question: chk.question || chk.title || "",
+              answer_key: chk.answer_key || chk.description || "",
+              max_points: Number(chk.max_points) || 3,
+              weight: Number(chk.weight) || 1.0,
+              competency_area: chk.competency_area || "ANAMNESIS",
+              descriptors: chk.descriptors || {},
+            })),
+            auxiliary_exam_configs: (bankCase.auxiliary_exam_configs || bankCase.question_bank_auxiliary_configs || []).map((cfg, idx) => ({
+              ...cfg,
+              itemId: cfg.itemId || cfg.item_id || cfg.id || `aux-${idx}`,
+              item_id: cfg.itemId || cfg.item_id || cfg.id || `aux-${idx}`,
+              name: cfg.name || cfg.title || "Berkas Penunjang",
+              category: cfg.category || "LAIN-LAIN",
+              imageUrl: cfg.imageUrl || cfg.image_storage_path || cfg.file_url || "",
+              image_storage_path: cfg.imageUrl || cfg.image_storage_path || cfg.file_url || "",
+              reportText: cfg.reportText || cfg.report_text || "",
+              report_text: cfg.reportText || cfg.report_text || "",
+              matched_key: cfg.matched_key !== false,
+            })),
           };
         }
         return item;

@@ -405,6 +405,14 @@ export default function CreateCasePage() {
         examiner_instructions: examinerInstructions,
         answer_key_diagnosis: combinedDiag || finalWdx,
         answer_key_prescription: finalRecipe,
+        answer_key_wdx: finalWdx,
+        answer_key_ddx: finalDdxArr.join(", "),
+        auxiliary_answer_key: auxAnswerKey || "",
+        gold_standard_keys: {
+          wdx: finalWdx,
+          ddx: finalDdxArr,
+          recipe: finalRecipe,
+        },
       };
 
       let savedCase;
@@ -438,19 +446,23 @@ export default function CreateCasePage() {
       // Save Auxiliary Configs to osce.question_bank_auxiliary_configs
       await supabase.schema("osce").from("question_bank_auxiliary_configs").delete().eq("question_bank_id", caseId);
 
-      const formattedAux = auxiliaryConfigs.map((cfg, idx) => ({
+      const formattedAux = (auxiliaryConfigs || []).map((cfg, idx) => ({
         question_bank_id: caseId,
-        item_id: cfg.itemId || cfg.item_id || `aux-${idx}`,
-        name: cfg.name || "Berkas Penunjang",
+        item_id: cfg.itemId || cfg.item_id || cfg.id || `aux-${idx}`,
+        name: cfg.name || cfg.title || "Berkas Penunjang",
         category: cfg.category || "LAIN-LAIN",
-        image_storage_path: cfg.imageUrl || cfg.image_storage_path || null,
+        image_storage_path: cfg.imageUrl || cfg.image_storage_path || cfg.file_url || null,
         report_text: cfg.reportText || cfg.report_text || null,
         matched_key: cfg.matched_key !== false,
         sort_order: idx,
       }));
 
       if (formattedAux.length > 0) {
-        await supabase.schema("osce").from("question_bank_auxiliary_configs").insert(formattedAux);
+        const { error: auxErr } = await supabase.schema("osce").from("question_bank_auxiliary_configs").insert(formattedAux);
+        if (auxErr) {
+          console.error("Error inserting auxiliary configs to osce.question_bank_auxiliary_configs:", auxErr);
+          throw auxErr;
+        }
       }
 
       localStorage.removeItem(draftKey);

@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
-import { createBrowserRouter, Outlet } from "react-router-dom";
+import { createBrowserRouter, Outlet, useRouteError, useNavigate } from "react-router-dom";
+import { AlertTriangle, RefreshCw, Home } from "lucide-react";
 
 // Public pages (immediate or light)
 import LandingPage from "@/pages/LandingPage";
@@ -8,6 +9,42 @@ import AuthCallbackPage from "@/pages/AuthCallbackPage";
 import UnauthorizedPage from "@/pages/UnauthorizedPage";
 
 import ProtectedRoute from "@/routes/ProtectedRoute";
+
+// Route error boundary fallback
+function RouteErrorBoundary() {
+  const error = useRouteError();
+  const navigate = useNavigate();
+
+  return (
+    <div className="min-h-screen w-full flex items-center justify-center bg-slate-50 p-4">
+      <div className="max-w-md w-full rounded-2xl border border-slate-200 bg-white p-6 shadow-xl text-center space-y-4">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-600">
+          <AlertTriangle size={24} />
+        </div>
+        <div>
+          <h2 className="text-base font-bold text-slate-900">Terjadi Kesalahan Aplikasi</h2>
+          <p className="text-xs text-slate-500 mt-1">
+            {error?.message || "Sistem mendeteksi kendala pada halaman ini. Anda dapat memuat ulang atau kembali ke beranda."}
+          </p>
+        </div>
+        <div className="flex gap-2 justify-center pt-2">
+          <button
+            onClick={() => window.location.reload()}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700 transition cursor-pointer"
+          >
+            <RefreshCw size={14} /> Muat Ulang
+          </button>
+          <button
+            onClick={() => navigate("/")}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition cursor-pointer"
+          >
+            <Home size={14} /> Halaman Utama
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // Loading fallback component
 const PageLoader = () => (
@@ -85,21 +122,25 @@ export const router = createBrowserRouter([
   {
     path: "/",
     element: <LandingPage />,
+    errorElement: <RouteErrorBoundary />,
   },
 
   {
     path: "/login",
     element: <LoginPage />,
+    errorElement: <RouteErrorBoundary />,
   },
 
   {
     path: "/auth/callback",
     element: <AuthCallbackPage />,
+    errorElement: <RouteErrorBoundary />,
   },
 
   {
     path: "/unauthorized",
     element: <UnauthorizedPage />,
+    errorElement: <RouteErrorBoundary />,
   },
 
   // ==================================================

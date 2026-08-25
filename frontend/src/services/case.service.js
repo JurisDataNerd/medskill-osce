@@ -91,6 +91,10 @@ export async function createCase(payload) {
     examiner_instructions: payload.examiner_instructions || payload.physical_instruction || "",
     answer_key_diagnosis: payload.answer_key_diagnosis ?? null,
     answer_key_prescription: payload.answer_key_prescription ?? null,
+    answer_key_wdx: payload.answer_key_wdx ?? null,
+    answer_key_ddx: payload.answer_key_ddx ?? null,
+    auxiliary_answer_key: payload.auxiliary_answer_key ?? null,
+    gold_standard_keys: payload.gold_standard_keys ?? null,
   };
 
   const { data: newCase, error } = await supabase
@@ -118,6 +122,10 @@ export async function updateCase(id, payload) {
     examiner_instructions: payload.examiner_instructions || payload.physical_instruction,
     answer_key_diagnosis: payload.answer_key_diagnosis ?? null,
     answer_key_prescription: payload.answer_key_prescription ?? null,
+    answer_key_wdx: payload.answer_key_wdx ?? null,
+    answer_key_ddx: payload.answer_key_ddx ?? null,
+    auxiliary_answer_key: payload.auxiliary_answer_key ?? null,
+    gold_standard_keys: payload.gold_standard_keys ?? null,
     updated_at: new Date().toISOString(),
   };
 

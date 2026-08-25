@@ -50,13 +50,17 @@ export default function SessionStationQuestionsTab({
     if (Array.isArray(activeStation.gold_standard_keys?.ddx) && activeStation.gold_standard_keys.ddx.length > 0) {
       return activeStation.gold_standard_keys.ddx;
     }
-    if (parsedDiagObj.ddxList && parsedDiagObj.ddxList.length > 0) {
+    if (parsedDiagObj.ddxList && parsedDiagObj.ddxList.filter(Boolean).length > 0) {
       return parsedDiagObj.ddxList;
     }
-    const explicit = [activeStation.answer_key_ddx1, activeStation.answer_key_ddx2, activeStation.answer_key_ddx3].filter(Boolean);
+    const explicit = [
+      activeStation?.answer_key_ddx1,
+      activeStation?.answer_key_ddx2,
+      activeStation?.answer_key_ddx3,
+    ].filter(Boolean);
     if (explicit.length > 0) return explicit;
 
-    if (activeStation.answer_key_ddx && typeof activeStation.answer_key_ddx === "string") {
+    if (activeStation?.answer_key_ddx && typeof activeStation.answer_key_ddx === "string") {
       const splitted = activeStation.answer_key_ddx.split(",").map((s) => s.trim()).filter(Boolean);
       if (splitted.length > 0) return splitted;
     }
