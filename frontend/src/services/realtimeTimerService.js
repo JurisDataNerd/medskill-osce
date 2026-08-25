@@ -10,7 +10,7 @@ import { playOsceAudio } from "@/services/audioService";
  * Pure function – no side effects.
  */
 export function calcRemaining(targetEndTime, pausedMs = null, isPaused = false) {
-  if (isPaused && pausedMs != null) {
+  if ((isPaused || !targetEndTime) && pausedMs != null && pausedMs > 0) {
     return Math.max(0, Math.floor(pausedMs / 1000));
   }
   if (!targetEndTime) return 0;

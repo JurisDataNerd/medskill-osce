@@ -587,8 +587,9 @@ export default function ParticipantSessionPage() {
         setGlobalTimerState(stateData);
         if (stateData.round_number) setCurrentRound(stateData.round_number);
 
+        const rawPhase = stateData.phase || "";
         const isPaused =
-          stateData.phase === "paused" || sessionDetail?.status === "paused";
+          rawPhase === "paused" || rawPhase.startsWith("paused") || sessionDetail?.status === "paused";
         const rem = calcRemaining(
           stateData.target_end_time,
           stateData.paused_remaining_ms,
@@ -596,20 +597,23 @@ export default function ParticipantSessionPage() {
         );
         setRoundSecondsLeft(rem);
 
+        const activePhase = rawPhase.startsWith("paused_")
+          ? rawPhase.replace("paused_", "")
+          : (rawPhase === "paused" ? "action" : rawPhase);
+
         if (
           (sessionDetail?.status === "waiting_room" ||
             sessionDetail?.status === "published" ||
             sessionDetail?.status === "scheduled") &&
-          (stateData.phase === "standby" || !stateData.phase)
+          (activePhase === "standby" || !activePhase)
         ) {
           setViewMode("waiting_room");
-        } else if (stateData.phase === "transition" || stateData.phase === "initial_transition") {
+        } else if (activePhase === "transition" || activePhase === "initial_transition") {
           setViewMode("transit");
           setTransitSecondsLeft(rem);
         } else if (
-          stateData.phase === "action" ||
-          stateData.phase === "reading" ||
-          stateData.phase === "paused"
+          activePhase === "action" ||
+          activePhase === "reading"
         ) {
           setViewMode((prev) => {
             const isSubmitted = sessionId && localStorage.getItem(`osce_station_submitted_${sessionId}_round_${stateData.round_number || 1}`) === "true";
@@ -618,10 +622,10 @@ export default function ParticipantSessionPage() {
             }
             return "live_round";
           });
-        } else if (stateData.phase === "break") {
+        } else if (activePhase === "break") {
           setViewMode("round_break");
           setBreakSecondsLeft(rem);
-        } else if (stateData.phase === "completed_waiting") {
+        } else if (activePhase === "completed_waiting") {
           setViewMode("completed");
         }
       }
@@ -635,8 +639,9 @@ export default function ParticipantSessionPage() {
         setGlobalTimerState(newTimerState);
         if (newTimerState.round_number) setCurrentRound(newTimerState.round_number);
 
+        const rawPhase = newTimerState.phase || "";
         const isPaused =
-          newTimerState.phase === "paused" || sessionDetail?.status === "paused";
+          rawPhase === "paused" || rawPhase.startsWith("paused") || sessionDetail?.status === "paused";
         const rem = calcRemaining(
           newTimerState.target_end_time,
           newTimerState.paused_remaining_ms,
@@ -644,20 +649,23 @@ export default function ParticipantSessionPage() {
         );
         setRoundSecondsLeft(rem);
 
+        const activePhase = rawPhase.startsWith("paused_")
+          ? rawPhase.replace("paused_", "")
+          : (rawPhase === "paused" ? "action" : rawPhase);
+
         if (
           (sessionDetail?.status === "waiting_room" ||
             sessionDetail?.status === "published" ||
             sessionDetail?.status === "scheduled") &&
-          (newTimerState.phase === "standby" || !newTimerState.phase)
+          (activePhase === "standby" || !activePhase)
         ) {
           setViewMode("waiting_room");
-        } else if (newTimerState.phase === "transition" || newTimerState.phase === "initial_transition") {
+        } else if (activePhase === "transition" || activePhase === "initial_transition") {
           setViewMode("transit");
           setTransitSecondsLeft(rem);
         } else if (
-          newTimerState.phase === "action" ||
-          newTimerState.phase === "reading" ||
-          newTimerState.phase === "paused"
+          activePhase === "action" ||
+          activePhase === "reading"
         ) {
           setViewMode((prev) => {
             const isSubmitted = sessionId && localStorage.getItem(`osce_station_submitted_${sessionId}_round_${newTimerState.round_number || 1}`) === "true";
@@ -666,10 +674,10 @@ export default function ParticipantSessionPage() {
             }
             return "live_round";
           });
-        } else if (newTimerState.phase === "break") {
+        } else if (activePhase === "break") {
           setViewMode("round_break");
           setBreakSecondsLeft(rem);
-        } else if (newTimerState.phase === "completed_waiting") {
+        } else if (activePhase === "completed_waiting") {
           setViewMode("completed");
         }
       },

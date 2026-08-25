@@ -352,7 +352,7 @@ export default function LiveMonitorPage() {
             setViewRound(stateData.round_number || 1);
             setIsBreak(stateData.phase === "break");
             const isStandbyOrWaiting = fullDetail.status === "waiting_room" || stateData.phase === "standby";
-            const isPaused = stateData.phase === "paused" || fullDetail.status === "paused";
+            const isPaused = stateData.phase === "paused" || stateData.phase?.startsWith("paused") || fullDetail.status === "paused";
             const rem = calcRemaining(stateData.target_end_time, stateData.paused_remaining_ms, isPaused);
             setRemainingSeconds(
               isStandbyOrWaiting
@@ -436,7 +436,7 @@ export default function LiveMonitorPage() {
         setViewRound(newTimerState.round_number || 1);
         setIsBreak(newTimerState.phase === "break");
         const isStandbyOrWaiting = activeSession?.status === "waiting_room" || newTimerState.phase === "standby";
-        const isPaused = newTimerState.phase === "paused";
+        const isPaused = newTimerState.phase === "paused" || newTimerState.phase?.startsWith("paused") || activeSession?.status === "paused";
         const rem = calcRemaining(
           newTimerState.target_end_time,
           newTimerState.paused_remaining_ms,
