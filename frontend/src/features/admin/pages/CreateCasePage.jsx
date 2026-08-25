@@ -405,14 +405,6 @@ export default function CreateCasePage() {
         examiner_instructions: examinerInstructions,
         answer_key_diagnosis: combinedDiag || finalWdx,
         answer_key_prescription: finalRecipe,
-        answer_key_wdx: finalWdx,
-        answer_key_ddx: finalDdxArr.join(", "),
-        auxiliary_answer_key: auxAnswerKey || "",
-        gold_standard_keys: {
-          wdx: finalWdx,
-          ddx: finalDdxArr,
-          recipe: finalRecipe,
-        },
       };
 
       let savedCase;
@@ -453,8 +445,6 @@ export default function CreateCasePage() {
         category: cfg.category || "LAIN-LAIN",
         image_storage_path: cfg.imageUrl || cfg.image_storage_path || cfg.file_url || null,
         report_text: cfg.reportText || cfg.report_text || null,
-        matched_key: cfg.matched_key !== false,
-        sort_order: idx,
       }));
 
       if (formattedAux.length > 0) {
