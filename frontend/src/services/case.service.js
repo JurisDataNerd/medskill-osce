@@ -20,6 +20,7 @@ export async function getCases() {
   }
 
   return (data || []).map((c) => ({
+    ...c,
     id: c.id,
     title: c.title || c.case_title,
     case_title: c.case_title || c.title,
@@ -31,6 +32,9 @@ export async function getCases() {
     examiner_instructions: c.examiner_instructions,
     answer_key_diagnosis: c.answer_key_diagnosis,
     answer_key_prescription: c.answer_key_prescription,
+    answer_key_ddx: c.answer_key_ddx,
+    gold_standard_keys: c.gold_standard_keys,
+    auxiliary_answer_key: c.auxiliary_answer_key,
     checklist_items: c.question_bank_rubric_items || [],
     auxiliary_exam_configs: c.question_bank_auxiliary_configs || [],
   }));
@@ -54,6 +58,7 @@ export async function getCaseById(caseId) {
   if (error) throw error;
 
   return {
+    ...data,
     id: data.id,
     title: data.title || data.case_title,
     case_title: data.case_title || data.title,
@@ -64,6 +69,9 @@ export async function getCaseById(caseId) {
     examiner_instructions: data.examiner_instructions || "",
     answer_key_diagnosis: data.answer_key_diagnosis || "",
     answer_key_prescription: data.answer_key_prescription || "",
+    answer_key_ddx: data.answer_key_ddx || "",
+    gold_standard_keys: data.gold_standard_keys || null,
+    auxiliary_answer_key: data.auxiliary_answer_key || "",
     checklist_items: data.question_bank_rubric_items || [],
     auxiliary_exam_configs: data.question_bank_auxiliary_configs || [],
   };

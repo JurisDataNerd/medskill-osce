@@ -35,13 +35,10 @@ export default function ParticipantBreakStationView({
       </div>
 
       <div className="pt-2 flex justify-center">
-        <button
-          onClick={onFinishActiveRound}
-          className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 px-8 py-3.5 text-xs font-extrabold text-white shadow-lg shadow-emerald-600/30 transition active:scale-95 cursor-pointer"
-        >
-          <span>Selesaikan Stase Istirahat & Lanjut Transisi</span>
-          <ArrowRight size={16} />
-        </button>
+        <div className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-100/90 border border-emerald-300 px-6 py-3.5 text-xs font-bold text-emerald-950 shadow-2xs">
+          <Clock size={16} className="text-emerald-700 animate-pulse shrink-0" />
+          <span>Harap Tunggu Timer Istirahat Selesai (Otomatis Masuk Transisi)</span>
+        </div>
       </div>
     </div>
   );

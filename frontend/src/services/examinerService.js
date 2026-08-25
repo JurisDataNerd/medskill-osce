@@ -2,20 +2,81 @@ import { supabase } from "@/lib/supabaseClient";
 import { supabase as publicSupabase } from "@/supabase/client";
 
 /**
+ * Helper to resolve the assigned station for an examiner in a session
+ */
+export function findExaminerAssignment(sessionExs = [], sessionSts = [], user = null, userProf = null) {
+  const currentName = (userProf?.full_name || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || "").toLowerCase().trim();
+  const currentEmail = (userProf?.email || user?.email || "").toLowerCase().trim();
+  const username = currentEmail ? currentEmail.split("@")[0].toLowerCase() : "";
+
+  const clean = (str) =>
+    (str || "")
+      .toLowerCase()
+      .replace(/\b(dr|dok|dokter|prof|sp\.[a-z]+|sp|m\.?[a-z]+|ph\.?d|s\.?ked|m\.?kes)\b/gi, "")
+      .replace(/[^a-z0-9]/g, "")
+      .trim();
+
+  const cUserName = clean(currentName);
+  const cUsername = clean(username);
+
+  // 1. Match from osce.session_examiners table
+  const matchedEx = (sessionExs || []).find((e) => {
+    if (user?.id && e.user_id === user.id) return true;
+    if (e.email && currentEmail && e.email.toLowerCase().trim() === currentEmail) return true;
+    if (!e.full_name) return false;
+    const efClean = clean(e.full_name);
+    if (!efClean) return false;
+
+    if (cUserName && (efClean === cUserName || efClean.includes(cUserName) || cUserName.includes(efClean))) return true;
+    if (cUsername && cUsername.length >= 3 && (efClean.includes(cUsername) || cUsername.includes(efClean))) return true;
+    return false;
+  });
+
+  if (matchedEx && matchedEx.assigned_station_number) {
+    const matchedSt = (sessionSts || []).find((st) => Number(st.station_number) === Number(matchedEx.assigned_station_number));
+    if (matchedSt) {
+      return { assignment: matchedEx, station: matchedSt };
+    }
+  }
+
+  // 2. Match directly from osce.stations table (assigned_examiner / examiner_name / examiner_user_id)
+  const matchedSt = (sessionSts || []).find((st) => {
+    if (st.is_break) return false;
+    if (user?.id && st.examiner_user_id === user.id) return true;
+    const stExName = clean(st.assigned_examiner || st.examiner_name);
+    if (!stExName) return false;
+
+    if (cUserName && (stExName === cUserName || stExName.includes(cUserName) || cUserName.includes(stExName))) return true;
+    if (cUsername && cUsername.length >= 3 && (stExName.includes(cUsername) || cUsername.includes(stExName))) return true;
+    return false;
+  });
+
+  if (matchedSt) {
+    return {
+      assignment: matchedEx || { assigned_station_number: matchedSt.station_number },
+      station: matchedSt,
+    };
+  }
+
+  // 3. Fallback to first non-break station
+  const fallbackSt = (sessionSts || []).find((st) => !st.is_break) || (sessionSts || [])[0] || null;
+  return {
+    assignment: matchedEx || { assigned_station_number: fallbackSt?.station_number || 1 },
+    station: fallbackSt,
+  };
+}
+
+/**
  * Fetch assigned station for examiner in a session
  */
 export async function fetchExaminerAssignment(sessionId, examinerUserId) {
-  const { data: assignment, error: assignErr } = await supabase
+  const { data: sessionExs } = await supabase
     .schema("osce")
     .from("session_examiners")
     .select("*")
-    .eq("session_id", sessionId)
-    .eq("user_id", examinerUserId)
-    .single();
+    .eq("session_id", sessionId);
 
-  if (assignErr) throw assignErr;
-
-  const { data: station, error: stationErr } = await supabase
+  const { data: sessionSts } = await supabase
     .schema("osce")
     .from("stations")
     .select(`
@@ -24,15 +85,11 @@ export async function fetchExaminerAssignment(sessionId, examinerUserId) {
       station_auxiliary_configs (*)
     `)
     .eq("session_id", sessionId)
-    .eq("station_number", assignment.assigned_station_number)
-    .single();
+    .order("station_number");
 
-  if (stationErr) throw stationErr;
+  const { data: authUser } = await supabase.auth.getUser();
 
-  return {
-    assignment,
-    station,
-  };
+  return findExaminerAssignment(sessionExs || [], sessionSts || [], authUser?.user || { id: examinerUserId }, null);
 }
 
 /**
@@ -60,37 +117,72 @@ export async function submitExaminerEvaluation({
   // 1. Fetch rubric items from Supabase to calculate weighted scores
   let totalEarned = 0;
   let totalPossible = 0;
+  let dbRubricItems = [];
 
   try {
-    const { data: rubricItems } = await supabase
+    const { data: fetchedItems } = await supabase
       .schema("osce")
       .from("rubric_items")
       .select("*")
       .eq("station_id", station_id)
       .order("question_number", { ascending: true });
 
-    if (rubricItems && rubricItems.length > 0) {
-      rubricItems.forEach((item) => {
-        const weight = Number(item.weight) || 1.0;
-        const maxPoints = Number(item.max_points) || 3;
-        const given = (rubric_scores || []).find((s) => s.rubric_item_id === item.id);
-        const scoreVal = given !== undefined ? Number(given.score_given) : 0;
-
-        totalEarned += scoreVal * weight;
-        totalPossible += maxPoints * weight;
-      });
+    if (fetchedItems && fetchedItems.length > 0) {
+      dbRubricItems = fetchedItems;
     } else if (rubric_scores && rubric_scores.length > 0) {
-      // Fallback calculation if rubric items aren't yet in DB
-      rubric_scores.forEach((s) => {
-        const weight = Number(s.weight) || 1.0;
-        const maxPoints = Number(s.max_points) || 3;
-        const scoreVal = Number(s.score_given) || 0;
-        totalEarned += scoreVal * weight;
-        totalPossible += maxPoints * weight;
-      });
+      // If DB has no rubric_items for this station, insert them now so real UUIDs exist
+      try {
+        const itemsToInsert = rubric_scores.map((sc, idx) => ({
+          station_id: station_id,
+          question_number: idx + 1,
+          question: sc.question || sc.title || `Item Rubrik #${idx + 1}`,
+          answer_key: sc.answer_key || sc.description || "",
+          max_points: Number(sc.max_points) || 3,
+          weight: Number(sc.weight) || 1.0,
+          sort_order: idx,
+        }));
+
+        const { data: newItems } = await supabase
+          .schema("osce")
+          .from("rubric_items")
+          .insert(itemsToInsert)
+          .select();
+
+        if (newItems && newItems.length > 0) {
+          dbRubricItems = newItems;
+        }
+      } catch (e) {
+        console.warn("Could not auto-insert rubric_items in submitExaminerEvaluation:", e);
+      }
     }
   } catch (e) {
     console.warn("Could not query rubric_items for weight calculation:", e);
+  }
+
+  if (dbRubricItems.length > 0) {
+    dbRubricItems.forEach((item, idx) => {
+      const weight = Number(item.weight) || 1.0;
+      const maxPoints = Number(item.max_points) || 3;
+      const given = (rubric_scores || []).find(
+        (s) => String(s.rubric_item_id) === String(item.id)
+      ) || rubric_scores[idx];
+
+      const scoreVal = given !== undefined && given !== null && given.score_given !== undefined
+        ? Number(given.score_given)
+        : 0;
+
+      totalEarned += scoreVal * weight;
+      totalPossible += maxPoints * weight;
+    });
+  } else if (rubric_scores && rubric_scores.length > 0) {
+    // Fallback calculation if rubric items aren't yet in DB
+    rubric_scores.forEach((s) => {
+      const weight = Number(s.weight) || 1.0;
+      const maxPoints = Number(s.max_points) || 3;
+      const scoreVal = Number(s.score_given) || 0;
+      totalEarned += scoreVal * weight;
+      totalPossible += maxPoints * weight;
+    });
   }
 
   const finalScorePercentage = totalPossible > 0 ? (totalEarned / totalPossible) * 100 : 0;
@@ -111,10 +203,27 @@ export async function submitExaminerEvaluation({
     submitted_at: new Date().toISOString(),
   };
 
-  // 3. Always back up evaluation data locally
+  // 3. Always back up evaluation data locally (both raw array and scores map)
   try {
+    const scoresMap = {};
+    (rubric_scores || []).forEach((sc) => {
+      if (sc.rubric_item_id) scoresMap[sc.rubric_item_id] = Number(sc.score_given);
+    });
+
     const localKey = `osce_eval_${session_id}_${station_id}_${participant_id}_${rotation_round}`;
-    localStorage.setItem(localKey, JSON.stringify({ evaluation: evalPayload, rubric_scores }));
+    const draftKey = `osce_examiner_draft_${session_id}_${station_id}_${participant_id}_${rotation_round}`;
+
+    const backupData = {
+      evaluation: evalPayload,
+      rubric_scores,
+      rubricScores: scoresMap,
+      globalRating: grs_rating,
+      feedback: examiner_notes,
+      savedAt: new Date().toISOString(),
+    };
+
+    localStorage.setItem(localKey, JSON.stringify(backupData));
+    localStorage.setItem(draftKey, JSON.stringify(backupData));
   } catch (e) {}
 
   // 4. Upsert examiner_evaluations to Supabase
@@ -133,29 +242,52 @@ export async function submitExaminerEvaluation({
       return evalPayload;
     }
 
-    // 5. Upsert rubric_scores
+    // 5. Upsert rubric_scores to Supabase DB (resolve non-UUID IDs to real rubric item UUIDs)
     if (evaluation?.id && rubric_scores && rubric_scores.length > 0) {
       const validUuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      const scoresPayload = rubric_scores
-        .filter((s) => s.rubric_item_id && validUuidRegex.test(s.rubric_item_id))
-        .map((s) => ({
-          evaluation_id: evaluation.id,
-          rubric_item_id: s.rubric_item_id,
-          score_given: Number(s.score_given),
-          feedback: s.feedback || null,
-          scored_at: new Date().toISOString(),
-        }));
+
+      const scoresPayload = (rubric_scores || []).map((s, idx) => {
+        let itemId = s.rubric_item_id;
+        if (!validUuidRegex.test(itemId) && dbRubricItems[idx]?.id) {
+          itemId = dbRubricItems[idx].id;
+        }
+
+        if (validUuidRegex.test(itemId)) {
+          return {
+            evaluation_id: evaluation.id,
+            rubric_item_id: itemId,
+            score_given: Number(s.score_given || 0),
+            feedback: s.feedback || null,
+            scored_at: new Date().toISOString(),
+          };
+        }
+        return null;
+      }).filter(Boolean);
 
       if (scoresPayload.length > 0) {
-        await supabase
-          .schema("osce")
-          .from("rubric_scores")
-          .upsert(scoresPayload, {
-            onConflict: "evaluation_id,rubric_item_id",
-          })
-          .catch((err) => {
-            console.warn("Notice saving rubric scores to Supabase:", err);
-          });
+        try {
+          await supabase
+            .schema("osce")
+            .from("rubric_scores")
+            .delete()
+            .eq("evaluation_id", evaluation.id);
+
+          const { error: insErr } = await supabase
+            .schema("osce")
+            .from("rubric_scores")
+            .insert(scoresPayload);
+
+          if (insErr) {
+            console.warn("Retrying rubric_scores upsert fallback:", insErr.message);
+            await supabase
+              .schema("osce")
+              .from("rubric_scores")
+              .upsert(scoresPayload)
+              .catch((err) => console.warn("Notice saving rubric scores to Supabase:", err));
+          }
+        } catch (err) {
+          console.warn("Notice saving rubric scores to Supabase:", err);
+        }
       }
     }
 

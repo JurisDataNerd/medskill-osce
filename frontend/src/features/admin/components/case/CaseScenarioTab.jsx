@@ -77,23 +77,29 @@ export default function CaseScenarioTab({
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <div>
           <label className="block text-xs font-bold text-slate-800 mb-1">Instruksi Peserta Ujian</label>
+          <p className="text-[10px] text-blue-600 font-semibold mb-1.5">
+            Tuliskan instruksi per baris. Sistem otomatis merapikan menjadi poin bernomor (1, 2, 3...) di layar Peserta.
+          </p>
           <textarea
-            rows={4}
+            rows={5}
             value={participantInstructions}
             onChange={(e) => setParticipantInstructions(e.target.value)}
             placeholder="1. Lakukan anamnesis terarah...&#10;2. Lakukan pemeriksaan fisik...&#10;3. Tentukan diagnosis & resep..."
-            className="w-full rounded-xl border border-slate-200 p-3 text-xs text-slate-800 bg-white focus:border-blue-500 focus:outline-none"
+            className="w-full rounded-xl border border-slate-200 p-3 text-xs text-slate-800 bg-white focus:border-blue-500 focus:outline-none leading-relaxed"
           />
         </div>
 
         <div>
           <label className="block text-xs font-bold text-slate-800 mb-1">Instruksi Dokter Penguji</label>
+          <p className="text-[10px] text-blue-600 font-semibold mb-1.5">
+            Tuliskan instruksi per baris. Sistem otomatis merapikan menjadi poin bernomor (1, 2, 3...) di layar Dokter Penguji.
+          </p>
           <textarea
-            rows={4}
+            rows={5}
             value={examinerInstructions}
             onChange={(e) => setExaminerInstructions(e.target.value)}
-            placeholder="Panduan khusus untuk dokter penguji spesialis saat menilai di stase..."
-            className="w-full rounded-xl border border-slate-200 p-3 text-xs text-slate-800 bg-white focus:border-blue-500 focus:outline-none"
+            placeholder="1. Amati kesantunan & komunikasi...&#10;2. Nilai teknik auskultasi katup jantung...&#10;3. Evaluasi ketepatan diagnosis..."
+            className="w-full rounded-xl border border-slate-200 p-3 text-xs text-slate-800 bg-white focus:border-blue-500 focus:outline-none leading-relaxed"
           />
         </div>
       </div>

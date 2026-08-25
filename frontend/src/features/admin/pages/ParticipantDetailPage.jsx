@@ -102,13 +102,7 @@ export default function ParticipantDetailPage() {
           </button>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsReportModalOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-md shadow-blue-600/20 hover:bg-blue-700 active:scale-95 transition cursor-pointer"
-            >
-              <Download size={15} />
-              Cetak Transkrip Resmi (PDF)
-            </button>
+            {/* Opsi Cetak PDF Disembunyikan Sementara per Permintaan User */}
           </div>
         </div>
 

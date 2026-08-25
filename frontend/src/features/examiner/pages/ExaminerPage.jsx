@@ -30,6 +30,7 @@ import { fetchSessions } from "@/services/sessionService";
 import { supabase } from "@/lib/supabaseClient";
 import { ExaminerDashboardSkeleton } from "@/components/ui/Skeleton";
 import ExaminerStationScheduleWidget from "@/features/examiner/components/ExaminerStationScheduleWidget";
+import { findExaminerAssignment } from "@/services/examinerService";
 
 export default function ExaminerPage() {
   const navigate = useNavigate();
@@ -108,26 +109,12 @@ export default function ExaminerPage() {
           const sessionExs = (allExaminers || []).filter((e) => e.session_id === s.id);
           const sessionSts = (allStations || []).filter((st) => st.session_id === s.id);
 
-          const match = sessionExs.find((e) => {
-            if (user?.id && e.user_id === user.id) return true;
-            if (!e.full_name) return false;
-            const efName = e.full_name.toLowerCase();
-            return (
-              efName === currentName ||
-              (username && efName.includes(username)) ||
-              currentName.includes(efName) ||
-              efName.replace(/dr\.?\s*/i, "").trim() === currentName.replace(/dr\.?\s*/i, "").trim()
-            );
-          });
-
-          const matchedSt = match
-            ? sessionSts.find((st) => Number(st.station_number) === Number(match.assigned_station_number))
-            : null;
+          const { assignment, station } = findExaminerAssignment(sessionExs, sessionSts, user, userProf);
 
           assignedList.push({
             session: s,
-            assignment: match || { assigned_station_number: 1 },
-            station: matchedSt || sessionSts.find((st) => !st.is_break) || sessionSts[0],
+            assignment,
+            station,
             stations: sessionSts,
           });
         }

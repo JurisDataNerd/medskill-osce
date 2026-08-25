@@ -746,6 +746,47 @@ export default function ParticipantSessionPage() {
     }
   }, [sessionId, globalTimerState, viewMode, roundSecondsLeft, transitSecondsLeft, breakSecondsLeft, waitingCountdown, sessionDetail?.status]);
 
+  // Auto Next when timer reaches 0 for live round, transit, or round break
+  useEffect(() => {
+    if (!sessionId || !isSessionLive) return;
+
+    if (viewMode === "live_round" && roundSecondsLeft === 0) {
+      if (!activeStationInfo?.is_break) {
+        performAutoSave({ current_step: examStep, status: "submitted" });
+        if (sessionId && currentRound) {
+          localStorage.setItem(`osce_station_submitted_${sessionId}_round_${currentRound}`, "true");
+        }
+      }
+      handleFinishActiveRound();
+    } else if (viewMode === "transit" && transitSecondsLeft === 0) {
+      const isInitial = globalTimerState?.phase === "initial_transition";
+      const targetR = isInitial
+        ? 1
+        : Math.min(totalRoundsInSession, (globalTimerState?.round_number || currentRound) + 1);
+      setCurrentRound(targetR);
+      setViewMode("live_round");
+      setExamStep(1);
+    } else if (viewMode === "round_break" && breakSecondsLeft === 0) {
+      const nextR = currentRound + 1;
+      setCurrentRound(nextR);
+      setViewMode("live_round");
+      setExamStep(1);
+    }
+  }, [
+    sessionId,
+    isSessionLive,
+    viewMode,
+    roundSecondsLeft,
+    transitSecondsLeft,
+    breakSecondsLeft,
+    currentRound,
+    totalRoundsInSession,
+    globalTimerState?.phase,
+    globalTimerState?.round_number,
+    examStep,
+    activeStationInfo?.is_break,
+  ]);
+
   function formatTime(secs) {
     const m = Math.floor(secs / 60);
     const s = secs % 60;
@@ -804,11 +845,24 @@ export default function ParticipantSessionPage() {
       return;
     }
 
+    const isPaused =
+      globalTimerState.phase === "paused" ||
+      globalTimerState.phase?.startsWith("paused") ||
+      sessionDetail?.status === "paused";
+
+    if (isPaused) {
+      // When session is paused, do not transition or complete; stay in current view with Paused Overlay
+      return;
+    }
+
     if (globalTimerState.phase === "transition" || globalTimerState.phase === "initial_transition") {
       const serverRound = Number(globalTimerState.round_number || currentRound);
       if (serverRound > totalRoundsInSession) {
         setViewMode("completed");
       } else {
+        if (globalTimerState.phase === "initial_transition") {
+          playOsceAudio("waiting_room");
+        }
         setViewMode("transit");
       }
     } else if (globalTimerState.phase === "break") {
@@ -818,16 +872,15 @@ export default function ParticipantSessionPage() {
     } else if (
       globalTimerState.phase === "finished" ||
       globalTimerState.phase === "completed" ||
-      sessionDetail?.status === "completed" ||
-      sessionDetail?.status === "finished"
+      (sessionDetail?.status === "completed" && !isPaused) ||
+      (sessionDetail?.status === "finished" && !isPaused)
     ) {
       toast.info("Sesi OSCE telah diakhiri oleh Admin Control Room. Dialihkan ke Dashboard.", { duration: 5000 });
       navigate("/participant");
     } else if (
       globalTimerState.phase === "action" ||
       globalTimerState.phase === "reading" ||
-      globalTimerState.phase === "running" ||
-      globalTimerState.phase === "paused"
+      globalTimerState.phase === "running"
     ) {
       setViewMode((prev) => {
         const isSubmitted = sessionId && localStorage.getItem(`osce_station_submitted_${sessionId}_round_${currentRound}`) === "true";
@@ -1140,7 +1193,12 @@ export default function ParticipantSessionPage() {
   /* ============================================================
      RENDER VIEW 4: HALAMAN TERIMAKASIH MENGIKUTI UJIAN (COMPLETED - DINAMIS)
   ============================================================ */
-  if (viewMode === "completed" || sessionDetail?.status === "completed" || sessionDetail?.status === "finished") {
+  const isSessionPaused =
+    globalTimerState?.phase === "paused" ||
+    globalTimerState?.phase?.startsWith("paused") ||
+    sessionDetail?.status === "paused";
+
+  if (!isSessionPaused && (viewMode === "completed" || sessionDetail?.status === "completed" || sessionDetail?.status === "finished")) {
     return (
       <>
         <ParticipantCompletedView
@@ -1338,7 +1396,7 @@ export default function ParticipantSessionPage() {
         globalTimerState={globalTimerState}
         sessionDetail={sessionDetail}
         currentRound={currentRound}
-        assignedStation={assignedStation}
+        assignedStation={activeStationInfo}
       />
 
 

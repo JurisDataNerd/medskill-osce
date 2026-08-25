@@ -332,11 +332,14 @@ export default function SessionStationQuestionsTab({
             </div>
 
             <div>
-              <label className="mb-1 block text-xs font-bold text-slate-700">
+              <label className="mb-1 block text-xs font-bold text-slate-800">
                 Instruksi Peserta Ujian
               </label>
+              <p className="text-[10px] text-blue-600 font-semibold mb-1">
+                Tuliskan instruksi per baris. Sistem otomatis merapikan menjadi poin bernomor (1, 2, 3...) di layar Peserta.
+              </p>
               <textarea
-                rows={3}
+                rows={4}
                 value={activeStation.participant_instructions || ""}
                 onChange={(e) => {
                   const val = e.target.value;
@@ -348,16 +351,19 @@ export default function SessionStationQuestionsTab({
                     )
                   );
                 }}
-                className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs text-slate-700"
+                className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs text-slate-800 font-medium leading-relaxed"
               />
             </div>
 
             <div>
-              <label className="mb-1 block text-xs font-bold text-slate-700">
+              <label className="mb-1 block text-xs font-bold text-slate-800">
                 Instruksi Dokter Penguji
               </label>
+              <p className="text-[10px] text-blue-600 font-semibold mb-1">
+                Tuliskan instruksi per baris. Sistem otomatis merapikan menjadi poin bernomor (1, 2, 3...) di layar Dokter Penguji.
+              </p>
               <textarea
-                rows={3}
+                rows={4}
                 value={activeStation.examiner_instructions || ""}
                 onChange={(e) => {
                   const val = e.target.value;
@@ -369,7 +375,7 @@ export default function SessionStationQuestionsTab({
                     )
                   );
                 }}
-                className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs text-slate-700"
+                className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs text-slate-800 font-medium leading-relaxed"
               />
             </div>
           </div>

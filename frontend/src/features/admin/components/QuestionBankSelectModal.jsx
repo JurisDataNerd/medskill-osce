@@ -35,6 +35,9 @@ export default function QuestionBankSelectModal({
           const normalized = data.map((item) => ({
             ...item,
             case_title: item.case_title || item.title,
+            answer_key_diagnosis: item.answer_key_diagnosis || item.wdx || item.gold_standard_keys?.wdx || "",
+            answer_key_prescription: item.answer_key_prescription || item.recipe || item.gold_standard_keys?.recipe || "",
+            answer_key_ddx: item.answer_key_ddx || (Array.isArray(item.gold_standard_keys?.ddx) ? item.gold_standard_keys.ddx.join(", ") : "") || "",
             checklist_items:
               item.checklist_items ||
               (item.question_bank_rubric_items || []).map((r) => ({
@@ -42,6 +45,9 @@ export default function QuestionBankSelectModal({
                 question: r.question,
                 answer_key: r.answer_key,
                 max_points: r.max_points || 3,
+                weight: r.weight || 1.0,
+                competency_area: r.competency_area,
+                descriptors: r.descriptors,
               })),
             auxiliary_exam_configs:
               item.auxiliary_exam_configs ||

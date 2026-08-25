@@ -57,17 +57,28 @@ import LiveBroadcastModal from "@/features/admin/components/live/LiveBroadcastMo
 import { playOsceAudio } from "@/services/audioService";
 
 // Web Audio API Bell Synthesizer + MP3/Voiceover Audio Engine
-function playOsceBell(type = "warning") {
-  if (type === "start") {
-    playOsceAudio("start_exam");
-  } else if (type === "warning") {
-    playOsceAudio("warning_2min");
-  } else if (type === "rotation") {
-    playOsceAudio("stop_transit");
-  } else if (type === "finish") {
-    playOsceAudio("finish_exam");
-  } else if (type === "broadcast") {
-    playOsceAudio("admin_broadcast");
+function playOsceBell(type = "warning", sessionId = null) {
+  const audioMap = {
+    start: "start_exam",
+    start_exam: "start_exam",
+    warning: "warning_2min",
+    warning_2min: "warning_2min",
+    warning_1min: "warning_1min",
+    rotation: "stop_transit",
+    stop_transit: "stop_transit",
+    rest: "rest_break",
+    rest_break: "rest_break",
+    finish: "finish_exam",
+    finish_exam: "finish_exam",
+    broadcast: "admin_broadcast",
+    admin_broadcast: "admin_broadcast",
+  };
+
+  const audioKey = audioMap[type] || type;
+  playOsceAudio(audioKey, true);
+
+  if (sessionId) {
+    sendBellBroadcast(sessionId, type).catch(() => {});
   }
 
   try {
@@ -485,7 +496,7 @@ export default function LiveMonitorPage() {
         }
 
         if (rem === 120 && timerState.phase === "action") {
-          playOsceBell("warning");
+          playOsceBell("warning", activeSession?.id);
           addLog("warning", "BEL AUTOMATIC: Sisa Waktu Stase 2 Menit!");
         }
 
@@ -499,7 +510,7 @@ export default function LiveMonitorPage() {
           const totalRounds = activeSession.total_rounds || activeSession.stations?.length || 6;
 
           if (currentPhase === "initial_transition") {
-            playOsceBell("start");
+            playOsceBell("start", activeSession?.id);
             addLog(
               "info",
               `BEL MULAI: Masuk ke Stase Ujian Ronde ${currentRound} dari ${totalRounds} (${stationDuration} Mnt).`
@@ -515,7 +526,7 @@ export default function LiveMonitorPage() {
               });
           } else if (currentPhase === "action" || currentPhase === "running" || currentPhase === "reading") {
             if (transitionDuration > 0) {
-              playOsceBell("rotation");
+              playOsceBell("rotation", activeSession?.id);
               addLog(
                 "warning",
                 `BEL ROTASI: Stase Ronde ${currentRound} Selesai. Masuk ke Waktu Transisi Perpindahan Pos (${transitionDuration} Mnt).`
@@ -541,7 +552,7 @@ export default function LiveMonitorPage() {
           function advanceRound() {
             if (currentRound >= totalRounds) {
               setRemainingSeconds(0);
-              playOsceBell("rotation");
+              playOsceBell("rotation", activeSession?.id);
               addLog(
                 "success",
                 `BEL SESI SELESAI: Entire circuit completed (Ronde ${currentRound}/${totalRounds})! Timer frozen at 00:00. Menunggu Pengajuan Nilai Penguji & Penutupan Admin.`
@@ -558,7 +569,7 @@ export default function LiveMonitorPage() {
             }
             const nextRound = currentRound + 1;
             setViewRound(nextRound);
-            playOsceBell("start");
+            playOsceBell("start", activeSession?.id);
             addLog(
               "info",
               `BEL MULAI: Rolling Otomatis! Masuk ke Stase Ujian Ronde ${nextRound} dari ${totalRounds} (${stationDuration} Mnt).`
@@ -811,7 +822,7 @@ export default function LiveMonitorPage() {
   }
 
   async function handleTriggerBell(bellType) {
-    playOsceBell(bellType);
+    playOsceBell(bellType, activeSession?.id);
     const bellNames = {
       start: "Bel 1x (Mulai / Reading Time)",
       warning: "Bel 2x (Peringatan 2 Menit Tersisa)",

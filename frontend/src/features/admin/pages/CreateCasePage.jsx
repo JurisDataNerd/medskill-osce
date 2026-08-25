@@ -63,6 +63,7 @@ export default function CreateCasePage() {
   const [scenario, setScenario] = useState("");
   const [participantInstructions, setParticipantInstructions] = useState("");
   const [examinerInstructions, setExaminerInstructions] = useState("");
+  const [durationMinutes, setDurationMinutes] = useState(12);
 
   // Tab 2: Gold Standard Answer Keys
   const [wdxKey, setWdxKey] = useState("");
@@ -236,7 +237,7 @@ export default function CreateCasePage() {
 
   // Load existing case if editing
   useEffect(() => {
-    if (!isEdit) return;
+    if (!isEdit || !id) return;
 
     async function loadExistingCase() {
       try {
@@ -254,13 +255,37 @@ export default function CreateCasePage() {
 
           let parsedWdx = data.answer_key_diagnosis || "";
           let parsedDdxArr = [];
-          if (data.gold_standard_keys) {
-            parsedWdx = data.gold_standard_keys.wdx || parsedWdx;
-            if (Array.isArray(data.gold_standard_keys.ddx)) parsedDdxArr = [...data.gold_standard_keys.ddx];
-            else if (typeof data.gold_standard_keys.ddx === "string") parsedDdxArr = [data.gold_standard_keys.ddx];
-          } else if (data.answer_key_ddx) {
-            parsedDdxArr = [data.answer_key_ddx];
+
+          if (data.gold_standard_keys && typeof data.gold_standard_keys === "object") {
+            if (data.gold_standard_keys.wdx) parsedWdx = data.gold_standard_keys.wdx;
+            if (Array.isArray(data.gold_standard_keys.ddx)) {
+              parsedDdxArr = data.gold_standard_keys.ddx.filter(Boolean);
+            } else if (typeof data.gold_standard_keys.ddx === "string" && data.gold_standard_keys.ddx.trim()) {
+              parsedDdxArr = [data.gold_standard_keys.ddx.trim()];
+            }
           }
+
+          if (parsedDdxArr.length === 0 && data.answer_key_ddx) {
+            parsedDdxArr = data.answer_key_ddx.split(",").map((s) => s.trim()).filter(Boolean);
+          }
+
+          // Smart multi-line extraction fallback if answer_key_diagnosis has combined text
+          if (parsedWdx && (parsedWdx.includes("\n") || /wdx|ddx|kerja|banding/i.test(parsedWdx))) {
+            const lines = parsedWdx.split("\n");
+            let extractedWdx = "";
+            const extractedDdx = [];
+            lines.forEach((l) => {
+              if (/wdx|kerja/i.test(l)) {
+                extractedWdx = l.replace(/^(wdx|diagnosis kerja utama|diagnosis kerja|kerja)[\s:]*/i, "").trim();
+              } else if (/ddx|banding/i.test(l)) {
+                const cleanDdx = l.replace(/^(ddx\s*\d*|diagnosis banding\s*\d*|banding\s*\d*)[\s:]*/i, "").trim();
+                if (cleanDdx) extractedDdx.push(cleanDdx);
+              }
+            });
+            if (extractedWdx) parsedWdx = extractedWdx;
+            if (extractedDdx.length > 0 && parsedDdxArr.length === 0) parsedDdxArr = extractedDdx;
+          }
+
           if (parsedDdxArr.length === 0) parsedDdxArr = ["", ""];
 
           const parsedRecipe = data.answer_key_prescription || data.gold_standard_keys?.recipe || "";
@@ -270,30 +295,32 @@ export default function CreateCasePage() {
           setAnswerKeyDiagnosis(parsedWdx);
           setAnswerKeyPrescription(parsedRecipe);
 
-          if (data.checklist_items && data.checklist_items.length > 0) {
+          const fetchedRubrics = data.checklist_items || data.question_bank_rubric_items || [];
+          if (fetchedRubrics.length > 0) {
             setRubricItems(
-              data.checklist_items.map((item, idx) => ({
+              fetchedRubrics.map((item, idx) => ({
                 id: item.id || `rubric-${idx}`,
-                question_number: idx + 1,
-                question: item.question || "",
-                answer_key: item.answer_key || "",
+                question_number: item.question_number || idx + 1,
+                question: item.question || item.title || item.name || "",
+                answer_key: item.answer_key || item.description || "",
                 weight: Number(item.weight) || 1.0,
                 max_points: Number(item.max_points) || 3,
                 competency_area: item.competency_area || "ANAMNESIS",
                 descriptors: item.descriptors || {
-                  score_0: "",
-                  score_1: "",
-                  score_2: "",
-                  score_3: "",
+                  score_0: item.description_score_0 || "",
+                  score_1: item.description_score_1 || "",
+                  score_2: item.description_score_2 || "",
+                  score_3: item.description_score_3 || "",
                 },
               }))
             );
           }
 
-          if (data.auxiliary_exam_configs) {
+          const fetchedAux = data.auxiliary_exam_configs || data.question_bank_auxiliary_configs || [];
+          if (fetchedAux.length > 0) {
             setAuxiliaryConfigs(
-              data.auxiliary_exam_configs.map((cfg) => ({
-                itemId: cfg.item_id || cfg.itemId || `aux-${Math.random()}`,
+              fetchedAux.map((cfg, idx) => ({
+                itemId: cfg.item_id || cfg.itemId || `aux-${idx}`,
                 name: cfg.name || "Berkas Penunjang",
                 category: cfg.category || "PEMERIKSAAN",
                 imageUrl: cfg.image_storage_path || cfg.imageUrl || "",
@@ -305,6 +332,7 @@ export default function CreateCasePage() {
         }
       } catch (err) {
         console.error("Error loading case for edit:", err);
+        toast.error("Gagal memuat data kasus medis untuk di-edit.");
       } finally {
         setLoading(false);
       }

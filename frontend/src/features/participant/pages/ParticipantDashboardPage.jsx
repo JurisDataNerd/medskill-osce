@@ -152,7 +152,11 @@ export default function ParticipantDashboardPage() {
 
   const [filterTab, setFilterTab] = useState("all"); // "all" (Sesi OSCE / belum terdaftar) | "my_sessions" | "completed"
 
-  const ongoingSession = sessions.find((s) => s.status === "ongoing" || s.status === "running" || s.status === "waiting_room");
+  const ongoingSession = sessions.find((s) => {
+    const isLiveStatus = s.status === "ongoing" || s.status === "running" || s.status === "waiting_room";
+    const st = registrationStatuses[s.id];
+    return isLiveStatus && (st === "approved" || st === "completed");
+  });
 
   const unregisteredCount = sessions.filter((s) => {
     const isComp = s.status === "completed" || s.status === "published_results" || s.status === "finished";
@@ -169,7 +173,8 @@ export default function ParticipantDashboardPage() {
   const completedCount = sessions.filter((s) => {
     const isComp = s.status === "completed" || s.status === "published_results" || s.status === "finished";
     const st = registrationStatuses[s.id];
-    return isComp || st === "completed";
+    const isApprovedOrCompleted = st === "approved" || st === "completed";
+    return isComp && isApprovedOrCompleted;
   }).length;
 
   const filteredSessions = sessions.filter((s) => {
@@ -189,7 +194,8 @@ export default function ParticipantDashboardPage() {
       return !isComp && (userRegStatus === "approved" || userRegStatus === "pending" || userRegStatus === "rejected");
     }
     if (filterTab === "completed") {
-      return isComp;
+      const isApprovedOrCompleted = userRegStatus === "approved" || userRegStatus === "completed";
+      return isComp && isApprovedOrCompleted;
     }
     return true;
   });

@@ -373,6 +373,12 @@ export async function getParticipantsWithHistory() {
       .from("stations")
       .select("*");
 
+    // 6. Fetch all session_examiners to match examiner doctor names
+    const { data: sessionExaminersRaw } = await supabase
+      .schema("osce")
+      .from("session_examiners")
+      .select("*");
+
     const sessionsMap = new Map((sessionsRaw || []).map((s) => [s.id, s]));
     const stationsMap = new Map((stationsRaw || []).map((st) => [st.id, st]));
     const profilesMap = new Map((profilesRaw || []).map((pr) => [pr.id, pr]));
@@ -420,70 +426,78 @@ export async function getParticipantsWithHistory() {
                 ev.participant_id === reg.user_id)
           );
 
+          // Get all stations of session ordered by station_number, EXCLUDING break stations
+          const sessionStations = (stationsRaw || [])
+            .filter((st) => st.session_id === sessionObj.id)
+            .sort((a, b) => (a.station_number || 0) - (b.station_number || 0));
+
+          const realExamStations = sessionStations.filter(
+            (st) =>
+              !st.is_break &&
+              !st.title?.toLowerCase().includes("istirahat") &&
+              !st.case_title?.toLowerCase().includes("istirahat")
+          );
+
           let totalScoreSum = 0;
+          let evaluatedStationCount = 0;
           const stationsList = [];
 
-          if (userEvals.length > 0) {
-            userEvals.forEach((ev) => {
-              const stObj = stationsMap.get(ev.station_id);
-              const scoreVal = Number(ev.final_score_percentage) || 0;
+          realExamStations.forEach((st) => {
+            const ev = userEvals.find(
+              (e) =>
+                e.station_id === st.id ||
+                (e.rotation_round && Number(e.rotation_round) === Number(st.station_number))
+            );
+
+            // Lookup doctor / examiner name
+            let exName = st.assigned_examiner || st.examiner_name;
+            if (!exName && ev?.examiner_id) {
+              const matchedProfile = profilesMap.get(ev.examiner_id);
+              if (matchedProfile?.full_name) exName = matchedProfile.full_name;
+            }
+            if (!exName) {
+              const matchedEx = (sessionExaminersRaw || []).find(
+                (se) => se.session_id === sessionObj.id && Number(se.assigned_station_number) === Number(st.station_number)
+              );
+              if (matchedEx?.full_name) exName = matchedEx.full_name;
+            }
+            if (!exName) exName = "Dokter Penguji Terverifikasi";
+
+            const scoreVal = ev ? Number(ev.final_score_percentage) || 0 : 0;
+            if (ev) {
               totalScoreSum += scoreVal;
+              evaluatedStationCount += 1;
+            }
 
-              stationsList.push({
-                station_id: ev.station_id,
-                station_number: stObj?.station_number || stationsList.length + 1,
-                title: stObj?.title || stObj?.case_title || `Stase Ujian ${stationsList.length + 1}`,
-                system_organ: stObj?.system_organ || "Umum",
-                score: scoreVal,
-                grs_rating: ev.grs_rating || "Belum Rating",
-                examiner_name: "Dokter Penguji",
-                examiner_notes: ev.examiner_notes || "Belum ada catatan.",
-              });
+            stationsList.push({
+              station_id: st.id,
+              station_number: st.station_number,
+              title: st.title || st.case_title || `Stase ${st.station_number}`,
+              system_organ: st.system_organ || "Umum",
+              score: scoreVal,
+              grs_rating: ev?.grs_rating || "Belum Dinilai",
+              examiner_name: exName,
+              examiner_notes: ev?.examiner_notes || "Belum ada catatan feedback dari penguji.",
+              has_eval: Boolean(ev),
             });
+          });
 
-            const sessionAvgScore = Math.round((totalScoreSum / userEvals.length) * 10) / 10;
-            const nbl = Number(sessionObj.nbl_cutoff) || 70;
+          const hasEvals = evaluatedStationCount > 0;
+          const sessionAvgScore = hasEvals ? Math.round((totalScoreSum / evaluatedStationCount) * 10) / 10 : 0;
+          const nbl = Number(sessionObj.nbl_cutoff) || 70;
 
-            userSessions.push({
-              session_id: sessionObj.id,
-              session_title: sessionObj.title,
-              session_date: sessionObj.session_date || "Tanggal Ujian",
-              location: sessionObj.location_building || "Gedung Skill Lab FK",
-              total_stations: sessionObj.total_stations || stationsList.length || 6,
-              nbl_cutoff: nbl,
-              total_score: sessionAvgScore,
-              is_passed: sessionAvgScore >= nbl,
-              has_evaluations: true,
-              stations: stationsList,
-            });
-          } else {
-            // Registered but no evaluations submitted yet in Supabase
-            const nbl = Number(sessionObj.nbl_cutoff) || 70;
-            // Get stations of this session from DB
-            const sessionStationsFromDb = (stationsRaw || []).filter((st) => st.session_id === sessionObj.id);
-
-            userSessions.push({
-              session_id: sessionObj.id,
-              session_title: sessionObj.title,
-              session_date: sessionObj.session_date || "-",
-              location: sessionObj.location_building || "Gedung Skill Lab FK",
-              total_stations: sessionObj.total_stations || sessionStationsFromDb.length || 0,
-              nbl_cutoff: nbl,
-              total_score: 0,
-              is_passed: false,
-              has_evaluations: false,
-              stations: sessionStationsFromDb.map((st) => ({
-                station_id: st.id,
-                station_number: st.station_number,
-                title: st.title || st.case_title || `Stase ${st.station_number}`,
-                system_organ: st.system_organ || "Umum",
-                score: 0,
-                grs_rating: "Belum Dinilai",
-                examiner_name: "Dokter Penguji",
-                examiner_notes: "Belum ada penilaian evaluasi dari penguji.",
-              })),
-            });
-          }
+          userSessions.push({
+            session_id: sessionObj.id,
+            session_title: sessionObj.title,
+            session_date: sessionObj.session_date || "Tanggal Ujian",
+            location: sessionObj.location_building || "Gedung Skill Lab FK",
+            total_stations: realExamStations.length,
+            nbl_cutoff: nbl,
+            total_score: sessionAvgScore,
+            is_passed: hasEvals && sessionAvgScore >= nbl,
+            has_evaluations: hasEvals,
+            stations: stationsList,
+          });
         }
       });
 

@@ -26,6 +26,7 @@ import { exportElementToPdf } from "@/services/pdfExportService";
 
 import { useAuth } from "@/context/AuthProvider";
 import { ExaminerHistoryDetailSkeleton } from "@/components/ui/Skeleton";
+import { findExaminerAssignment } from "@/services/examinerService";
 
 export default function ExaminerHistoryDetailPage() {
   const navigate = useNavigate();
@@ -65,18 +66,12 @@ export default function ExaminerHistoryDetailPage() {
           .eq("id", historyId)
           .maybeSingle();
 
-        // 2. Query examiner assignment for this session
-        let assignedStationNumber = null;
-        if (authUser?.id) {
-          const { data: exAssign } = await supabase
-            .schema("osce")
-            .from("session_examiners")
-            .select("*")
-            .eq("session_id", historyId)
-            .eq("user_id", authUser.id)
-            .maybeSingle();
-          if (exAssign) assignedStationNumber = exAssign.assigned_station_number;
-        }
+        // 2. Query examiner assignment and stations for this session
+        const { data: exAssignList } = await supabase
+          .schema("osce")
+          .from("session_examiners")
+          .select("*")
+          .eq("session_id", historyId);
 
         // 3. Query stations with rubric items and auxiliary configs
         const { data: stList } = await supabase
@@ -86,14 +81,14 @@ export default function ExaminerHistoryDetailPage() {
           .eq("session_id", historyId)
           .order("station_number", { ascending: true });
 
-        const targetStation = (assignedStationNumber && stList?.find(s => Number(s.station_number) === Number(assignedStationNumber)))
-          || (stList && stList[0])
-          || {
-            title: "Stase Penugasan Dokter",
-            case_title: "Kasus Medis Skenario",
-            rubric_items: [],
-            station_auxiliary_configs: [],
-          };
+        const { station: resolvedSt } = findExaminerAssignment(exAssignList || [], stList || [], authUser, null);
+
+        const targetStation = resolvedSt || {
+          title: "Stase Penugasan Dokter",
+          case_title: "Kasus Medis Skenario",
+          rubric_items: [],
+          station_auxiliary_configs: [],
+        };
 
         const rubricItemMap = {};
         (targetStation.rubric_items || []).forEach(r => {
@@ -106,7 +101,7 @@ export default function ExaminerHistoryDetailPage() {
           let evalQuery = supabase
             .schema("osce")
             .from("examiner_evaluations")
-            .select("*")
+            .select("*, rubric_scores (*)")
             .eq("session_id", historyId);
 
           if (targetStation.id) {
@@ -115,6 +110,15 @@ export default function ExaminerHistoryDetailPage() {
           const { data: rawEvals, error: evalErr } = await evalQuery;
           if (!evalErr && rawEvals) {
             evals = rawEvals;
+          } else {
+            let fallbackQuery = supabase
+              .schema("osce")
+              .from("examiner_evaluations")
+              .select("*")
+              .eq("session_id", historyId);
+            if (targetStation.id) fallbackQuery = fallbackQuery.eq("station_id", targetStation.id);
+            const { data: fbData } = await fallbackQuery;
+            if (fbData) evals = fbData;
           }
         } catch (e) {
           console.warn("Could not query examiner_evaluations:", e);
@@ -224,8 +228,14 @@ export default function ExaminerHistoryDetailPage() {
                 ? matchedEval.rubric_scores
                 : (localRubricScores || []);
 
-              // Map detailed rubric item points
-              const rubricBreakdown = (targetStation.rubric_items || []).map((rItem, rIdx) => {
+              const sortedHistoryRubrics = [...(targetStation.rubric_items || [])].sort((a, b) => {
+                const numA = Number(a.question_number ?? a.sort_order ?? 0);
+                const numB = Number(b.question_number ?? b.sort_order ?? 0);
+                return numA - numB;
+              });
+
+              // Map detailed rubric item points (RAW input from examiner)
+              const rubricBreakdown = sortedHistoryRubrics.map((rItem, rIdx) => {
                 const foundScore = activeScores.find(
                   (s) => s.rubric_item_id === rItem.id || String(s.rubric_item_id) === String(rItem.id)
                 ) || activeScores[rIdx];
@@ -233,9 +243,6 @@ export default function ExaminerHistoryDetailPage() {
                 let scorePoints = 0;
                 if (foundScore !== undefined && foundScore.score_given !== undefined && foundScore.score_given !== null) {
                   scorePoints = Number(foundScore.score_given);
-                } else if (matchedEval?.final_score_percentage !== undefined && Number(matchedEval.final_score_percentage) > 0) {
-                  const maxPts = Number(rItem.max_points || 3);
-                  scorePoints = Math.round((Number(matchedEval.final_score_percentage) / 100) * maxPts);
                 }
 
                 return {

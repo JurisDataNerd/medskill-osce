@@ -153,11 +153,15 @@ export function subscribeToSession(sessionId, {
   channel.on("broadcast", { event: "play_bell" }, (payload) => {
     const data = payload.payload || payload;
     const bType = data.bell_type || "warning";
-    if (bType === "start") playOsceAudio("start_exam");
-    else if (bType === "warning") playOsceAudio("warning_2min");
-    else if (bType === "rotation") playOsceAudio("stop_transit");
-    else if (bType === "finish") playOsceAudio("finish_exam");
-    else if (bType === "broadcast") playOsceAudio("admin_broadcast");
+    if (bType === "waiting" || bType === "waiting_room") playOsceAudio("waiting_room", true);
+    else if (bType === "start" || bType === "start_exam") playOsceAudio("start_exam", true);
+    else if (bType === "warning" || bType === "warning_2min") playOsceAudio("warning_2min", true);
+    else if (bType === "warning_1min") playOsceAudio("warning_1min", true);
+    else if (bType === "rotation" || bType === "stop_transit") playOsceAudio("stop_transit", true);
+    else if (bType === "rest" || bType === "rest_break") playOsceAudio("rest_break", true);
+    else if (bType === "finish" || bType === "finish_exam") playOsceAudio("finish_exam", true);
+    else if (bType === "broadcast" || bType === "admin_broadcast") playOsceAudio("admin_broadcast", true);
+    else playOsceAudio(bType, true);
   });
 
   // Direct WebSocket Session Finished Event (Instant 0ms latency)
@@ -313,6 +317,8 @@ export async function openWaitingRoom(sessionId) {
   ]);
 
   if (sessionRes.error) throw sessionRes.error;
+  sendBellBroadcast(sessionId, "waiting_room").catch(() => {});
+  playOsceAudio("waiting_room", true);
   return sessionRes.data;
 }
 
@@ -364,6 +370,11 @@ export async function startOsceSession(sessionId, _durationMinutes = 12, transit
 
   if (sessionRes.error) throw sessionRes.error;
   if (timerRes.error) throw timerRes.error;
+
+  // Broadcast waiting_room audio signal to ALL connected screens (Admin, Participant, Examiner)
+  sendBellBroadcast(sessionId, "waiting_room").catch(() => {});
+  playOsceAudio("waiting_room", true);
+
   return { session: sessionRes.data, timer: timerRes.data };
 }
 
@@ -571,14 +582,26 @@ export const sendBroadcastMessage = sendBroadcast;
  * Send manual bell audio trigger broadcast to all connected screens.
  */
 export async function sendBellBroadcast(sessionId, bellType = "warning") {
-  const bellNames = {
-    start: "BEL AUDIO MANUAL: Sesi Ujian / Reading Time Dimulai!",
-    warning: "BEL AUDIO MANUAL: Peringatan! Sisa Waktu Stase 2 Menit!",
-    rotation: "BEL AUDIO MANUAL: Waktu Stase Selesai! Segera Berpindah Pos Rotasi.",
-  };
-  const message = bellNames[bellType] || "BEL AUDIO MANUAL";
+  if (!sessionId) return { success: false };
 
-  await sendBroadcast(sessionId, message, "warning", "all");
+  const bellNames = {
+    waiting: "BEL AUDIO: Selamat Datang di Ujian OSCE MedSkill",
+    waiting_room: "BEL AUDIO: Selamat Datang di Ujian OSCE MedSkill",
+    start: "BEL AUDIO: Sesi Ujian / Reading Time Dimulai!",
+    start_exam: "BEL AUDIO: Sesi Ujian / Reading Time Dimulai!",
+    warning: "BEL AUDIO: Peringatan! Sisa Waktu Stase 2 Menit!",
+    warning_2min: "BEL AUDIO: Peringatan! Sisa Waktu Stase 2 Menit!",
+    warning_1min: "BEL AUDIO: Peringatan! Sisa Waktu Stase 1 Menit!",
+    rotation: "BEL AUDIO: Waktu Stase Selesai! Segera Berpindah Pos Rotasi.",
+    stop_transit: "BEL AUDIO: Waktu Stase Selesai! Segera Berpindah Pos Rotasi.",
+    rest: "BEL AUDIO: Waktu Istirahat Sirkuit.",
+    rest_break: "BEL AUDIO: Waktu Istirahat Sirkuit.",
+    finish: "BEL AUDIO: Ujian Selesai! Seluruh Rangkaian Ujian Diakhiri.",
+    finish_exam: "BEL AUDIO: Ujian Selesai! Seluruh Rangkaian Ujian Diakhiri.",
+    broadcast: "BEL AUDIO: Pengumuman Control Room.",
+    admin_broadcast: "BEL AUDIO: Pengumuman Control Room.",
+  };
+  const message = bellNames[bellType] || `BEL AUDIO: ${bellType}`;
 
   try {
     const channels = supabase.getChannels().filter(
@@ -593,6 +616,10 @@ export async function sendBellBroadcast(sessionId, bellType = "warning") {
           ch.send({ type: "broadcast", event: "play_bell", payload: { bell_type: bellType, message } }).catch(() => {})
         )
       );
+    } else {
+      const channel = supabase.channel(`osce-session:${sessionId}`);
+      await channel.subscribe();
+      await channel.send({ type: "broadcast", event: "play_bell", payload: { bell_type: bellType, message } });
     }
   } catch (err) {
     console.warn("WebSocket bell broadcast notice:", err);

@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { fetchSessions } from "@/services/sessionService";
-import { submitExaminerEvaluation } from "@/services/examinerService";
+import { submitExaminerEvaluation, findExaminerAssignment } from "@/services/examinerService";
 import { toast } from "sonner";
 import { getSessionTimerState } from "@/services/live.service";
 import {
@@ -199,26 +199,12 @@ export default function ExaminerStagePage() {
           const sessionExs = (allExaminers || []).filter((e) => e.session_id === s.id);
           const sessionSts = (allStations || []).filter((st) => st.session_id === s.id);
 
-          const match = sessionExs.find((e) => {
-            if (user?.id && e.user_id === user.id) return true;
-            if (!e.full_name) return false;
-            const efName = e.full_name.toLowerCase();
-            return (
-              efName === currentName ||
-              (username && efName.includes(username)) ||
-              currentName.includes(efName) ||
-              efName.replace(/dr\.?\s*/i, "").trim() === currentName.replace(/dr\.?\s*/i, "").trim()
-            );
-          });
-
-          const matchedSt = match
-            ? sessionSts.find((st) => Number(st.station_number) === Number(match.assigned_station_number))
-            : null;
+          const { assignment, station } = findExaminerAssignment(sessionExs, sessionSts, user, userProf);
 
           assignedList.push({
             session: s,
-            assignment: match || { assigned_station_number: 1 },
-            station: matchedSt || sessionSts.find((st) => !st.is_break) || sessionSts[0],
+            assignment,
+            station,
             stations: sessionSts,
           });
         }
@@ -255,7 +241,7 @@ export default function ExaminerStagePage() {
               targetSess = sessList.find((s) => s.id === directSt.session_id);
             }
           } else {
-            // 2. Fallback: targetParamId might be a session_id
+            // 2. Fallback: targetParamId is a session_id
             const { data: sessSts } = await supabase
               .schema("osce")
               .from("stations")
@@ -264,12 +250,9 @@ export default function ExaminerStagePage() {
               .order("station_number");
 
             if (sessSts && sessSts.length > 0) {
-              const assignedItem = assignedList.find((a) => a.session.id === targetParamId);
-              const assignedStNum = assignedItem?.assignment?.assigned_station_number;
-
-              st = assignedStNum
-                ? sessSts.find((s) => Number(s.station_number) === Number(assignedStNum)) || sessSts.find((s) => !s.is_break) || sessSts[0]
-                : sessSts.find((s) => !s.is_break) || sessSts[0];
+              const sessionExs = (allExaminers || []).filter((e) => e.session_id === targetParamId);
+              const found = findExaminerAssignment(sessionExs, sessSts, user, userProf);
+              st = found.station;
             }
           }
         }
@@ -288,7 +271,11 @@ export default function ExaminerStagePage() {
             .eq("session_id", targetSess.id)
             .order("station_number", { ascending: true });
 
-          st = Array.isArray(stData) ? stData[0] : stData;
+          if (stData && stData.length > 0) {
+            const sessionExs = (allExaminers || []).filter((e) => e.session_id === targetSess.id);
+            const found = findExaminerAssignment(sessionExs, stData, user, userProf);
+            st = found.station;
+          }
         }
 
         if (st) {
@@ -749,10 +736,15 @@ export default function ExaminerStagePage() {
       setRemainingSeconds(rem);
 
       const prevRem = prevRemainingRef.current;
-      if (isLive && !isPaused && prevRem !== null && prevRem !== rem) {
-        if (prevRem > 120 && rem <= 120 && rem >= 115) playOsceAudio("warning_2min");
-        if (prevRem > 60 && rem <= 60 && rem >= 55) playOsceAudio("warning_1min");
-        if (prevRem > 0 && rem === 0) playOsceAudio("stop_transit");
+      if (isLive && !isPaused) {
+        if (timerState?.phase === "initial_transition" && prevRem === null) {
+          playOsceAudio("waiting_room");
+        }
+        if (prevRem !== null && prevRem !== rem) {
+          if (prevRem > 120 && rem <= 120 && rem >= 115) playOsceAudio("warning_2min");
+          if (prevRem > 60 && rem <= 60 && rem >= 55) playOsceAudio("warning_1min");
+          if (prevRem > 0 && rem === 0) playOsceAudio("stop_transit");
+        }
       }
       prevRemainingRef.current = rem;
     }, 1000);
@@ -866,6 +858,23 @@ export default function ExaminerStagePage() {
 
     async function loadSavedEvaluation() {
       try {
+        const localSavedKey = `osce_eval_${activeSession.id}_${stationData.id}_${examineeId}_${rotRound}`;
+        const localSavedStr = localStorage.getItem(localSavedKey) || (draftStorageKey ? localStorage.getItem(draftStorageKey) : null);
+        let localScoresMap = {};
+        let localRating = null;
+        let localNotes = null;
+
+        if (localSavedStr) {
+          try {
+            const parsed = JSON.parse(localSavedStr);
+            if (parsed.globalRating) localRating = parsed.globalRating;
+            if (parsed.feedback !== undefined) localNotes = parsed.feedback;
+            if (parsed.rubricScores && typeof parsed.rubricScores === "object") {
+              localScoresMap = { ...parsed.rubricScores };
+            }
+          } catch (e) {}
+        }
+
         const { data: evalRecord } = await supabase
           .schema("osce")
           .from("examiner_evaluations")
@@ -877,32 +886,19 @@ export default function ExaminerStagePage() {
           .maybeSingle();
 
         if (evalRecord) {
-          // Prioritas 1: Data resmi tersimpan di Supabase
-          setGlobalRating(evalRecord.grs_rating || "SATISFACTORY");
-          setFeedback(evalRecord.examiner_notes || "");
-          const scoresMap = {};
+          setGlobalRating(evalRecord.grs_rating || localRating || "SATISFACTORY");
+          setFeedback(evalRecord.examiner_notes ?? localNotes ?? "");
+          const scoresMap = { ...localScoresMap };
           (evalRecord.rubric_scores || []).forEach((sc) => {
-            scoresMap[sc.rubric_item_id] = sc.score_given;
+            scoresMap[sc.rubric_item_id] = Number(sc.score_given);
           });
           setRubricScores(scoresMap);
         } else {
-          // Prioritas 2: Cek apakah ada draft belum disubmit di localStorage
-          const localDraftStr = draftStorageKey ? localStorage.getItem(draftStorageKey) : null;
-          let draftLoaded = false;
-          if (localDraftStr) {
-            try {
-              const localDraft = JSON.parse(localDraftStr);
-              if (localDraft.globalRating) setGlobalRating(localDraft.globalRating);
-              if (localDraft.feedback !== undefined) setFeedback(localDraft.feedback);
-              if (localDraft.rubricScores && Object.keys(localDraft.rubricScores).length > 0) {
-                setRubricScores(localDraft.rubricScores);
-                draftLoaded = true;
-              }
-            } catch (e) {}
-          }
-
-          // Prioritas 3: Default bersih jika tidak ada draft
-          if (!draftLoaded) {
+          if (Object.keys(localScoresMap).length > 0) {
+            if (localRating) setGlobalRating(localRating);
+            if (localNotes !== null) setFeedback(localNotes);
+            setRubricScores(localScoresMap);
+          } else {
             setGlobalRating("SATISFACTORY");
             setFeedback("");
             const defaultScores = {};
@@ -969,12 +965,21 @@ export default function ExaminerStagePage() {
         rotation_round: activeRotationIndex + 1,
         grs_rating: globalRating || "SATISFACTORY",
         examiner_notes: feedback || null,
-        rubric_scores: rubricItems.map((r) => ({
-          rubric_item_id: r.id,
-          score_given: Number(rubricScores[r.id] ?? 3),
-          weight: Number(r.weight) || 1.0,
-          max_points: Number(r.max_points) || 3,
-        })),
+        rubric_scores: rubricItems.map((r, idx) => {
+          const itemKey = r.id || `rubric-${idx}`;
+          const val =
+            rubricScores[r.id] ??
+            (r.id ? rubricScores[String(r.id)] : undefined) ??
+            rubricScores[`rubric-${idx}`] ??
+            rubricScores[idx] ??
+            3;
+          return {
+            rubric_item_id: itemKey,
+            score_given: Number(val),
+            weight: Number(r.weight) || 1.0,
+            max_points: Number(r.max_points) || 3,
+          };
+        }),
         is_locked: true,
       });
 
@@ -1319,14 +1324,43 @@ export default function ExaminerStagePage() {
           </div>
 
           {showScenario && (
-            <div className="rounded-2xl bg-blue-50/70 border border-blue-200 p-4 space-y-2 text-xs animate-in fade-in duration-200">
+            <div className="rounded-2xl bg-blue-50/70 border border-blue-200 p-4 space-y-3 text-xs animate-in fade-in duration-200">
               <div>
-                <h4 className="font-bold text-blue-900 uppercase">Skenario Utama Penguji:</h4>
-                <p className="text-slate-700 mt-0.5 font-medium leading-relaxed">{stationData?.scenario || "Seorang laki-laki 55 tahun keluhan nyeri dada hebat."}</p>
+                <h4 className="font-bold text-blue-900 uppercase mb-1">Skenario Utama Penguji:</h4>
+                <p className="text-slate-800 font-semibold leading-relaxed text-justify bg-white/80 p-3 rounded-xl border border-blue-100">{stationData?.scenario || "Skenario kasus medis terstandar untuk stase ini."}</p>
               </div>
               <div>
-                <h4 className="font-bold text-blue-900 uppercase">Instruksi Penguji:</h4>
-                <p className="text-slate-700 mt-0.5 font-medium">{stationData?.examiner_instructions || "Amati kesantunan, teknik auskultasi 4 katup, dan diagnosis STEMI."}</p>
+                <h4 className="font-bold text-blue-900 uppercase mb-1">Instruksi Dokter Penguji:</h4>
+                {(() => {
+                  const instSource = stationData?.examiner_instructions;
+                  let rawLines = [];
+                  if (Array.isArray(instSource)) {
+                    rawLines = instSource.flatMap((t) => (typeof t === "string" ? t.split("\n") : [String(t)]));
+                  } else if (typeof instSource === "string") {
+                    rawLines = instSource.split("\n");
+                  }
+                  const lines = rawLines.map((l) => l.trim()).filter(Boolean);
+                  if (lines.length === 0) {
+                    return <p className="text-slate-700 font-medium italic">Amati kesantunan, komunikasi, dan keterampilan klinis peserta.</p>;
+                  }
+                  return (
+                    <div className="space-y-1.5 pt-0.5">
+                      {lines.map((l, idx) => {
+                        const cleanL = l.replace(/^(\d+[\.\)]|[a-zA-Z][\.\)]|[-•*])\s*/, "").trim();
+                        return (
+                          <div key={idx} className="flex items-start gap-2 bg-white/80 p-2.5 rounded-xl border border-blue-100">
+                            <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-md bg-blue-600 text-white text-[10px] font-black mt-0.5 shadow-2xs">
+                              {idx + 1}
+                            </span>
+                            <span className="text-xs font-semibold text-slate-900 leading-relaxed text-justify flex-1">
+                              {cleanL || l}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           )}

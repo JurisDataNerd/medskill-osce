@@ -92,13 +92,6 @@ export default function SessionReportDetailView({
             <FileSpreadsheet size={16} />
             Ekspor Excel
           </button>
-          <button
-            onClick={onExportPdf}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-blue-700 active:scale-95 transition cursor-pointer"
-          >
-            <Download size={16} />
-            Cetak Berita Acara (PDF)
-          </button>
         </div>
       </div>
 
@@ -257,16 +250,7 @@ export default function SessionReportDetailView({
                         </td>
                         <td className="py-3 px-3 text-right">
                           <div className="flex items-center justify-end gap-1.5">
-                            {row.final_score !== null && (
-                              <button
-                                onClick={() => onSelectParticipantForReport(row)}
-                                className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-800 hover:bg-blue-100 hover:border-blue-300 transition cursor-pointer shadow-2xs"
-                                title="Pratinjau & Unduh Transkrip Nilai Resmi (PDF)"
-                              >
-                                <Download size={13} className="text-blue-600" />
-                                Cetak PDF
-                              </button>
-                            )}
+
                             <button
                               onClick={() => navigate(`/admin/live/participant/${row.id}`)}
                               className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition"

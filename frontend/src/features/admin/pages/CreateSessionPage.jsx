@@ -709,13 +709,39 @@ export default function CreateSessionPage() {
     setStationsConfig((prev) =>
       prev.map((item, i) => {
         if (i === selectedStationIndex) {
+          const rawDiag = bankCase.answer_key_diagnosis || bankCase.wdx || bankCase.gold_standard_keys?.wdx || "";
+          const rawRecipe = bankCase.answer_key_prescription || bankCase.recipe || bankCase.gold_standard_keys?.recipe || "";
+
+          const diagLines = rawDiag ? rawDiag.split("\n") : [];
+          let wdx = bankCase.answer_key_wdx || bankCase.wdx || bankCase.gold_standard_keys?.wdx || "";
+          let ddx1 = bankCase.answer_key_ddx1 || (Array.isArray(bankCase.gold_standard_keys?.ddx) ? bankCase.gold_standard_keys.ddx[0] : "") || "";
+          let ddx2 = bankCase.answer_key_ddx2 || (Array.isArray(bankCase.gold_standard_keys?.ddx) ? bankCase.gold_standard_keys.ddx[1] : "") || "";
+
+          if (!wdx && rawDiag) {
+            diagLines.forEach((l) => {
+              if (/wdx|kerja/i.test(l)) wdx = l.replace(/^(wdx|diagnosis kerja utama|kerja)[\s:]*/i, "").trim();
+              else if (/ddx\s*1|banding\s*1/i.test(l)) ddx1 = l.replace(/^(ddx\s*1|diagnosis banding 1|banding 1)[\s:]*/i, "").trim();
+              else if (/ddx\s*2|banding\s*2/i.test(l)) ddx2 = l.replace(/^(ddx\s*2|diagnosis banding 2|banding 2)[\s:]*/i, "").trim();
+            });
+            if (!wdx && diagLines[0]) wdx = diagLines[0];
+            if (!ddx1 && diagLines[1]) ddx1 = diagLines[1];
+            if (!ddx2 && diagLines[2]) ddx2 = diagLines[2];
+          }
+
           return {
             ...item,
             is_break: false,
             case_title: bankCase.case_title || bankCase.title,
+            system_organ: bankCase.system_organ || item.system_organ || null,
+            skdi_level: bankCase.skdi_level || item.skdi_level || null,
             scenario: bankCase.scenario || "",
             participant_instructions: bankCase.participant_instructions || "",
             examiner_instructions: bankCase.examiner_instructions || "",
+            answer_key_diagnosis: rawDiag,
+            answer_key_prescription: rawRecipe,
+            answer_key_wdx: wdx,
+            answer_key_ddx1: ddx1,
+            answer_key_ddx2: ddx2,
             checklist_items: bankCase.checklist_items
               ? bankCase.checklist_items.map((chk, idx) => ({
                   ...chk,

@@ -45,7 +45,7 @@ export default function ParticipantPauseOverlay({
               ? `Transisi Perpindahan Pos Stase (Ronde ${currentRound} → ${currentRound + 1})`
               : globalTimerState?.phase === "paused_break"
               ? `Jeda Istirahat Ronde ${currentRound}`
-              : `Sesi Ujian Stase: ${assignedStation?.station_name || `Stase Ronde ${currentRound}`}`}
+              : `Sesi Ujian Stase: ${assignedStation?.title || assignedStation?.station_name || `Stase Ronde ${currentRound}`}`}
           </p>
           <p className="text-xs text-slate-300 font-medium">
             {globalTimerState?.phase === "paused_initial_transition"
@@ -54,7 +54,7 @@ export default function ParticipantPauseOverlay({
               ? `Peserta sedang dalam proses perpindahan menuju stase ronde ${currentRound + 1}.`
               : globalTimerState?.phase === "paused_break"
               ? "Peserta berada di ruang jeda istirahat."
-              : `Peserta berada di pos ${assignedStation?.station_name || `Stase ${currentRound}`} (Pengerjaan kasus dihentikan sementara).`}
+              : `Peserta berada di pos ${assignedStation?.title || assignedStation?.station_name || `Stase ${currentRound}`} (Pengerjaan kasus dihentikan sementara).`}
           </p>
         </div>
 

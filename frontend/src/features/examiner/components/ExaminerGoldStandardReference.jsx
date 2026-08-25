@@ -89,10 +89,10 @@ export default function ExaminerGoldStandardReference({
 
       {showScenario && (
         <div className="rounded-2xl bg-slate-900/90 border border-emerald-400/40 p-4 space-y-2 text-xs text-slate-200 animate-in fade-in duration-200">
-          <p>
+          <p className="text-justify leading-relaxed">
             <strong>Skenario Klinis:</strong> {stationData?.scenario || "Skenario kasus medis terstandar untuk stase ini."}
           </p>
-          <p>
+          <p className="text-justify leading-relaxed">
             <strong>Instruksi Penguji:</strong> {stationData?.examiner_instructions || "Amati kesantunan, komunikasi, dan keterampilan klinis peserta."}
           </p>
         </div>

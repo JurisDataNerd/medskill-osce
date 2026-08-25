@@ -302,7 +302,7 @@ export default function ExaminerWaitingRoom({
             <Stethoscope size={15} className="text-blue-600" />
             Skenario Kasus Medis Utama
           </h4>
-          <p className="text-slate-700 bg-slate-50 border border-slate-200 p-4 rounded-2xl leading-relaxed text-xs font-medium">
+          <p className="text-slate-700 bg-slate-50 border border-slate-200 p-4 rounded-2xl leading-relaxed text-xs font-medium text-justify">
             {stationData.scenario || "Pasien datang dengan keluhan spesifik sesuai skenario stase medis ini. Peserta diwajibkan melakukan anamnesis terarah, pemeriksaan fisik kardiovaskular / spesifik, dan penetapan diagnosis kerja."}
           </p>
         </div>

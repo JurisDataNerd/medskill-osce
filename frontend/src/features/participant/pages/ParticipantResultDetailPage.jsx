@@ -93,10 +93,17 @@ export default function ParticipantResultDetailPage() {
           const { data: rawEvals, error: evalErr } = await supabase
             .schema("osce")
             .from("examiner_evaluations")
-            .select("*")
+            .select("*, rubric_scores (*)")
             .eq("session_id", targetSessionId);
           if (!evalErr && rawEvals) {
             evals = rawEvals;
+          } else {
+            const { data: fallbackEvals } = await supabase
+              .schema("osce")
+              .from("examiner_evaluations")
+              .select("*")
+              .eq("session_id", targetSessionId);
+            if (fallbackEvals) evals = fallbackEvals;
           }
         } catch (e) {
           console.warn("Could not fetch examiner_evaluations:", e);
@@ -113,12 +120,14 @@ export default function ParticipantResultDetailPage() {
               .in("evaluation_id", evalIds);
             if (scData) allScores = scData;
           } catch (e) {
-            console.warn("Could not fetch rubric_scores:", e);
+            console.warn("Could not fetch rubric_scores directly:", e);
           }
         }
 
         evals.forEach((ev) => {
-          ev.rubric_scores = allScores.filter((s) => s.evaluation_id === ev.id);
+          if (!ev.rubric_scores || !Array.isArray(ev.rubric_scores) || ev.rubric_scores.length === 0) {
+            ev.rubric_scores = allScores.filter((s) => s.evaluation_id === ev.id);
+          }
         });
 
         // 5. Fetch Participant Answers
@@ -146,14 +155,20 @@ export default function ParticipantResultDetailPage() {
             (user?.id && ans.participant_id === user.id)
         );
 
-        const baseStations = stationsDb && stationsDb.length > 0 
+        const baseStations = (stationsDb && stationsDb.length > 0 
           ? stationsDb 
-          : Array.from({ length: sess?.total_stations || 6 }, (_, i) => ({ station_number: i + 1, id: null }));
+          : Array.from({ length: sess?.total_stations || 6 }, (_, i) => ({ station_number: i + 1, id: null }))
+        ).filter(
+          (st) =>
+            !st.is_break &&
+            !st.title?.toLowerCase().includes("istirahat") &&
+            !st.case_title?.toLowerCase().includes("istirahat")
+        );
 
         const stationsEvaluations = baseStations.map((st, idx) => {
           const stNum = st.station_number || idx + 1;
           const ev = userEvals.find(
-            (e) => (st.id && e.station_id === st.id) || Number(e.station_number) === Number(stNum)
+            (e) => (st.id && e.station_id === st.id) || Number(e.rotation_round) === Number(stNum)
           );
           const ex = (dbExaminers || []).find(
             (e) => Number(e.station_number || e.assigned_station_number) === Number(stNum)
@@ -162,49 +177,79 @@ export default function ParticipantResultDetailPage() {
             (a) => (st.id && a.station_id === st.id) || Number(a.rotation_round) === Number(stNum)
           );
 
-          const isBreak = Boolean(
-            st?.is_break ||
-            st?.title?.toLowerCase().includes("istirahat") ||
-            st?.case_title?.toLowerCase().includes("istirahat")
-          );
+          // Retrieve local storage backup scores if DB rubric_scores is missing
+          let localScores = [];
+          try {
+            const key1 = `osce_eval_${targetSessionId}_${st.id}_${targetUserId}_${stNum}`;
+            const key2 = `osce_eval_${targetSessionId}_${st.id}_${targetPartId}_${stNum}`;
+            const localDataStr = localStorage.getItem(key1) || localStorage.getItem(key2);
+            if (localDataStr) {
+              const parsed = JSON.parse(localDataStr);
+              if (parsed.rubric_scores && Array.isArray(parsed.rubric_scores)) {
+                localScores = parsed.rubric_scores;
+              } else if (parsed.rubricScores && typeof parsed.rubricScores === "object") {
+                localScores = Object.entries(parsed.rubricScores).map(([itemId, val]) => ({
+                  rubric_item_id: itemId,
+                  score_given: val,
+                }));
+              }
+            }
+          } catch (e) {}
 
-          const rubricMap = {};
-          (st.rubric_items || []).forEach((r) => {
-            rubricMap[r.id] = r;
+          const activeRubricScores = (ev?.rubric_scores && ev.rubric_scores.length > 0)
+            ? ev.rubric_scores
+            : localScores;
+
+          const sortedStRubrics = [...(st.rubric_items || [])].sort((a, b) => {
+            const numA = Number(a.question_number ?? a.sort_order ?? 0);
+            const numB = Number(b.question_number ?? b.sort_order ?? 0);
+            return numA - numB;
           });
 
-          const rubricScoresList = (ev?.rubric_scores && ev.rubric_scores.length > 0)
-            ? ev.rubric_scores.map((sc, scIdx) => {
-                const rItem = rubricMap[sc.rubric_item_id];
-                return {
-                  question: rItem?.question || rItem?.title || `Item Evaluasi Rubrik #${scIdx + 1}`,
-                  score_given: Number(sc.score_given || 0),
-                  max_points: Number(rItem?.max_points || 3),
-                  weight: Number(rItem?.weight || 1.0),
-                };
-              })
-            : (st.rubric_items || []).map((rItem, rIdx) => ({
-                question: rItem.question || rItem.title || `Item Evaluasi Rubrik #${rIdx + 1}`,
-                score_given: 0,
-                max_points: Number(rItem.max_points || 3),
-                weight: Number(rItem.weight || 1.0),
-              }));
+          const rubricScoresList = sortedStRubrics.map((rItem, rIdx) => {
+            let scoreGiven = 0;
+
+            // 1. Raw score_given as input by examiner (0, 1, 2, 3...)
+            if (activeRubricScores && activeRubricScores.length > 0) {
+              const matchedSc = activeRubricScores.find(
+                (sc) =>
+                  (sc.rubric_item_id && String(sc.rubric_item_id) === String(rItem.id)) ||
+                  (sc.id && String(sc.id) === String(rItem.id))
+              ) || activeRubricScores[rIdx];
+
+              if (matchedSc && matchedSc.score_given !== undefined && matchedSc.score_given !== null) {
+                scoreGiven = Number(matchedSc.score_given);
+              }
+            } else if (ev && ev.final_score_percentage !== undefined && Number(ev.final_score_percentage) > 0) {
+              // 2. Safety fallback ONLY if activeRubricScores is empty in DB for an old evaluation:
+              const finalPct = Number(ev.final_score_percentage) || 0;
+              const maxPts = Number(rItem.max_points || 3);
+              scoreGiven = Math.round((finalPct / 100) * maxPts);
+            }
+
+            return {
+              question: rItem.question || rItem.title || rItem.name || `Item Evaluasi Rubrik #${rIdx + 1}`,
+              score_given: scoreGiven,
+              max_points: Number(rItem.max_points || 3),
+              weight: Number(rItem.weight || 1.0),
+            };
+          });
 
           const ddxList = [ans?.differential_dx_1, ans?.differential_dx_2, ans?.differential_dx_3].filter(Boolean);
 
           const doctorName = ex?.full_name 
             ? (ex.specialty ? `${ex.full_name}, ${ex.specialty}` : ex.full_name) 
-            : (st.assigned_examiner || "Dokter Penguji Terverifikasi");
+            : (st.assigned_examiner || st.examiner_name || "Dokter Penguji Terverifikasi");
 
           return {
             station_number: stNum,
-            is_break: isBreak,
-            title: isBreak ? `Stase ${stNum}: Istirahat (Rest Station)` : (st.title || `Stase ${stNum}`),
-            case_title: st.case_title || (isBreak ? "Stase Istirahat Sirkuit" : "Evaluasi Skenario Klinis"),
-            examiner_name: isBreak ? "Stase Istirahat (Tanpa Penguji)" : doctorName,
+            is_break: false,
+            title: st.title || `Stase ${stNum}`,
+            case_title: st.case_title || "Evaluasi Skenario Klinis",
+            examiner_name: doctorName,
             score: ev ? Number(ev.final_score_percentage || 0) : 0,
-            global_rating: ev?.grs_rating || (isBreak ? "ISTIRAHAT" : "Belum Dinilai"),
-            notes: ev?.examiner_notes || (isBreak ? "Tidak ada pengujian pada stase istirahat." : "Belum ada catatan feedback dari penguji."),
+            global_rating: ev?.grs_rating || "Belum Dinilai",
+            notes: ev?.examiner_notes || (ev ? "Dokter penguji tidak memberikan catatan khusus." : "Dokter Penguji belum memasukkan penilaian & feedback untuk stase ini. Nilai akan diperbarui otomatis setelah Penguji menyelesaikan penilaian."),
             has_eval: Boolean(ev),
             rubric_breakdown: rubricScoresList,
             student_answers: {
@@ -257,6 +302,40 @@ export default function ParticipantResultDetailPage() {
     }
 
     loadResultDetail();
+
+    const targetSessionId = resultId?.includes("_") ? resultId.split("_")[0] : resultId;
+    if (!targetSessionId) return;
+
+    const channel = supabase
+      .channel(`osce-result-sync:${targetSessionId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "osce",
+          table: "examiner_evaluations",
+          filter: `session_id=eq.${targetSessionId}`,
+        },
+        () => {
+          loadResultDetail();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "osce",
+          table: "rubric_scores",
+        },
+        () => {
+          loadResultDetail();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [resultId]);
 
   if (loading) {
@@ -289,14 +368,6 @@ export default function ParticipantResultDetailPage() {
           >
             <ArrowLeft size={16} />
             Kembali ke Dashboard Utama
-          </button>
-
-          <button
-            onClick={() => setIsReportModalOpen(true)}
-            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-blue-600/30 hover:bg-blue-700 active:scale-95 transition cursor-pointer"
-          >
-            <Download size={15} />
-            Cetak Transkrip PDF
           </button>
         </div>
       </header>
@@ -383,6 +454,11 @@ export default function ParticipantResultDetailPage() {
                         {stg.is_break ? (
                           <span className="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-3 py-1 rounded-lg">
                             Stase Istirahat
+                          </span>
+                        ) : !stg.has_eval ? (
+                          <span className="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-3 py-1 rounded-lg flex items-center gap-1.5 shadow-2xs">
+                            <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                            Belum Dinilai Penguji
                           </span>
                         ) : (
                           <>
