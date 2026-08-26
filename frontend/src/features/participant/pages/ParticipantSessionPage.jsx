@@ -738,14 +738,11 @@ export default function ParticipantSessionPage() {
     const phase = globalTimerState.phase;
     const isPaused = phase === "paused" || sessionDetail?.status === "paused";
 
-    if (isPaused) {
-      playOsceAudio("admin_broadcast");
-      return;
-    }
+    if (isPaused) return;
 
     if (viewMode === "live_round") {
-      if (roundSecondsLeft === 120) playOsceAudio("warning_2min");
-      if (roundSecondsLeft === 60) playOsceAudio("warning_1min");
+      if (roundSecondsLeft === 180) playOsceAudio("warning_3min");
+      if (roundSecondsLeft === 10) playOsceAudio("countdown");
       if (roundSecondsLeft === 0) playOsceAudio("stop_transit");
     } else if (viewMode === "transit") {
       if (transitSecondsLeft === 0) playOsceAudio("start_exam");

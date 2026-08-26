@@ -155,12 +155,13 @@ export function subscribeToSession(sessionId, {
     const bType = data.bell_type || "warning";
     if (bType === "waiting" || bType === "waiting_room") playOsceAudio("waiting_room", true);
     else if (bType === "start" || bType === "start_exam") playOsceAudio("start_exam", true);
-    else if (bType === "warning" || bType === "warning_2min") playOsceAudio("warning_2min", true);
-    else if (bType === "warning_1min") playOsceAudio("warning_1min", true);
+    else if (bType === "warning" || bType === "warning_3min" || bType === "warning_2min" || bType === "warning_1min") playOsceAudio("warning_3min", true);
     else if (bType === "rotation" || bType === "stop_transit") playOsceAudio("stop_transit", true);
     else if (bType === "rest" || bType === "rest_break") playOsceAudio("rest_break", true);
     else if (bType === "finish" || bType === "finish_exam") playOsceAudio("finish_exam", true);
-    else if (bType === "broadcast" || bType === "admin_broadcast") playOsceAudio("admin_broadcast", true);
+    else if (bType === "resume") playOsceAudio("resume", true);
+    else if (bType === "countdown") playOsceAudio("countdown", true);
+    else if (bType === "broadcast" || bType === "admin_broadcast" || bType === "pause") playOsceAudio("admin_broadcast", true);
     else playOsceAudio(bType, true);
   });
 
@@ -457,6 +458,7 @@ export async function pauseTimer(sessionId, remainingSeconds, extra = {}) {
   ]);
 
   if (timerRes.error) throw timerRes.error;
+  sendBellBroadcast(sessionId, "pause").catch(() => {});
   return timerRes.data;
 }
 
@@ -501,6 +503,7 @@ export async function resumeTimer(sessionId, remainingSeconds, extra = {}) {
   ]);
 
   if (timerRes.error) throw timerRes.error;
+  sendBellBroadcast(sessionId, "resume").catch(() => {});
   return timerRes.data;
 }
 
@@ -589,9 +592,10 @@ export async function sendBellBroadcast(sessionId, bellType = "warning") {
     waiting_room: "BEL AUDIO: Selamat Datang di Ujian OSCE MedSkill",
     start: "BEL AUDIO: Sesi Ujian / Reading Time Dimulai!",
     start_exam: "BEL AUDIO: Sesi Ujian / Reading Time Dimulai!",
-    warning: "BEL AUDIO: Peringatan! Sisa Waktu Stase 2 Menit!",
-    warning_2min: "BEL AUDIO: Peringatan! Sisa Waktu Stase 2 Menit!",
-    warning_1min: "BEL AUDIO: Peringatan! Sisa Waktu Stase 1 Menit!",
+    warning: "BEL AUDIO: Peringatan! Sisa Waktu Stase 3 Menit!",
+    warning_3min: "BEL AUDIO: Peringatan! Sisa Waktu Stase 3 Menit!",
+    warning_2min: "BEL AUDIO: Peringatan! Sisa Waktu Stase 3 Menit!",
+    warning_1min: "BEL AUDIO: Peringatan! Sisa Waktu Stase 3 Menit!",
     rotation: "BEL AUDIO: Waktu Stase Selesai! Segera Berpindah Pos Rotasi.",
     stop_transit: "BEL AUDIO: Waktu Stase Selesai! Segera Berpindah Pos Rotasi.",
     rest: "BEL AUDIO: Waktu Istirahat Sirkuit.",
@@ -600,6 +604,9 @@ export async function sendBellBroadcast(sessionId, bellType = "warning") {
     finish_exam: "BEL AUDIO: Ujian Selesai! Seluruh Rangkaian Ujian Diakhiri.",
     broadcast: "BEL AUDIO: Pengumuman Control Room.",
     admin_broadcast: "BEL AUDIO: Pengumuman Control Room.",
+    pause: "BEL AUDIO: Sesi Ujian Dihentikan Sementara",
+    resume: "BEL AUDIO: Sesi Ujian Dilanjutkan kembali",
+    countdown: "BEL AUDIO: Countdown 10 Detik Terakhir Stase",
   };
   const message = bellNames[bellType] || `BEL AUDIO: ${bellType}`;
 

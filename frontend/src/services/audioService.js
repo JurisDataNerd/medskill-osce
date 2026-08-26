@@ -19,14 +19,19 @@ const AUDIO_ASSETS = {
     text: "Waktu membaca selesai. Silakan memasuki ruang stase dan mulailah ujian.",
     type: "start",
   },
+  warning_3min: {
+    mp3: "/sounds/audio_04_warning_1min.mp3",
+    text: "Perhatian, waktu ujian stase tersisa tiga menit lagi.",
+    type: "warning",
+  },
   warning_2min: {
-    mp3: "/sounds/audio_04_warning_time.mp3",
-    text: "Perhatian, waktu ujian stase tersisa dua menit lagi.",
+    mp3: "/sounds/audio_04_warning_1min.mp3",
+    text: "Perhatian, waktu ujian stase tersisa tiga menit lagi.",
     type: "warning",
   },
   warning_1min: {
     mp3: "/sounds/audio_04_warning_1min.mp3",
-    text: "Perhatian, waktu ujian stase tersisa satu menit lagi.",
+    text: "Perhatian, waktu ujian stase tersisa tiga menit lagi.",
     type: "warning",
   },
   stop_transit: {
@@ -45,9 +50,19 @@ const AUDIO_ASSETS = {
     type: "fanfare",
   },
   admin_broadcast: {
-    mp3: "/sounds/audio_08_admin_broadcast.mp3",
-    text: "Perhatian dari Panitia Control Room. Sesi ujian dihentikan sementara.",
+    mp3: "/sounds/broadcast.mp3",
+    text: "",
     type: "alert",
+  },
+  resume: {
+    mp3: "/sounds/audio_10_resume.mp3",
+    text: "",
+    type: "single",
+  },
+  countdown: {
+    mp3: "/sounds/audio_09_countdown.mp3",
+    text: "",
+    type: "single",
   },
 };
 

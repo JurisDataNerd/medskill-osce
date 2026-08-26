@@ -42,7 +42,7 @@ export default function SettingsPage() {
     // Rotation Settings
     default_station_minutes: 12,
     default_break_minutes: 3,
-    warning_bell_offset_minutes: 2,
+    warning_bell_offset_minutes: 3,
     audio_bell_enabled: true,
 
     // Server Config

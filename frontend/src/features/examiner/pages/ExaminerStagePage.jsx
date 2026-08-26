@@ -741,8 +741,8 @@ export default function ExaminerStagePage() {
           playOsceAudio("waiting_room");
         }
         if (prevRem !== null && prevRem !== rem) {
-          if (prevRem > 120 && rem <= 120 && rem >= 115) playOsceAudio("warning_2min");
-          if (prevRem > 60 && rem <= 60 && rem >= 55) playOsceAudio("warning_1min");
+          if (prevRem > 180 && rem <= 180 && rem >= 175) playOsceAudio("warning_3min");
+          if (prevRem > 10 && rem <= 10 && rem >= 5) playOsceAudio("countdown");
           if (prevRem > 0 && rem === 0) playOsceAudio("stop_transit");
         }
       }

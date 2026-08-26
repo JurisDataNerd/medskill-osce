@@ -61,9 +61,10 @@ function playOsceBell(type = "warning", sessionId = null) {
   const audioMap = {
     start: "start_exam",
     start_exam: "start_exam",
-    warning: "warning_2min",
-    warning_2min: "warning_2min",
-    warning_1min: "warning_1min",
+    warning: "warning_3min",
+    warning_3min: "warning_3min",
+    warning_2min: "warning_3min",
+    warning_1min: "warning_3min",
     rotation: "stop_transit",
     stop_transit: "stop_transit",
     rest: "rest_break",
@@ -72,6 +73,9 @@ function playOsceBell(type = "warning", sessionId = null) {
     finish_exam: "finish_exam",
     broadcast: "admin_broadcast",
     admin_broadcast: "admin_broadcast",
+    pause: "admin_broadcast",
+    resume: "resume",
+    countdown: "countdown",
   };
 
   const audioKey = audioMap[type] || type;
@@ -495,9 +499,14 @@ export default function LiveMonitorPage() {
           isPhaseTransitioningRef.current = false;
         }
 
-        if (rem === 120 && timerState.phase === "action") {
-          playOsceBell("warning", activeSession?.id);
-          addLog("warning", "BEL AUTOMATIC: Sisa Waktu Stase 2 Menit!");
+        if (rem === 180 && timerState.phase === "action") {
+          playOsceBell("warning_3min", activeSession?.id);
+          addLog("warning", "BEL AUTOMATIC: Sisa Waktu Stase 3 Menit!");
+        }
+
+        if (rem === 10 && timerState.phase === "action") {
+          playOsceBell("countdown", activeSession?.id);
+          addLog("info", "BEL AUTOMATIC: Countdown 10 Detik Terakhir!");
         }
 
         if (rem <= 0 && isTimerRunning) {
