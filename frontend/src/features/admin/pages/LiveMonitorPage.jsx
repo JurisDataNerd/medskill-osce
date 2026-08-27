@@ -56,83 +56,6 @@ import LiveStationMonitorGrid from "@/features/admin/components/live/LiveStation
 import LiveBroadcastModal from "@/features/admin/components/live/LiveBroadcastModal";
 import { playOsceAudio } from "@/services/audioService";
 
-// Web Audio API Bell Synthesizer + MP3/Voiceover Audio Engine
-function playOsceBell(type = "warning", sessionId = null) {
-  const audioMap = {
-    start: "start_exam",
-    start_exam: "start_exam",
-    warning: "warning_3min",
-    warning_3min: "warning_3min",
-    warning_2min: "warning_3min",
-    warning_1min: "warning_3min",
-    rotation: "stop_transit",
-    stop_transit: "stop_transit",
-    rest: "rest_break",
-    rest_break: "rest_break",
-    finish: "finish_exam",
-    finish_exam: "finish_exam",
-    broadcast: "admin_broadcast",
-    admin_broadcast: "admin_broadcast",
-    pause: "admin_broadcast",
-    resume: "resume",
-    countdown: "countdown",
-  };
-
-  const audioKey = audioMap[type] || type;
-  playOsceAudio(audioKey, true);
-
-  if (sessionId) {
-    sendBellBroadcast(sessionId, type).catch(() => {});
-  }
-
-  try {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
-
-    if (type === "start") {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(880, ctx.currentTime);
-      gain.gain.setValueAtTime(0.3, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 1.2);
-    } else if (type === "warning") {
-      [0, 0.25].forEach((delay) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = "triangle";
-        osc.frequency.setValueAtTime(660, ctx.currentTime + delay);
-        gain.gain.setValueAtTime(0.3, ctx.currentTime + delay);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.18);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(ctx.currentTime + delay);
-        osc.stop(ctx.currentTime + delay + 0.18);
-      });
-    } else if (type === "rotation") {
-      [0, 0.3, 0.6].forEach((delay, idx) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = "sawtooth";
-        osc.frequency.setValueAtTime(idx === 2 ? 987.77 : 523.25, ctx.currentTime + delay);
-        gain.gain.setValueAtTime(0.25, ctx.currentTime + delay);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.22);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(ctx.currentTime + delay);
-        osc.stop(ctx.currentTime + delay + 0.22);
-      });
-    }
-  } catch (err) {
-    console.error("Audio Bell playback error:", err);
-  }
-}
-
 export default function LiveMonitorPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -171,6 +94,9 @@ export default function LiveMonitorPage() {
   const [broadcastMessage, setBroadcastMessage] = useState("");
   const [broadcastTarget, setBroadcastTarget] = useState("all");
   const [activeNotification, setActiveNotification] = useState(null);
+
+  // Milestone Ref to avoid duplicate audio/toast triggers
+  const firedMilestonesRef = useRef(new Set());
 
   // Auto-dismiss Admin Broadcast Toast (5 Seconds)
   useEffect(() => {
@@ -499,14 +425,29 @@ export default function LiveMonitorPage() {
           isPhaseTransitioningRef.current = false;
         }
 
-        if (rem === 180 && timerState.phase === "action") {
-          playOsceBell("warning_3min", activeSession?.id);
-          addLog("warning", "BEL AUTOMATIC: Sisa Waktu Stase 3 Menit!");
+        if (rem <= 180 && rem >= 170 && timerState.phase === "action") {
+          const mKey = `warning3_${currentRound}`;
+          if (!firedMilestonesRef.current.has(mKey)) {
+            firedMilestonesRef.current.add(mKey);
+            sendBellBroadcast(activeSession.id, "warning_3min").catch(() => {});
+            playOsceAudio("warning_3min", true);
+            toast.warning("Peringatan Waktu: Sisa Waktu Stase 3 Menit!", {
+              id: "osce-bell-status",
+              description: "Waktu pengerjaan stase tersisa 3 menit lagi.",
+              duration: 5000,
+            });
+            addLog("warning", "BEL AUTOMATIC: Sisa Waktu Stase 3 Menit!");
+          }
         }
 
-        if (rem === 10 && timerState.phase === "action") {
-          playOsceBell("countdown", activeSession?.id);
-          addLog("info", "BEL AUTOMATIC: Countdown 10 Detik Terakhir!");
+        if (rem <= 10 && rem >= 5 && timerState.phase === "action") {
+          const mKey = `countdown_${currentRound}`;
+          if (!firedMilestonesRef.current.has(mKey)) {
+            firedMilestonesRef.current.add(mKey);
+            sendBellBroadcast(activeSession.id, "countdown").catch(() => {});
+            playOsceAudio("countdown", true);
+            addLog("info", "BEL AUTOMATIC: Countdown 10 Detik Terakhir!");
+          }
         }
 
         if (rem <= 0 && isTimerRunning) {
@@ -519,10 +460,16 @@ export default function LiveMonitorPage() {
           const totalRounds = activeSession.total_rounds || activeSession.stations?.length || 6;
 
           if (currentPhase === "initial_transition") {
-            playOsceBell("start", activeSession?.id);
+            sendBellBroadcast(activeSession.id, "start_exam").catch(() => {});
+            playOsceAudio("start_exam", true);
+            toast.success("Waktu Membaca Selesai! Ujian Stase Dimulai.", {
+              id: "osce-bell-status",
+              description: "Silakan memasuki ruang stase dan mulai ujian.",
+              duration: 6000,
+            });
             addLog(
               "info",
-              `BEL MULAI: Masuk ke Stase Ujian Ronde ${currentRound} dari ${totalRounds} (${stationDuration} Mnt).`
+              `BEL MULAI: Waktu membaca selesai. Masuk ke Stase Ujian Ronde ${currentRound} dari ${totalRounds} (${stationDuration} Mnt).`
             );
             updateTimerPhase(activeSession.id, "action", stationDuration, { roundNumber: currentRound })
               .then((res) => {
@@ -535,10 +482,16 @@ export default function LiveMonitorPage() {
               });
           } else if (currentPhase === "action" || currentPhase === "running" || currentPhase === "reading") {
             if (transitionDuration > 0) {
-              playOsceBell("rotation", activeSession?.id);
+              sendBellBroadcast(activeSession.id, "read_scenario").catch(() => {});
+              playOsceAudio("read_scenario", true);
+              toast.info("Waktu Stase Selesai: Masuk ke Waktu Membaca & Berpindah Pos", {
+                id: "osce-bell-status",
+                description: "Peserta keluar stase dan membaca instruksi skenario pos berikutnya.",
+                duration: 6000,
+              });
               addLog(
                 "warning",
-                `BEL ROTASI: Stase Ronde ${currentRound} Selesai. Masuk ke Waktu Transisi Perpindahan Pos (${transitionDuration} Mnt).`
+                `BEL ROTASI: Stase Ronde ${currentRound} Selesai. Masuk ke Waktu Membaca Skenario & Transisi (${transitionDuration} Mnt).`
               );
               updateTimerPhase(activeSession.id, "transition", transitionDuration, { roundNumber: currentRound })
                 .then((res) => {
@@ -561,14 +514,21 @@ export default function LiveMonitorPage() {
           function advanceRound() {
             if (currentRound >= totalRounds) {
               setRemainingSeconds(0);
-              playOsceBell("rotation", activeSession?.id);
+              sendBellBroadcast(activeSession.id, "finish_exam").catch(() => {});
+              playOsceAudio("finish_exam", true);
+              toast.success("Seluruh Rangkaian Ujian OSCE Selesai!", {
+                id: "osce-bell-status",
+                description: "Terima kasih atas partisipasi Anda.",
+                duration: 8000,
+              });
               addLog(
                 "success",
-                `BEL SESI SELESAI: Entire circuit completed (Ronde ${currentRound}/${totalRounds})! Timer frozen at 00:00. Menunggu Pengajuan Nilai Penguji & Penutupan Admin.`
+                `BEL SESI SELESAI: Entire circuit completed (Ronde ${currentRound}/${totalRounds})! Timer frozen at 00:00.`
               );
               setSessionCompletedWaiting(activeSession.id, totalRounds)
                 .then((res) => {
                   if (res) setTimerState(res);
+                  isPhaseTransitioningRef.current = false;
                 })
                 .catch((err) => {
                   console.error(err);
@@ -578,10 +538,16 @@ export default function LiveMonitorPage() {
             }
             const nextRound = currentRound + 1;
             setViewRound(nextRound);
-            playOsceBell("start", activeSession?.id);
+            sendBellBroadcast(activeSession.id, "start_exam").catch(() => {});
+            playOsceAudio("start_exam", true);
+            toast.success(`Waktu Membaca Selesai! Ujian Stase Ronde ${nextRound} Dimulai.`, {
+              id: "osce-bell-status",
+              description: "Silakan memasuki ruang stase dan mulai ujian.",
+              duration: 6000,
+            });
             addLog(
               "info",
-              `BEL MULAI: Rolling Otomatis! Masuk ke Stase Ujian Ronde ${nextRound} dari ${totalRounds} (${stationDuration} Mnt).`
+              `BEL MULAI: Masuk ke Stase Ujian Ronde ${nextRound} dari ${totalRounds} (${stationDuration} Mnt).`
             );
             updateTimerPhase(activeSession.id, "action", stationDuration, { roundNumber: nextRound })
               .then((res) => {
@@ -941,9 +907,6 @@ export default function LiveMonitorPage() {
             remainingSeconds={remainingSeconds}
             currentRound={currentRound}
             totalRoundsCount={totalRoundsCount}
-            isBellMenuOpen={isBellMenuOpen}
-            setIsBellMenuOpen={setIsBellMenuOpen}
-            handleTriggerBell={handleTriggerBell}
             handleTogglePause={handleTogglePause}
             handleSkipPhase={handleSkipPhase}
             handleFinishOSCE={handleFinishOSCE}

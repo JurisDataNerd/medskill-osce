@@ -626,9 +626,63 @@ export default function ExaminerStagePage() {
         );
         setRemainingSeconds(rem);
       },
+      onBell: (bellData) => {
+        const bType = bellData?.bell_type;
+        if (bType === "waiting_room" || bType === "start_osce" || bType === "waiting") {
+          toast.info("Sesi OSCE Dimulai: Persiapan Pos Stase", {
+            id: "osce-bell-status",
+            description: "Peserta sedang bersiap di depan pintu stase masing-masing.",
+            duration: 6000,
+          });
+        } else if (bType === "read_scenario" || bType === "transit" || bType === "reading") {
+          toast.info("Waktu Membaca Skenario Kasus", {
+            id: "osce-bell-status",
+            description: "Peserta sedang membaca instruksi skenario di luar pintu stase.",
+            duration: 6000,
+          });
+        } else if (bType === "pause") {
+          toast.warning("Sesi Ujian Dihentikan Sementara oleh Admin Control Room.", {
+            id: "osce-bell-status",
+            description: "Timer stase dibekukan sementara.",
+            duration: 6000,
+          });
+        } else if (bType === "resume") {
+          toast.success("Sesi Ujian Dilanjutkan Kembali.", {
+            id: "osce-bell-status",
+            description: "Silakan melanjutkan proses penilaian peserta.",
+            duration: 5000,
+          });
+        } else if (bType === "warning" || bType === "warning_3min") {
+          toast.warning("Peringatan Waktu: Sisa Waktu Stase 3 Menit!", {
+            id: "osce-bell-status",
+            description: "Waktu pengerjaan stase peserta tersisa 3 menit lagi.",
+            duration: 5000,
+          });
+        } else if (bType === "rotation" || bType === "stop_transit") {
+          toast.info("Waktu Stase Telah Selesai!", {
+            id: "osce-bell-status",
+            description: "Peserta berpindah pos stase. Mohon selesaikan pengisian rubrik penilaian.",
+            duration: 6000,
+          });
+        } else if (bType === "start" || bType === "start_exam") {
+          toast.success("Waktu Membaca Selesai! Peserta Memasuki Stase.", {
+            id: "osce-bell-status",
+            description: "Ujian stase ronde aktif telah dimulai.",
+            duration: 6000,
+          });
+        } else if (bType === "finish" || bType === "finish_exam") {
+          toast.dismiss();
+          toast.success("Seluruh Rangkaian Ujian OSCE Selesai!", {
+            id: "osce-bell-status",
+            description: "Terima kasih atas partisipasi Anda.",
+            duration: 8000,
+          });
+        }
+      },
       onSessionUpdate: (sess) => {
         if (sess) {
           if (sess.status === "completed" || sess.status === "finished") {
+            toast.dismiss();
             toast.info("Sesi OSCE telah diakhiri oleh Admin Control Room. Dialihkan ke Dashboard.", { duration: 5000 });
             navigate("/examiner");
             return;
@@ -642,6 +696,7 @@ export default function ExaminerStagePage() {
         if (target === "all" || target === "examiners" || target === "penguji") {
           playBroadcastNotificationSound();
           toast.info(msg.message || "Pemberitahuan Admin Control Room", {
+            id: `broadcast-${msg.id || Date.now()}`,
             description: `Pengumuman Admin • ${new Date().toLocaleTimeString("id-ID")}`,
             duration: 8000,
           });
@@ -733,10 +788,6 @@ export default function ExaminerStagePage() {
   useEffect(() => {
     if (!activeSession || !timerState) return;
 
-    const isLive =
-      (activeSession.status === "ongoing" || activeSession.status === "running") &&
-      timerState.phase === "running";
-
     const interval = setInterval(() => {
       const isPaused = timerState.phase === "paused" || activeSession.status === "paused";
       const rem = calcRemaining(
@@ -745,19 +796,6 @@ export default function ExaminerStagePage() {
         isPaused
       );
       setRemainingSeconds(rem);
-
-      const prevRem = prevRemainingRef.current;
-      if (isLive && !isPaused) {
-        if (timerState?.phase === "initial_transition" && prevRem === null) {
-          playOsceAudio("waiting_room");
-        }
-        if (prevRem !== null && prevRem !== rem) {
-          if (prevRem > 180 && rem <= 180 && rem >= 175) playOsceAudio("warning_3min");
-          if (prevRem > 10 && rem <= 10 && rem >= 5) playOsceAudio("countdown");
-          if (prevRem > 0 && rem === 0) playOsceAudio("stop_transit");
-        }
-      }
-      prevRemainingRef.current = rem;
     }, 1000);
 
     return () => clearInterval(interval);

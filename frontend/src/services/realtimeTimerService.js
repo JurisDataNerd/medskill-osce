@@ -21,43 +21,10 @@ export function calcRemaining(targetEndTime, pausedMs = null, isPaused = false) 
 export const calcRemainingSeconds = calcRemaining;
 
 /**
- * Play a broadcast notification sound chime.
- * Checks for /sounds/broadcast.mp3 in public folder, with Web Audio API synthesizer as zero-latency fallback.
+ * Play a broadcast notification sound chime (Purely plays local /sounds/broadcast.mp3).
  */
 export function playBroadcastNotificationSound() {
   playOsceAudio("admin_broadcast");
-}
-
-function synthesizeChimeSound() {
-  try {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
-
-    const tones = [
-      { freq: 880, start: 0, duration: 0.2 },
-      { freq: 1174.66, start: 0.15, duration: 0.4 },
-    ];
-
-    tones.forEach(({ freq, start, duration }) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
-
-      gain.gain.setValueAtTime(0.35, ctx.currentTime + start);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + duration);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start(ctx.currentTime + start);
-      osc.stop(ctx.currentTime + start + duration);
-    });
-  } catch (err) {
-    console.warn("Audio Context playback warning:", err);
-  }
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -92,6 +59,7 @@ function cleanupChannel(channelName) {
  * @param {function} [callbacks.onTimerUpdate]     — receives new timer_state row
  * @param {function} [callbacks.onBroadcast]       — receives new broadcast row
  * @param {function} [callbacks.onRotation]        — receives new rotation row
+ * @param {function} [callbacks.onBell]            — receives realtime bell audio events
  * @returns {function} cleanup — call to unsubscribe
  */
 export function subscribeToSession(sessionId, {
@@ -99,6 +67,7 @@ export function subscribeToSession(sessionId, {
   onTimerUpdate,
   onBroadcast,
   onRotation,
+  onBell,
 } = {}, channelSuffix = "") {
   if (!sessionId) return () => {};
 
@@ -153,16 +122,20 @@ export function subscribeToSession(sessionId, {
   channel.on("broadcast", { event: "play_bell" }, (payload) => {
     const data = payload.payload || payload;
     const bType = data.bell_type || "warning";
-    if (bType === "waiting" || bType === "waiting_room") playOsceAudio("waiting_room", true);
+    if (bType === "waiting" || bType === "waiting_room" || bType === "start_osce") playOsceAudio("start_osce", true);
+    else if (bType === "read_scenario" || bType === "transit" || bType === "reading") playOsceAudio("read_scenario", true);
     else if (bType === "start" || bType === "start_exam") playOsceAudio("start_exam", true);
-    else if (bType === "warning" || bType === "warning_3min" || bType === "warning_2min" || bType === "warning_1min") playOsceAudio("warning_3min", true);
+    else if (bType === "warning" || bType === "warning_3min") playOsceAudio("warning_3min", true);
     else if (bType === "rotation" || bType === "stop_transit") playOsceAudio("stop_transit", true);
     else if (bType === "rest" || bType === "rest_break") playOsceAudio("rest_break", true);
     else if (bType === "finish" || bType === "finish_exam") playOsceAudio("finish_exam", true);
+    else if (bType === "pause") playOsceAudio("pause", true);
     else if (bType === "resume") playOsceAudio("resume", true);
     else if (bType === "countdown") playOsceAudio("countdown", true);
-    else if (bType === "broadcast" || bType === "admin_broadcast" || bType === "pause") playOsceAudio("admin_broadcast", true);
+    else if (bType === "broadcast" || bType === "admin_broadcast") playOsceAudio("admin_broadcast", true);
     else playOsceAudio(bType, true);
+
+    if (onBell) onBell(data);
   });
 
   // Direct WebSocket Session Finished Event (Instant 0ms latency)
@@ -318,8 +291,8 @@ export async function openWaitingRoom(sessionId) {
   ]);
 
   if (sessionRes.error) throw sessionRes.error;
-  sendBellBroadcast(sessionId, "waiting_room").catch(() => {});
-  playOsceAudio("waiting_room", true);
+  sendBellBroadcast(sessionId, "start_osce").catch(() => {});
+  playOsceAudio("start_osce", true);
   return sessionRes.data;
 }
 
@@ -372,9 +345,10 @@ export async function startOsceSession(sessionId, _durationMinutes = 12, transit
   if (sessionRes.error) throw sessionRes.error;
   if (timerRes.error) throw timerRes.error;
 
-  // Broadcast waiting_room audio signal to ALL connected screens (Admin, Participant, Examiner)
-  sendBellBroadcast(sessionId, "waiting_room").catch(() => {});
-  playOsceAudio("waiting_room", true);
+  // Broadcast appropriate audio signal (read_scenario for initial transition, start_exam if no transition)
+  const initialBell = hasTransition ? "read_scenario" : "start_exam";
+  sendBellBroadcast(sessionId, initialBell).catch(() => {});
+  playOsceAudio(initialBell, true);
 
   return { session: sessionRes.data, timer: timerRes.data };
 }
@@ -459,6 +433,7 @@ export async function pauseTimer(sessionId, remainingSeconds, extra = {}) {
 
   if (timerRes.error) throw timerRes.error;
   sendBellBroadcast(sessionId, "pause").catch(() => {});
+  playOsceAudio("pause", true);
   return timerRes.data;
 }
 
@@ -504,6 +479,7 @@ export async function resumeTimer(sessionId, remainingSeconds, extra = {}) {
 
   if (timerRes.error) throw timerRes.error;
   sendBellBroadcast(sessionId, "resume").catch(() => {});
+  playOsceAudio("resume", true);
   return timerRes.data;
 }
 
@@ -588,14 +564,16 @@ export async function sendBellBroadcast(sessionId, bellType = "warning") {
   if (!sessionId) return { success: false };
 
   const bellNames = {
+    start_osce: "BEL AUDIO: Selamat Datang di Ujian OSCE MedSkill",
     waiting: "BEL AUDIO: Selamat Datang di Ujian OSCE MedSkill",
     waiting_room: "BEL AUDIO: Selamat Datang di Ujian OSCE MedSkill",
+    read_scenario: "BEL AUDIO: Waktu Membaca Skenario Kasus di Luar Stase",
+    reading: "BEL AUDIO: Waktu Membaca Skenario Kasus di Luar Stase",
+    transit: "BEL AUDIO: Waktu Membaca Skenario Kasus di Luar Stase",
     start: "BEL AUDIO: Sesi Ujian / Reading Time Dimulai!",
     start_exam: "BEL AUDIO: Sesi Ujian / Reading Time Dimulai!",
     warning: "BEL AUDIO: Peringatan! Sisa Waktu Stase 3 Menit!",
     warning_3min: "BEL AUDIO: Peringatan! Sisa Waktu Stase 3 Menit!",
-    warning_2min: "BEL AUDIO: Peringatan! Sisa Waktu Stase 3 Menit!",
-    warning_1min: "BEL AUDIO: Peringatan! Sisa Waktu Stase 3 Menit!",
     rotation: "BEL AUDIO: Waktu Stase Selesai! Segera Berpindah Pos Rotasi.",
     stop_transit: "BEL AUDIO: Waktu Stase Selesai! Segera Berpindah Pos Rotasi.",
     rest: "BEL AUDIO: Waktu Istirahat Sirkuit.",

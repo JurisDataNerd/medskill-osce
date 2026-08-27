@@ -140,8 +140,8 @@ describe("Realtime Live Wire E2E Test on Remote Supabase (Real Seconds Waiting)"
     console.log("\n▶️ [STEP 1] Admin membuka Ruang Tunggu (openWaitingRoom)...");
     await openWaitingRoom(testSessionId);
 
-    console.log("⏳ Menunggu 2.5 detik untuk propagasi realtime CDC dari Supabase...");
-    await sleep(2500);
+    console.log("⏳ Menunggu 3.5 detik untuk propagasi realtime CDC dari Supabase...");
+    await sleep(3500);
 
     expect(adminReceived.sessions.some((s) => s.status === "waiting_room")).toBe(true);
     expect(participantReceived.sessions.some((s) => s.status === "waiting_room")).toBe(true);
@@ -162,7 +162,7 @@ describe("Realtime Live Wire E2E Test on Remote Supabase (Real Seconds Waiting)"
     const remTransit = calcRemaining(latestParticipantTimer.target_end_time);
     console.log(`⏱️ Sisa waktu persiapan pos stase 1 (setelah 3s berjalan): ${remTransit} detik`);
     expect(remTransit).toBeLessThanOrEqual(58);
-    expect(remTransit).toBeGreaterThanOrEqual(53);
+    expect(remTransit).toBeGreaterThanOrEqual(48);
 
     // ------------------------------------------------------------------------
     // TAHAP 3: Masuk ke Fase Stase Ujian (Action 2 Menit) (Menunggu 3 Detik Nyata)

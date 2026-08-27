@@ -15,15 +15,14 @@ if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
 const VOICE = "id-ID-ArdiNeural";
 
 const audioList = [
-  { filename: "audio_01_waiting_room.mp3", text: "Selamat datang di Ujian OSCE MedSkill. Peserta ujian dipersilakan menempatkan diri di depan pintu stase masing-masing." },
+  { filename: "audio_01_start_osce.mp3", text: "Selamat datang di Ujian OSCE MedSkill. Peserta ujian dipersilakan menempatkan diri di depan pintu stase masing-masing." },
   { filename: "audio_02_read_scenario.mp3", text: "Silakan membuka dan membaca instruksi skenario kasus di luar pintu stase." },
   { filename: "audio_03_start_exam.mp3", text: "Waktu membaca selesai. Silakan memasuki ruang stase dan mulailah ujian." },
-  { filename: "audio_04_warning_time.mp3", text: "Perhatian, waktu ujian stase tersisa dua menit lagi." },
-  { filename: "audio_04_warning_1min.mp3", text: "Perhatian, waktu ujian stase tersisa satu menit lagi." },
+  { filename: "audio_04_warning_3min.mp3", text: "Perhatian, waktu ujian stase tersisa tiga menit lagi." },
   { filename: "audio_05_stop_transit.mp3", text: "Waktu ujian stase telah selesai. Peserta dipersilakan keluar dari ruangan dan berpindah ke pos stase berikutnya." },
   { filename: "audio_06_rest_break.mp3", text: "Anda memasuki stase istirahat. Silakan memulihkan stamina di area sirkuit." },
   { filename: "audio_07_finish_exam.mp3", text: "Seluruh rangkaian ujian OSCE telah selesai. Terima kasih atas partisipasi Anda, dipersilakan meninggalkan lokasi ujian." },
-  { filename: "audio_08_admin_broadcast.mp3", text: "Perhatian dari Panitia Control Room. Sesi ujian dihentikan sementara." },
+  { filename: "audio_08_pause.mp3", text: "Perhatian dari Panitia Control Room. Sesi ujian dihentikan sementara." },
   { filename: "broadcast.mp3", text: "Perhatian dari Panitia Control Room." },
 ];
 

@@ -18,6 +18,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { playOsceAudio } from "@/services/audioService";
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("institution"); // institution, nbl, rotation, server, notification
@@ -79,52 +80,10 @@ export default function SettingsPage() {
   }
 
   function playTestAudioBell(type) {
-    try {
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      if (!AudioContext) return;
-      const ctx = new AudioContext();
-
-      if (type === "start") {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = "sine";
-        osc.frequency.setValueAtTime(880, ctx.currentTime);
-        gain.gain.setValueAtTime(0.3, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 1.2);
-      } else if (type === "warning") {
-        [0, 0.25].forEach((delay) => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = "triangle";
-          osc.frequency.setValueAtTime(660, ctx.currentTime + delay);
-          gain.gain.setValueAtTime(0.3, ctx.currentTime + delay);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.18);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start(ctx.currentTime + delay);
-          osc.stop(ctx.currentTime + delay + 0.18);
-        });
-      } else if (type === "siren") {
-        [0, 0.3, 0.6].forEach((delay, idx) => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = "sawtooth";
-          osc.frequency.setValueAtTime(idx === 2 ? 987.77 : 523.25, ctx.currentTime + delay);
-          gain.gain.setValueAtTime(0.25, ctx.currentTime + delay);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.22);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start(ctx.currentTime + delay);
-          osc.stop(ctx.currentTime + delay + 0.22);
-        });
-      }
-    } catch (err) {
-      console.error(err);
-    }
+    if (type === "start") playOsceAudio("start_exam", true);
+    else if (type === "warning") playOsceAudio("warning_3min", true);
+    else if (type === "siren") playOsceAudio("stop_transit", true);
+    else playOsceAudio(type, true);
   }
 
   return (

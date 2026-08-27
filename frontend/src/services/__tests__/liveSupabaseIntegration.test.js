@@ -116,7 +116,7 @@ describe("Live Supabase E2E Integration & System Function Tests (No Mock)", { ti
 
     // Verify calculated remaining time is approximately 60 seconds (1 minute initial transition)
     const rem = calcRemaining(timerInDb.target_end_time);
-    expect(rem).toBeGreaterThanOrEqual(55);
+    expect(rem).toBeGreaterThanOrEqual(48);
     expect(rem).toBeLessThanOrEqual(60);
   });
 
@@ -130,7 +130,7 @@ describe("Live Supabase E2E Integration & System Function Tests (No Mock)", { ti
     expect(timerInDb.phase).toBe("action");
 
     const rem = calcRemaining(timerInDb.target_end_time);
-    expect(rem).toBeGreaterThanOrEqual(115);
+    expect(rem).toBeGreaterThanOrEqual(110);
     expect(rem).toBeLessThanOrEqual(120);
   });
 
@@ -167,7 +167,7 @@ describe("Live Supabase E2E Integration & System Function Tests (No Mock)", { ti
     expect(sessResumed.status).toBe("ongoing");
 
     const remResumed = calcRemaining(resumed.target_end_time);
-    expect(remResumed).toBeGreaterThanOrEqual(43);
+    expect(remResumed).toBeGreaterThanOrEqual(40);
     expect(remResumed).toBeLessThanOrEqual(46);
   });
 

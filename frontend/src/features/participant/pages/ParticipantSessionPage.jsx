@@ -681,10 +681,64 @@ export default function ParticipantSessionPage() {
           setViewMode("completed");
         }
       },
+      onBell: (bellData) => {
+        const bType = bellData?.bell_type;
+        if (bType === "waiting_room" || bType === "start_osce" || bType === "waiting") {
+          toast.info("Ujian OSCE Dimulai: Selamat Datang di OSCE MedSkill", {
+            id: "osce-bell-status",
+            description: "Peserta dipersilakan menempatkan diri di depan pintu stase masing-masing.",
+            duration: 6000,
+          });
+        } else if (bType === "read_scenario" || bType === "transit" || bType === "reading") {
+          toast.info("Waktu Membaca Skenario Kasus", {
+            id: "osce-bell-status",
+            description: "Silakan membuka dan membaca instruksi skenario kasus di luar pintu stase.",
+            duration: 6000,
+          });
+        } else if (bType === "pause") {
+          toast.warning("Sesi Ujian Dihentikan Sementara oleh Admin Control Room.", {
+            id: "osce-bell-status",
+            description: "Timer dibekukan sementara. Mohon tetap di posisi Anda.",
+            duration: 6000,
+          });
+        } else if (bType === "resume") {
+          toast.success("Sesi Ujian Dilanjutkan Kembali.", {
+            id: "osce-bell-status",
+            description: "Silakan melanjutkan pengerjaan stase.",
+            duration: 5000,
+          });
+        } else if (bType === "warning" || bType === "warning_3min") {
+          toast.warning("Peringatan Waktu: Sisa Waktu Stase 3 Menit!", {
+            id: "osce-bell-status",
+            description: "Waktu pengerjaan stase tersisa 3 menit lagi.",
+            duration: 5000,
+          });
+        } else if (bType === "rotation" || bType === "stop_transit") {
+          toast.info("Waktu Stase Telah Selesai!", {
+            id: "osce-bell-status",
+            description: "Peserta dipersilakan keluar dan berpindah ke pos stase berikutnya.",
+            duration: 6000,
+          });
+        } else if (bType === "start" || bType === "start_exam") {
+          toast.success("Waktu Membaca Selesai! Ujian Stase Dimulai.", {
+            id: "osce-bell-status",
+            description: "Silakan memasuki ruang stase dan mulai ujian.",
+            duration: 6000,
+          });
+        } else if (bType === "finish" || bType === "finish_exam") {
+          toast.dismiss();
+          toast.success("Seluruh Rangkaian Ujian OSCE Selesai!", {
+            id: "osce-bell-status",
+            description: "Terima kasih atas partisipasi Anda.",
+            duration: 8000,
+          });
+        }
+      },
       onSessionUpdate: (sess) => {
         if (sess && sess.id === sessionId) {
           setSessionDetail((prev) => (prev ? { ...prev, status: sess.status } : sess));
           if (sess.status === "completed" || sess.status === "finished") {
+            toast.dismiss();
             toast.info("Sesi OSCE telah diakhiri oleh Admin Control Room. Dialihkan ke Dashboard.", { duration: 5000 });
             navigate("/participant");
           } else if (sess.status === "waiting_room") {
@@ -698,6 +752,7 @@ export default function ParticipantSessionPage() {
         if (target === "all" || target === "participants" || target === "peserta") {
           playBroadcastNotificationSound();
           toast.info(msg.message || "Pemberitahuan Admin Control Room", {
+            id: `broadcast-${msg.id || Date.now()}`,
             description: `Pengumuman Admin • ${new Date().toLocaleTimeString("id-ID")}`,
             duration: 8000,
           });
@@ -730,27 +785,6 @@ export default function ParticipantSessionPage() {
 
     return () => clearInterval(interval);
   }, [sessionId, globalTimerState, viewMode, sessionDetail?.status]);
-
-  // Audio Playback Triggers based on timer ticks & phase changes
-  useEffect(() => {
-    if (!sessionId || !globalTimerState) return;
-
-    const phase = globalTimerState.phase;
-    const isPaused = phase === "paused" || sessionDetail?.status === "paused";
-
-    if (isPaused) return;
-
-    if (viewMode === "live_round") {
-      if (roundSecondsLeft === 180) playOsceAudio("warning_3min");
-      if (roundSecondsLeft === 10) playOsceAudio("countdown");
-      if (roundSecondsLeft === 0) playOsceAudio("stop_transit");
-    } else if (viewMode === "transit") {
-      if (transitSecondsLeft === 10) playOsceAudio("countdown");
-      if (transitSecondsLeft === 0) playOsceAudio("start_exam");
-    } else if (viewMode === "completed") {
-      playOsceAudio("finish_exam");
-    }
-  }, [sessionId, globalTimerState, viewMode, roundSecondsLeft, transitSecondsLeft, breakSecondsLeft, waitingCountdown, sessionDetail?.status]);
 
   // Auto Next when timer reaches 0 for live round, transit, or round break
   useEffect(() => {
@@ -875,9 +909,6 @@ export default function ParticipantSessionPage() {
       if (serverRound > totalRoundsInSession) {
         setViewMode("completed");
       } else {
-        if (globalTimerState.phase === "initial_transition") {
-          playOsceAudio("waiting_room");
-        }
         setViewMode("transit");
       }
     } else if (globalTimerState.phase === "break") {

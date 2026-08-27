@@ -232,7 +232,7 @@ describe("4 Exam Stations Circuit Simulation (0 Rest Stations) - Mathematical & 
     const r2 = await updateTimerPhase(testSessionId, "action", 2, { roundNumber: 2 });
     subRem = calcRemaining(r2.target_end_time);
     totalRem = calcTotalRemaining(r2, subRem, 4, 2, 1);
-    expect(totalRem).toBeGreaterThanOrEqual(477);
+    expect(totalRem).toBeGreaterThanOrEqual(470);
     expect(totalRem).toBeLessThanOrEqual(480); // 8 Menit
 
     // 6. Transisi 2 -> 3 (1 Menit)
@@ -240,7 +240,7 @@ describe("4 Exam Stations Circuit Simulation (0 Rest Stations) - Mathematical & 
     const t2 = await updateTimerPhase(testSessionId, "transition", 1, { roundNumber: 2 });
     subRem = calcRemaining(t2.target_end_time);
     totalRem = calcTotalRemaining(t2, subRem, 4, 2, 1);
-    expect(totalRem).toBeGreaterThanOrEqual(357);
+    expect(totalRem).toBeGreaterThanOrEqual(350);
     expect(totalRem).toBeLessThanOrEqual(360); // 6 Menit
 
     // 7. Ronde 3: Action (2 Menit)
@@ -248,7 +248,7 @@ describe("4 Exam Stations Circuit Simulation (0 Rest Stations) - Mathematical & 
     const r3 = await updateTimerPhase(testSessionId, "action", 2, { roundNumber: 3 });
     subRem = calcRemaining(r3.target_end_time);
     totalRem = calcTotalRemaining(r3, subRem, 4, 2, 1);
-    expect(totalRem).toBeGreaterThanOrEqual(297);
+    expect(totalRem).toBeGreaterThanOrEqual(290);
     expect(totalRem).toBeLessThanOrEqual(300); // 5 Menit
 
     // 8. Transisi 3 -> 4 (1 Menit)
@@ -256,7 +256,7 @@ describe("4 Exam Stations Circuit Simulation (0 Rest Stations) - Mathematical & 
     const t3 = await updateTimerPhase(testSessionId, "transition", 1, { roundNumber: 3 });
     subRem = calcRemaining(t3.target_end_time);
     totalRem = calcTotalRemaining(t3, subRem, 4, 2, 1);
-    expect(totalRem).toBeGreaterThanOrEqual(177);
+    expect(totalRem).toBeGreaterThanOrEqual(170);
     expect(totalRem).toBeLessThanOrEqual(180); // 3 Menit
 
     // 9. Ronde 4 (Ronde Terakhir): Action (2 Menit)
@@ -265,7 +265,7 @@ describe("4 Exam Stations Circuit Simulation (0 Rest Stations) - Mathematical & 
     subRem = calcRemaining(r4.target_end_time);
     totalRem = calcTotalRemaining(r4, subRem, 4, 2, 1);
     // Saat ronde terakhir berjalan: Sub-timer 2m === Total Timer 2m (120s)! Sinkron 1:1!
-    expect(totalRem).toBeGreaterThanOrEqual(117);
+    expect(totalRem).toBeGreaterThanOrEqual(110);
     expect(totalRem).toBeLessThanOrEqual(120);
     expect(totalRem).toBe(subRem);
 

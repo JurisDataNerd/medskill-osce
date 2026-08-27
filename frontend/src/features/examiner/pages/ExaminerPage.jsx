@@ -121,35 +121,63 @@ export default function ExaminerPage() {
 
         setAssignedSessions(assignedList);
 
-        // 4. Fetch recent evaluations by this examiner
+        // 4. Fetch recent evaluations by this examiner safely without invalid PostgREST embedded joins
         if (user?.id) {
-          const { data: evals } = await supabase
-            .schema("osce")
-            .from("examiner_evaluations")
-            .select(`
-              *,
-              session:sessions (title),
-              station:stations (station_number, case_title, title)
-            `)
-            .eq("examiner_id", user.id)
-            .order("created_at", { ascending: false })
-            .limit(5);
+          try {
+            const { data: evals, error: evalErr } = await supabase
+              .schema("osce")
+              .from("examiner_evaluations")
+              .select("id, session_id, station_id, participant_id, grs_rating, submitted_at, final_score_percentage")
+              .eq("examiner_id", user.id);
 
-          if (evals && evals.length > 0) {
-            setRecentEvaluations(evals);
-            const total = evals.length;
-            const sat = evals.filter((e) => e.grs_rating === "SATISFACTORY").length;
-            const bord = evals.filter((e) => e.grs_rating === "BORDERLINE").length;
-            const unsat = evals.filter((e) => e.grs_rating === "UNSATISFACTORY").length;
-            const passRate = total > 0 ? Math.round((sat / total) * 100) : 0;
+            if (!evalErr && evals && evals.length > 0) {
+              setRecentEvaluations(evals);
+              const total = evals.length;
+              const sat = evals.filter((e) => e.grs_rating === "SATISFACTORY").length;
+              const bord = evals.filter((e) => e.grs_rating === "BORDERLINE").length;
+              const unsat = evals.filter((e) => e.grs_rating === "UNSATISFACTORY").length;
+              const passRate = total > 0 ? Math.round((sat / total) * 100) : 0;
 
-            setEvalStats({
-              total,
-              satisfactory: sat,
-              borderline: bord,
-              unsatisfactory: unsat,
-              passRate,
-            });
+              setEvalStats({
+                total,
+                satisfactory: sat,
+                borderline: bord,
+                unsatisfactory: unsat,
+                passRate,
+              });
+            } else {
+              // Fallback to locally saved evaluation records if DB query is empty
+              let localTotal = 0;
+              let localSat = 0;
+              let localBord = 0;
+              let localUnsat = 0;
+              for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if (k && k.startsWith("osce_eval_")) {
+                  try {
+                    const parsed = JSON.parse(localStorage.getItem(k));
+                    const grs = parsed?.globalRating || parsed?.evaluation?.grs_rating;
+                    if (grs) {
+                      localTotal++;
+                      if (grs === "SATISFACTORY") localSat++;
+                      else if (grs === "BORDERLINE") localBord++;
+                      else if (grs === "UNSATISFACTORY") localUnsat++;
+                    }
+                  } catch (e) {}
+                }
+              }
+              if (localTotal > 0) {
+                setEvalStats({
+                  total: localTotal,
+                  satisfactory: localSat,
+                  borderline: localBord,
+                  unsatisfactory: localUnsat,
+                  passRate: Math.round((localSat / localTotal) * 100),
+                });
+              }
+            }
+          } catch (e) {
+            console.warn("Could not query examiner_evaluations for dashboard stats:", e);
           }
         }
       } catch (err) {

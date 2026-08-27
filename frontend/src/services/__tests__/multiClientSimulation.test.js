@@ -35,6 +35,8 @@ describe("Multi-Client Concurrent Synchronization & Edge Cases", () => {
     sessionUpdateCallbacks = [];
     presenceSyncCallbacks = [];
 
+    const broadcastEventHandlers = new Map();
+
     vi.spyOn(supabase, "getChannels").mockImplementation(() => Array.from(channelsMap.values()));
     vi.spyOn(supabase, "removeChannel").mockImplementation((ch) => {
       const key = ch.topic || ch.name;
@@ -52,7 +54,9 @@ describe("Multi-Client Concurrent Synchronization & Edge Cases", () => {
             if (filter.table === "session_timer_state") timerUpdateCallbacks.push(handler);
             if (filter.table === "sessions") sessionUpdateCallbacks.push(handler);
           } else if (type === "broadcast") {
-            broadcastCallbacks.push(handler);
+            const ev = filter.event || "*";
+            if (!broadcastEventHandlers.has(ev)) broadcastEventHandlers.set(ev, []);
+            broadcastEventHandlers.get(ev).push(handler);
           } else if (type === "presence") {
             presenceSyncCallbacks.push(handler);
           }
@@ -63,7 +67,8 @@ describe("Multi-Client Concurrent Synchronization & Edge Cases", () => {
           return ch;
         }),
         send: vi.fn(async ({ type, event, payload }) => {
-          broadcastCallbacks.forEach((cb) => cb({ payload }));
+          const handlers = broadcastEventHandlers.get(event) || [];
+          handlers.forEach((cb) => cb({ payload }));
           return {};
         }),
         presenceState: vi.fn(() => ({})),

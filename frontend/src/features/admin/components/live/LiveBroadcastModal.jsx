@@ -1,4 +1,4 @@
-import { Megaphone, X, BellRing, RotateCw, Coffee, Send } from "lucide-react";
+import { Megaphone, X, Send } from "lucide-react";
 
 export default function LiveBroadcastModal({
   isOpen,
@@ -32,47 +32,27 @@ export default function LiveBroadcastModal({
           </button>
         </div>
 
-        {/* Quick Preset 1-Click Buttons */}
+        {/* Template Pengumuman Khusus Panitia */}
         <div className="space-y-2">
           <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider block">
-            Tombol Pengumuman Cepat (Preset 1-Klik):
+            Template Pengumuman Khusus (1-Klik):
           </span>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setBroadcastMessage("Sisa waktu stase 2 menit lagi! Persiapkan penyelesaian dan instruksi penunjang.");
-                setBroadcastTarget("all");
-              }}
-              className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100 transition flex items-center gap-1.5 cursor-pointer"
-            >
-              <BellRing size={13} className="text-amber-600" />
-              Peringatan Sisa 2 Menit
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setBroadcastMessage("Waktu stase ronde selesai! Dokter penguji dan peserta dipersilakan melakukan rotasi pos.");
-                setBroadcastTarget("all");
-              }}
-              className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-900 hover:bg-blue-100 transition flex items-center gap-1.5 cursor-pointer"
-            >
-              <RotateCw size={13} className="text-blue-600" />
-              Instruksi Rotasi Pos
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setBroadcastMessage("Pengumuman: Waktu istirahat ronde sedang berlangsung (Break Sesi).");
-                setBroadcastTarget("all");
-              }}
-              className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-900 hover:bg-emerald-100 transition flex items-center gap-1.5 cursor-pointer"
-            >
-              <Coffee size={13} className="text-emerald-600" />
-              Pengumuman Break Sesi
-            </button>
+          <div className="flex flex-wrap gap-1.5">
+            {[
+              "Harap seluruh peserta dan dokter penguji tetap berada di pos masing-masing.",
+              "Dokter Penguji dimohon memeriksa kelengkapan rubrik penilaian ujian.",
+              "Pemberitahuan: Kendala teknis sedang ditangani oleh Tim IT Control Room.",
+              "Perhatian: Harap tenang dan menunggu instruksi selanjutnya dari panitia.",
+            ].map((tpl, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setBroadcastMessage(tpl)}
+                className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition text-left cursor-pointer"
+              >
+                {tpl}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -94,39 +74,15 @@ export default function LiveBroadcastModal({
 
           <div>
             <label className="block text-xs font-extrabold text-slate-700 mb-1">
-              Isi Pesan Broadcast Peringatan
+              Isi Pesan Broadcast Khusus
             </label>
             <textarea
               rows={3}
               value={broadcastMessage}
               onChange={(e) => setBroadcastMessage(e.target.value)}
-              placeholder="Ketikkan pengumuman darurat atau peringatan waktu..."
+              placeholder="Ketikkan pesan khusus atau pengumuman darurat dari Control Room..."
               className="w-full rounded-xl border border-slate-300 p-2.5 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none font-medium"
             />
-          </div>
-
-          {/* Template Cepat */}
-          <div>
-            <span className="block text-[11px] font-extrabold text-slate-400 mb-1.5">
-              Template Pesan Tambahan:
-            </span>
-            <div className="flex flex-wrap gap-1.5">
-              {[
-                "Waktu pengerjaan stase tersisa 2 menit!",
-                "Waktu habis! Harap seluruh peserta segera berpindah pos.",
-                "Sesi istirahat dimulai. Silakan beristirahat sejenak.",
-                "Dokter Penguji dimohon merekapitulasi nilai rubrik.",
-              ].map((tpl, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setBroadcastMessage(tpl)}
-                  className="rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-200 transition text-left cursor-pointer"
-                >
-                  {tpl}
-                </button>
-              ))}
-            </div>
           </div>
         </div>
 

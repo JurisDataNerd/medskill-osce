@@ -5,8 +5,6 @@ import {
   Square,
   ChevronRight,
   Megaphone,
-  BellRing,
-  AlertTriangle,
   Coffee,
   Activity,
   CheckCircle2,
@@ -20,9 +18,6 @@ export default function LiveTimerControlHeader({
   remainingSeconds,
   currentRound,
   totalRoundsCount,
-  isBellMenuOpen,
-  setIsBellMenuOpen,
-  handleTriggerBell,
   handleTogglePause,
   handleSkipPhase,
   handleFinishOSCE,
@@ -66,44 +61,6 @@ export default function LiveTimerControlHeader({
 
           {/* Quick Action Control Buttons */}
           <div className="flex flex-wrap items-center gap-2">
-            {/* Audio Bell Dropdown Trigger */}
-            <div className="relative">
-              <button
-                onClick={() => setIsBellMenuOpen((prev) => !prev)}
-                className="inline-flex items-center gap-2 rounded-xl bg-slate-800 px-4 py-2.5 text-xs font-bold text-slate-200 shadow-md hover:bg-slate-700 hover:text-white active:scale-95 transition border border-slate-700 cursor-pointer"
-                title="Bunyikan Bel Audio OSCE"
-              >
-                <BellRing size={16} className="text-amber-400 animate-pulse" />
-                Bunyikan Bel
-              </button>
-
-              {isBellMenuOpen && (
-                <div className="absolute right-0 top-full mt-2 w-52 rounded-2xl bg-slate-900 border border-slate-700 p-2 shadow-2xl z-30 space-y-1 animate-in fade-in zoom-in-95">
-                  <button
-                    onClick={() => handleTriggerBell("start")}
-                    className="w-full text-left px-3 py-2 text-xs font-bold text-slate-200 hover:bg-slate-800 rounded-xl transition flex items-center justify-between"
-                  >
-                    <span>Bel 1x (Mulai Stase)</span>
-                    <CheckCircle2 size={12} className="text-emerald-400" />
-                  </button>
-                  <button
-                    onClick={() => handleTriggerBell("warning")}
-                    className="w-full text-left px-3 py-2 text-xs font-bold text-slate-200 hover:bg-slate-800 rounded-xl transition flex items-center justify-between"
-                  >
-                    <span>Bel 2x (Sisa 3 Mnt)</span>
-                    <AlertTriangle size={12} className="text-amber-400" />
-                  </button>
-                  <button
-                    onClick={() => handleTriggerBell("rotation")}
-                    className="w-full text-left px-3 py-2 text-xs font-bold text-slate-200 hover:bg-slate-800 rounded-xl transition flex items-center justify-between"
-                  >
-                    <span>Bel 3x (Rotasi)</span>
-                    <BellRing size={12} className="text-red-400" />
-                  </button>
-                </div>
-              )}
-            </div>
-
             {/* Pause / Play Global Timer Button */}
             <button
               onClick={handleTogglePause}
