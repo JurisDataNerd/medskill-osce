@@ -7,7 +7,7 @@ export default function ExaminerBreakStationView({
   handleExitExaminerWaitingRoom,
 }) {
   return (
-    <div className="max-w-4xl mx-auto py-8 space-y-6">
+    <div className="max-w-4xl mx-auto p-4 sm:p-6 md:p-8 space-y-6">
       <div className="rounded-3xl border-2 border-amber-300 bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 p-8 text-white shadow-xl">
         <div className="flex items-center justify-between gap-4 border-b border-amber-400/40 pb-5">
           <div className="flex items-center gap-4">

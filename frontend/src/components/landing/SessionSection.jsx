@@ -89,6 +89,8 @@ export default function SessionSection() {
     }
   }
 
+  const [userProfileData, setUserProfileData] = useState(null);
+
   async function handleOpenRegisterModal(sessionTarget) {
     const {
       data: { user },
@@ -97,6 +99,27 @@ export default function SessionSection() {
     if (!user) {
       navigate("/login");
       return;
+    }
+
+    try {
+      const { data: prof } = await supabase
+        .schema("public")
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (prof) {
+        setUserProfileData(prof);
+      } else {
+        setUserProfileData({
+          full_name: user.user_metadata?.full_name || user.user_metadata?.name || user.email,
+          nim: user.user_metadata?.nim || "-",
+          institution: user.user_metadata?.institution || "-",
+          email: user.email,
+        });
+      }
+    } catch (e) {
+      console.warn("Could not fetch user profile for modal:", e);
     }
 
     setSelectedSessionForModal(sessionTarget);
@@ -273,8 +296,13 @@ export default function SessionSection() {
                     </div>
 
                     <div className="flex items-center gap-2.5">
-                      <Building2 size={15} className="text-[#0D3A68]" />
-                      <span>{session.total_stations || 6} Stase Ujian</span>
+                      <Building2 size={15} className="text-[#0D3A68] shrink-0" />
+                      <span className="truncate">{session.location_building || session.location || "Gedung Skill Lab Kedokteran"}</span>
+                    </div>
+
+                    <div className="flex items-center gap-2.5">
+                      <span className="h-2 w-2 rounded-full bg-[#0D3A68]" />
+                      <span>{session.total_stations || 8} Pos Stase ({session.station_duration_minutes || 12}m/stase)</span>
                     </div>
                   </div>
                 </div>
@@ -292,6 +320,12 @@ export default function SessionSection() {
         onClose={() => setIsRegistrationModalOpen(false)}
         onConfirm={handleConfirmRegistration}
         session={selectedSessionForModal}
+        userProfile={{
+          name: userProfileData?.full_name || "Peserta OSCE",
+          nim: userProfileData?.nim || "-",
+          institution: userProfileData?.institution || userProfileData?.university || "-",
+          email: userProfileData?.email || "-",
+        }}
       />
 
       {/* Confirm & Alert Modal */}

@@ -477,8 +477,10 @@ export default function SessionsPage() {
                             {session.title}
                           </div>
                           <div className="mt-1 text-xs text-slate-500 flex items-center gap-1">
-                            <MapPin size={13} className="text-slate-400" />
-                            <span>{session.location || "Gedung Skill Lab Kedokteran"}</span>
+                            <MapPin size={13} className="text-slate-400 shrink-0" />
+                            <span className="truncate max-w-[280px]">
+                              {session.location_building || session.location || "Gedung Skill Lab Kedokteran"}
+                            </span>
                           </div>
                         </div>
                       </td>
@@ -491,7 +493,7 @@ export default function SessionsPage() {
                         </div>
                         <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
                           <Clock size={13} className="text-slate-400" />
-                          {session.start_time} - {session.end_time || "Selesai"}
+                          {session.start_time ? session.start_time.substring(0, 5) : "08:00"} - {session.end_time ? session.end_time.substring(0, 5) : "Selesai"}
                         </div>
                       </td>
 
@@ -511,7 +513,7 @@ export default function SessionsPage() {
                       <td className="px-5 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-1.5 font-medium text-slate-800">
                           <Users size={13} className="text-slate-400" />
-                          {session.registered_participants || session.max_participants || 6} Peserta
+                          {typeof session.registered_participants === "number" ? session.registered_participants : (session.session_participants?.length ?? 0)} Peserta
                         </div>
                         <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
                           <UserCheck size={13} className="text-slate-400" />

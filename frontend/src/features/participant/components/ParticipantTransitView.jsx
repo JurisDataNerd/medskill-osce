@@ -44,6 +44,20 @@ export default function ParticipantTransitView({
             </p>
           </div>
 
+          {/* 10-Second Countdown Visual Alert Badge */}
+          {transitSecondsLeft <= 10 && transitSecondsLeft > 0 && (
+            <div className="rounded-2xl border-2 border-red-500 bg-red-600 text-white p-4 shadow-xl animate-pulse">
+              <div className="text-center space-y-1">
+                <span className="text-xs font-black uppercase tracking-widest block text-red-100">
+                  ⚠️ PREPARASI FINISHED — SIAP MASUK RUANGAN DALAM:
+                </span>
+                <span className="text-4xl font-black font-mono text-white block">
+                  00:0{transitSecondsLeft}
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* Target Next Station Card */}
           <div className="rounded-2xl border border-blue-200 bg-blue-50/60 p-6 text-left space-y-3">
             <div className="flex items-center justify-between border-b border-blue-100 pb-3">

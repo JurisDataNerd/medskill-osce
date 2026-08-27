@@ -454,14 +454,19 @@ export default function ExaminerStagePage() {
             setActiveSession(parentSess);
           }
 
-          // Fetch session participants from Supabase
+          // Fetch session participants from Supabase (Approved/Active only)
           const { data: pList } = await supabase
             .schema("osce")
             .from("session_participants")
             .select("*")
             .eq("session_id", st.session_id);
 
-          setParticipants(pList && pList.length > 0 ? pList : []);
+          const approvedPList = (pList || []).filter((p) => {
+            const stStatus = (p.status || "").toLowerCase();
+            return stStatus === "approved" || stStatus === "active";
+          });
+
+          setParticipants(approvedPList);
         }
       } catch (err) {
         console.error("Error loading station detail for examiner:", err);
@@ -473,7 +478,7 @@ export default function ExaminerStagePage() {
     loadStationDetail();
   }, [targetParamId]);
 
-  // Realtime subscription for session_participants list updates
+  // Realtime subscription for session_participants list updates (Approved/Active only)
   useEffect(() => {
     if (!activeSession?.id) return;
 
@@ -483,7 +488,13 @@ export default function ExaminerStagePage() {
         .from("session_participants")
         .select("*")
         .eq("session_id", activeSession.id);
-      if (pList) setParticipants(pList);
+
+      const approvedPList = (pList || []).filter((p) => {
+        const stStatus = (p.status || "").toLowerCase();
+        return stStatus === "approved" || stStatus === "active";
+      });
+
+      setParticipants(approvedPList);
     };
 
     const channel = supabase
@@ -1067,7 +1078,7 @@ export default function ExaminerStagePage() {
   }
 
   return (
-    <div className="space-y-6 relative">
+    <div className="relative">
       {/* Realtime Broadcast Toast Overlay Component (Auto 5s & X Close Button) */}
       {activeBroadcast && (
         <div className="fixed top-5 right-5 z-[9999] max-w-md w-full animate-in slide-in-from-top-4 fade-in duration-200">
@@ -1092,7 +1103,7 @@ export default function ExaminerStagePage() {
             <button
               onClick={() => setActiveBroadcast(null)}
               title="Tutup Pesan (Close)"
-              className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-white transition"
+              className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-white transition cursor-pointer"
             >
               <X size={18} />
             </button>
@@ -1100,12 +1111,12 @@ export default function ExaminerStagePage() {
         </div>
       )}
 
-      {/* Top Navbar */}
-      <header className="-mt-6 md:-mt-8 -mx-6 md:-mx-8 mb-6 border-b border-slate-200 bg-white/95 backdrop-blur-md px-6 md:px-8 py-3.5 shadow-md sticky top-0 z-40">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
+      {/* Top Sticky Action Navbar: Flush directly under the layout header without any gap */}
+      <header className="border-b border-slate-200 bg-white/95 backdrop-blur-md px-4 sm:px-6 md:px-8 py-3.5 shadow-xs sticky top-0 z-40">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
           <button
             onClick={handleExitExaminerWaitingRoom}
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-rose-700 hover:text-rose-900 bg-rose-50 border border-rose-200 px-3 py-1.5 rounded-xl transition shadow-2xs"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-rose-700 hover:text-rose-900 bg-rose-50 border border-rose-200 px-3.5 py-2 rounded-xl transition shadow-2xs cursor-pointer active:scale-95"
           >
             <LogOut size={15} />
             Keluar ke Dashboard
@@ -1171,7 +1182,7 @@ export default function ExaminerStagePage() {
             <button
               onClick={handleSaveEvaluation}
               disabled={saving}
-              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2 text-xs font-bold text-white shadow-md hover:bg-emerald-700 active:scale-95 transition disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2 text-xs font-bold text-white shadow-md hover:bg-emerald-700 active:scale-95 transition disabled:opacity-50 cursor-pointer"
             >
               {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
               Simpan Penilaian
@@ -1180,8 +1191,8 @@ export default function ExaminerStagePage() {
         </div>
       </header>
 
-      {/* Main Content Container */}
-      <div className="max-w-7xl w-full mx-auto space-y-6">
+      {/* Main Content Container with padding */}
+      <div className="max-w-7xl w-full mx-auto p-4 sm:p-6 md:p-8 space-y-6">
         {(timerState?.phase === "completed_waiting" || (remainingSeconds <= 0 && currentRoundNum >= totalStations)) && (
           <div className="rounded-2xl border-2 border-indigo-400 bg-indigo-50 p-4 text-indigo-950 shadow-md flex flex-wrap items-center justify-between gap-3 animate-in fade-in">
             <div className="flex items-center gap-3">

@@ -13,6 +13,8 @@ import {
   ShieldCheck,
   UserCheck,
   Sparkles,
+  Layers,
+  Award,
 } from "lucide-react";
 
 export default function SessionRegistrationModal({
@@ -24,12 +26,21 @@ export default function SessionRegistrationModal({
     name: "Tidak ada data",
     nim: "Tidak ada data",
     institution: "Tidak ada data",
+    email: "-",
   },
 }) {
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
 
   if (!isOpen || !session) return null;
+
+  const totalStations = session.total_stations || session.stations?.length || 8;
+  const locationName = session.location_building || session.location || "Gedung Skill Lab Kedokteran";
+  const formattedStartTime = session.start_time ? session.start_time.substring(0, 5) : "08:00";
+  const formattedEndTime = session.end_time ? session.end_time.substring(0, 5) : "Selesai";
+  const stationDuration = session.station_duration_minutes || 12;
+  const breakOrTransition = session.transition_duration_minutes || session.break_duration_minutes || 2;
+  const waveCapacity = session.max_participants_per_wave || totalStations;
 
   async function handleConfirmSubmit() {
     if (!agreed) return;
@@ -57,19 +68,19 @@ export default function SessionRegistrationModal({
                 <h2 className="text-base font-bold leading-tight">
                   Konfirmasi Pendaftaran Sesi OSCE
                 </h2>
-                <span className="rounded-full bg-blue-500/30 border border-blue-400/40 text-blue-200 text-[10px] font-bold px-2.5 py-0.5">
-                  Offline Exam
+                <span className="rounded-full bg-blue-500/30 border border-blue-400/40 text-blue-200 text-[10px] font-bold px-2.5 py-0.5 uppercase">
+                  {session.exam_type === "regular" ? "Ujian Reguler" : (session.exam_type || "Offline Exam")}
                 </span>
               </div>
               <p className="text-xs text-slate-300 font-medium mt-0.5">
-                Verifikasi detail sesi & data peserta sebelum mengajukan
+                Verifikasi detail sesi & data identitas sebelum mengajukan pendaftaran
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="rounded-xl border border-slate-700 bg-slate-800 p-2 text-slate-300 hover:bg-slate-700 hover:text-white transition"
+            className="rounded-xl border border-slate-700 bg-slate-800 p-2 text-slate-300 hover:bg-slate-700 hover:text-white transition cursor-pointer"
           >
             <X size={16} />
           </button>
@@ -85,7 +96,7 @@ export default function SessionRegistrationModal({
               </span>
               <span className="text-xs font-bold text-blue-900 flex items-center gap-1">
                 <Sparkles size={14} className="text-blue-600" />
-                6 Stase Ujian Aktif (Rotasi Sirkuit)
+                {totalStations} Pos Stase (Rotasi Sirkuit)
               </span>
             </div>
 
@@ -94,25 +105,33 @@ export default function SessionRegistrationModal({
             </h3>
 
             <p className="text-xs text-slate-600 font-medium leading-relaxed">
-              {session.description || "Simulasi ujian OSCE komprehensif dengan rubrik penilaian spesialis."}
+              {session.description || "Simulasi ujian OSCE komprehensif dengan rotasi sirkuit dan rubrik penilaian spesialis."}
             </p>
 
-            <div className="grid gap-2 sm:grid-cols-2 text-xs font-semibold text-slate-700 pt-2 border-t border-blue-200/60">
+            <div className="grid gap-2.5 sm:grid-cols-2 text-xs font-semibold text-slate-700 pt-2 border-t border-blue-200/60">
               <div className="flex items-center gap-2">
-                <Calendar size={15} className="text-blue-600" />
+                <Calendar size={15} className="text-blue-600 shrink-0" />
                 <span>Tanggal: <strong>{session.session_date || "Sesuai Jadwal"}</strong></span>
               </div>
               <div className="flex items-center gap-2">
-                <Clock size={15} className="text-blue-600" />
-                <span>Waktu: <strong>{session.start_time || "08:00 WIB"}</strong></span>
+                <Clock size={15} className="text-blue-600 shrink-0" />
+                <span>Waktu: <strong>{formattedStartTime} - {formattedEndTime} WIB</strong></span>
               </div>
               <div className="flex items-center gap-2">
-                <Building2 size={15} className="text-blue-600" />
-                <span>Lokasi: <strong>{session.location || "Gedung Skill Lab Kedokteran"}</strong></span>
+                <Building2 size={15} className="text-blue-600 shrink-0" />
+                <span>Lokasi: <strong className="text-slate-900">{locationName}</strong></span>
               </div>
               <div className="flex items-center gap-2">
-                <Timer size={15} className="text-blue-600" />
-                <span>Durasi: <strong>{session.station_duration_minutes || 15} Menit per Stase</strong></span>
+                <Timer size={15} className="text-blue-600 shrink-0" />
+                <span>Durasi: <strong>{stationDuration} Menit / Stase</strong></span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Layers size={15} className="text-blue-600 shrink-0" />
+                <span>Transisi: <strong>{breakOrTransition} Menit Antar-Pos</strong></span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Users size={15} className="text-blue-600 shrink-0" />
+                <span>Kapasitas: <strong>{waveCapacity} Peserta / Gelombang</strong></span>
               </div>
             </div>
           </div>
@@ -126,13 +145,23 @@ export default function SessionRegistrationModal({
 
             <div className="rounded-xl border border-slate-100 bg-slate-50 p-3.5 space-y-2 text-xs">
               <div className="flex justify-between items-center border-b border-slate-200/60 pb-2">
-                <span className="text-slate-500 font-medium">Nama Peserta:</span>
+                <span className="text-slate-500 font-medium">Nama Lengkap:</span>
                 <span className="font-bold text-slate-900">{userProfile.name}</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500 font-medium">Institusi:</span>
+              <div className="flex justify-between items-center border-b border-slate-200/60 pb-2">
+                <span className="text-slate-500 font-medium">NIM / No. Identitas:</span>
+                <span className="font-bold text-slate-900">{userProfile.nim}</span>
+              </div>
+              <div className="flex justify-between items-center border-b border-slate-200/60 pb-2">
+                <span className="text-slate-500 font-medium">Institusi / Universitas:</span>
                 <span className="font-semibold text-slate-800">{userProfile.institution}</span>
               </div>
+              {userProfile.email && userProfile.email !== "-" && (
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500 font-medium">Email Akun:</span>
+                  <span className="font-semibold text-slate-700">{userProfile.email}</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -148,10 +177,10 @@ export default function SessionRegistrationModal({
                 type="checkbox"
                 checked={agreed}
                 onChange={(e) => setAgreed(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded text-blue-600 focus:ring-blue-500 shrink-0"
+                className="mt-0.5 h-4 w-4 rounded text-blue-600 focus:ring-blue-500 shrink-0 cursor-pointer"
               />
               <span className="text-xs font-medium text-amber-900 leading-relaxed">
-                Saya menyatakan bersedia dan sanggup mengikuti seluruh rangkaian ujian sirkuit 8 stase OSCE secara <strong>offline</strong> di lokasi yang ditentukan serta mematuhi seluruh tata tertib ujian.
+                Saya menyatakan bersedia dan sanggup mengikuti seluruh rangkaian ujian sirkuit <strong>{totalStations} stase</strong> OSCE secara <strong>offline</strong> di <strong>{locationName}</strong> serta mematuhi seluruh tata tertib ujian.
               </span>
             </label>
           </div>
@@ -161,7 +190,7 @@ export default function SessionRegistrationModal({
         <div className="flex items-center justify-between border-t border-slate-200 bg-white px-6 py-4">
           <button
             onClick={onClose}
-            className="rounded-xl border border-slate-200 px-5 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 transition"
+            className="rounded-xl border border-slate-200 px-5 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
           >
             Batal
           </button>
@@ -169,7 +198,7 @@ export default function SessionRegistrationModal({
           <button
             onClick={handleConfirmSubmit}
             disabled={!agreed || loading}
-            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-xs font-bold text-white shadow-lg shadow-blue-600/30 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition active:scale-95"
+            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-xs font-bold text-white shadow-lg shadow-blue-600/30 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition active:scale-95 cursor-pointer"
           >
             <CheckCircle2 size={16} />
             {loading ? "Memproses Pendaftaran..." : "Konfirmasi & Kirim Pendaftaran"}

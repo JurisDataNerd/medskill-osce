@@ -1,94 +1,98 @@
 # 🔊 SOUND.md — Katalog & Spesifikasi Audio Sistem OSCE Praxis
+> **Praxis by MedSkill Indonesia — OSCE Engine & Clinical Assessment Platform**  
+> *Versi Pemutakhiran Mapping Audio: 26 Agustus 2026*
 
-Dokumen ini mendokumentasikan seluruh daftar efek suara (*sound cues*), bel ujian medis standar AIPKI/UKMPPD, suara notifikasi realtime, serta spesifikasi teknis sintesis audio yang digunakan di platform **Praxis OSCE**.
+Dokumen ini mendokumentasikan seluruh daftar efek suara (*sound cues*), bel ujian medis standar AIPKI/UKMPPD, suara notifikasi realtime, rekaman voiceover manusia (Aksa / Voice Actor Praxis), serta arsitektur audio engine yang digunakan di platform **Praxis OSCE**.
 
 ---
 
-## 🔔 1. Bel Sirkuit Ujian OSCE (Standard Protocol)
+## 🔔 1. Mapping Katalog Audio Utama (`/public/sounds/*.mp3`)
 
-Bel ujian medis ini disinkronkan secara global melalui WebSocket realtime ke seluruh layar Admin, Dokter Penguji, dan Peserta.
+Seluruh audio di bawah ini dipicu secara otomatis oleh `realtimeTimerService.js` melalui WebSocket Supabase secara sinkron ke seluruh layar Admin, Dokter Penguji, dan Peserta.
 
-| No | Kode / Nama Sound | Pemicu (*Trigger*) | Pola & Karakter Audio | Spesifikasi Synthesizer (Web Audio API) | Keterangan & Instruksi Klinis |
+| No | Key Audio (`audioService.js`) | File Asset MP3 | Pemicu Realtime (*Trigger*) | Pola & Narasi Audio (Voice Script) | Keterangan & Tujuan UX |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **1** | `bell_start` <br>*(Bel Mulai / Masuk)* | Saat **Transisi Awal** habis dan waktu pengerjaan kasus stase dimulai (Timer Action berjalan). | **Bel 1x**<br>Nada lonceng tunggal jernih, tinggi, dan tegas (~1.2 detik). | • Wave: `sine`<br>• Freq: `880 Hz` (A5)<br>• Gain: 0.4 (decay 1.2s) | *"Waktu pengerjaan stase dimulai. Peserta dipersilakan masuk ruangan stase dan memulai anamnesis / pemeriksaan."* |
-| **2** | `bell_warning` <br>*(Bel Peringatan 2 Mnt)* | Saat waktu stase **tersisa 2 Menit** (120 detik) pada fase `action`. | **Bel 2x**<br>Dua ketukan beruntun dengan interval jeda 250ms (*Ding-Ding*). | • Wave: `triangle`<br>• Freq: `660 Hz` (E5)<br>• 2 pulse @ 0s & 0.25s (decay 0.18s) | *"Peringatan! Waktu stase tersisa 2 menit. Peserta dimohon menyelesaikan tindakan fisik dan menyampaikan edukasi/resep."* |
-| **3** | `bell_rotation` <br>*(Bel Rotasi Stase)* | Saat countdown stase mencapai **00:00** (fase `action` selesai). | **Bel 3x**<br>Tiga ketukan nada bertingkat tegas (*Ding-Ding-Dong*). | • Wave: `sawtooth`<br>• Freq: `523.25 Hz` (C5) x2, `987.77 Hz` (B5) x1<br>• 3 pulse @ 0s, 0.3s, 0.6s | *"Waktu stase telah habis! Peserta meletakkan alat, meninggalkan pos, dan berpindah ke stase berikutnya."* |
-| **4** | `bell_completed` <br>*(Bel Sirkuit Tuntas)* | Saat **Ronde Terakhir** (misal Ronde 6 dari 6) selesai mencapai 00:00. | **Grand Chime / Fanfare**<br>Harmoni 4 nada penyelesaian yang ramah. | • Wave: `sine`<br>• Freq: `523 Hz` → `659 Hz` → `783 Hz` → `1046 Hz` (C Major chord) | *"Seluruh rangkaian sirkuit ujian OSCE telah selesai. Peserta dipersilakan menuju ruang karantina pasca-ujian."* |
+| **1** | `waiting_room` | `/sounds/audio_01_waiting_room.mp3` | Admin membuka sesi ke fase **Waiting Room** (Sebelum ujian dimulai). | **Musik Welcoming + Narasi Voice Over**:<br>*"Selamat datang di Ujian OSCE MedSkill. Peserta ujian dipersilakan menempatkan diri di depan pintu stase masing-masing."* | Mengondisikan peserta dan penguji di ruang tunggu awal sirkuit. |
+| **2** | `read_scenario` | `/sounds/audio_02_read_scenario.mp3` | Timer masuk ke fase **Baca Skenario** (`read_scenario` / Transisi Rotasi). | **Chime Ting + Narasi**:<br>*"Silakan membuka dan membaca instruksi skenario kasus di luar pintu stase."* | Instruksi peserta membaca lembar skenario soal di papan luar stase. |
+| **3** | `start_exam` | `/sounds/audio_03_start_exam.mp3` | Transisi habis dan waktu **Pengerjaan Stase** dimulai (`action` timer jalan). | **Bel Lonceng Mulai 1x + Narasi**:<br>*"Waktu membaca selesai. Silakan memasuki ruang stase dan mulailah ujian."* | Aba-aba tegas peserta memasuki ruangan pos & pengujian dimulai. |
+| **4** | `warning_3min` | `/sounds/audio_04_warning_time.mp3` <br>*(Alias: `audio_04_warning_1min.mp3`)* | Saat waktu stase **tersisa 3 Menit** (180 detik) pada fase `action`. | **Bel Peringatan 2x + Narasi**:<br>*"Perhatian, waktu ujian stase tersisa tiga menit lagi."* | Aba-aba agar peserta mempercepat tindakan medis & memulai edukasi/resep. |
+| **5** | `stop_transit` | `/sounds/audio_05_stop_transit.mp3` | Timer pengerjaan stase mencapai **00:00** (fase `action` tuntas). | **Bel Rotasi 3x + Narasi**:<br>*"Waktu ujian stase telah selesai. Peserta dipersilakan keluar dari ruangan dan berpindah ke pos stase berikutnya."* | Aba-aba peserta meletakkan alat, meninggalkan pos, dan berpindah ke pos berikutnya. |
+| **6** | `rest_break` | `/sounds/audio_06_rest_break.mp3` | Peserta berada pada giliran **Stase Istirahat** (*Rest Station*). | **Chime Soft + Narasi**:<br>*"Anda memasuki stase istirahat. Silakan memulihkan stamina di area sirkuit."* | Informasi bagi peserta untuk beristirahat tanpa dilakukan penilaian. |
+| **7** | `finish_exam` | `/sounds/audio_07_finish_exam.mp3` | **Ronde Terakhir Sirkuit Selesai** mencapai 00:00 (Seluruh ronde tuntas). | **Fanfare Grand Chime + Narasi**:<br>*"Seluruh rangkaian ujian OSCE telah selesai. Terima kasih atas partisipasi Anda, dipersilakan meninggalkan lokasi ujian."* | Pengumuman resmi bahwa seluruh sirkuit ujian OSCE telah berakhir. |
+| **8** | `admin_broadcast` | `/sounds/audio_08_admin_broadcast.mp3` <br>*(Fallback: `/sounds/broadcast.mp3`)* | Admin mengirim pengumuman darurat atau memicu tombol bel manual. | **Chime Interkom Interrupter** (*Ding-Dong*) penarik perhatian. | Memastikan penguji dan peserta menyimak banner pengumuman darurat. |
+| **9** | `countdown` | `/sounds/audio_09_countdown.mp3` | Detik **10s hingga 1s terakhir** sebelum stase 1 / bel mulai berbunyi. | **Audio Tick-Tock Countdown 10 Detik** berkesinambungan. | Aba-aba hitungan mundur 10 detik persiapan di depan pintu stase. |
+| **10** | `resume` | `/sounds/audio_10_resume.mp3` | Admin menekan tombol **Lanjutkan (Resume)** setelah status pause. | **Chime Lanjut + Narasi Voice Over Aksa**:<br>*"Perhatian, ujian dilanjutkan kembali. Peserta dipersilakan melanjutkan pengerjaan."* | Konfirmasi audio bahwa timer ujian yang di-pause telah berjalan kembali. |
 
 ---
 
-## 📢 2. Sound Notifikasi Realtime & UX
+## 📢 2. Efek Suara Notifikasi UX Interaktif
 
-Efek suara kontekstual untuk mendukung interaksi dan peringatan darurat selama simulasi berlangsung:
+Efek suara mikro untuk aksi pengguna di antarmuka web:
 
-| No | Kode / Nama Sound | Pemicu (*Trigger*) | Pola & Karakter Audio | Spesifikasi Teknis | Keterangan & Tujuan UX |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **5** | `broadcast_alert` <br>*(Intercom Chime)* | Admin mengirim pesan broadcast teks atau pengumuman darurat. | **Nada Interkom Dua Nada** (*Ding-Dong*) yang menarik perhatian. | • Wave: `sine`<br>• Freq: `880 Hz` (0.2s) → `1174.66 Hz` (0.4s)<br>• File: `/sounds/broadcast.mp3` | Memberi peringatan audio seketika kepada penguji/peserta agar membaca banner pengumuman darurat. |
-| **6** | `session_paused` <br>*(Jeda Simulasi)* | Admin menekan tombol **Jeda (Pause)** saat ada kendala teknis. | **Pitch Down Chime**<br>Nada menurun lembut (*Beep-Bop down*). | • Wave: `sine`<br>• Freq: `784 Hz` → `523 Hz`<br>• Durasi: 0.3 detik | Memberi konfirmasi audio bahwa countdown timer dihentikan sementara. |
-| **7** | `session_resumed` <br>*(Lanjut Simulasi)* | Admin menekan tombol **Lanjutkan (Resume)**. | **Pitch Up Chime**<br>Nada menaik (*Bop-Beep up*). | • Wave: `sine`<br>• Freq: `523 Hz` → `784 Hz`<br>• Durasi: 0.3 detik | Memberi konfirmasi audio bahwa ujian dilanjutkan kembali persis di titik jeda. |
-| **8** | `countdown_tick` <br>*(Detik Kritis Transisi)* | 5 detik terakhir fase transisi (detik 5, 4, 3, 2, 1). | **Subtle Click / Tick**<br>Suara ketukan mekanik halus per detik. | • Wave: `sine`<br>• Freq: `1000 Hz` (durasi ultra-singkat 0.05s) | Aba-aba persiapan bagi peserta agar sudah berdiri di depan pintu stase sebelum bel mulai berbunyi. |
-| **9** | `grading_submitted` <br>*(Pengajuan Nilai)* | Dokter penguji menekan tombol **"Submit Nilai Akhir"**. | **Positive Soft Beep**<br>Nada konfirmasi sukses. | • Wave: `sine`<br>• Freq: `880 Hz` → `1318 Hz` (durasi 0.25s) | Memberi kepastian psikologis kepada dokter penguji bahwa nilai rubrik telah tersimpan di server. |
-| **10** | `user_joined` <br>*(Presence Ping)* | Penguji / Peserta baru bergabung ke Waiting Room. | **Subtle Water Drop / Blip** halus. | • Wave: `sine`<br>• Freq: `1200 Hz` (durasi 0.08s) | Feedback visual-auditori di layar Admin bahwa kehadiran pengguna bertambah. |
-
----
-
-## 🎙️ 3. Voice Prompt (Narasi Suara Otomatis — Konsep & Rencana Pengembangan)
-
-Untuk Skill Lab yang menggunakan *Central Hall Public Address (PA) Audio System* atau speaker terpusat, sistem dirancang untuk dapat memutar narasi suara terstandar berbahasa Indonesia:
-
-| Event & Kode | Naskah Narasi Suara (*Voice Script*) | Waktu Pemutaran | Status Implementasi |
+| Key Sound | Pemicu (*Trigger*) | Karakter & Pola Synthesizer | Keterangan & Tujuan UX |
 | :--- | :--- | :--- | :--- |
-| **`voice_welcome`**<br>*(Selamat Datang Sesi)* | *"Selamat datang di Ujian OSCE. Sesi simulasi akan segera dimulai. Seluruh peserta dipersilakan menuju dan bersiap di depan pintu pos stase pertama masing-masing."* | Tepat saat Admin menekan tombol Mulai Sesi (**Awal Fase Transisi Persiapan Pos 1**). | 📝 *Rencana (Planned)* |
-| **`voice_start`**<br>*(Mulai Ujian)* | *"Waktu pengerjaan stase dimulai, silakan masuk ke dalam ruangan."* | Tepat setelah bunyi `bell_start` (00:00 transisi habis, masuk stase). | 📝 *Rencana (Planned)* |
-| **`voice_warning`**<br>*(Peringatan 2 Mnt)* | *"Peringatan, waktu pengerjaan tersisa dua menit."* | Tepat setelah bunyi `bell_warning` (sisa 120 detik). | 📝 *Rencana (Planned)* |
-| **`voice_rotation`**<br>*(Rotasi Pos)* | *"Waktu pengerjaan selesai, silakan berpindah ke stase berikutnya."* | Tepat setelah bunyi `bell_rotation` (waktu stase habis 00:00). | 📝 *Rencana (Planned)* |
-| **`voice_pause_apology`**<br>*(Permohonan Maaf Jeda)* | *"Mohon perhatian. Mohon maaf mengganggu jalannya ujian, sesi OSCE saat ini sedang dihentikan sementara waktu oleh admin pengawas. Seluruh peserta dan dokter penguji dimohon tetap tenang dan berada di pos masing-masing sampai ujian dilanjutkan kembali."* | Tepat saat Admin menekan tombol **Jeda (Pause)** selama simulasi berjalan. | 📝 *Rencana (Planned)* |
-| **`voice_closing_thanks`**<br>*(Terima Kasih Penutupan)* | *"Seluruh rangkaian sirkuit ujian OSCE telah resmi selesai. Terima kasih kepada seluruh peserta dan dokter penguji atas dedikasi dan kerja samanya. Peserta dipersilakan meninggalkan area stase secara tertib menuju ruang karantina akhir."* | Tepat saat **Ronde Terakhir Tuntas** (`bell_completed` dibunyikan). | 📝 *Rencana (Planned)* |
+| `session_paused` | Admin menekan tombol **Jeda (Pause)**. | **Pitch Down Chime** (`784 Hz` → `523 Hz`, 0.3s). | Konfirmasi audio bahwa countdown timer dihentikan sementara. |
+| `session_resumed` | Admin menekan tombol **Lanjutkan (Resume)**. | **Pitch Up Chime** (`523 Hz` → `784 Hz`, 0.3s) + `audio_10_resume.mp3`. | Konfirmasi audio bahwa countdown timer berjalan kembali. |
+| `grading_submitted` | Dokter penguji menekan tombol **Submit Nilai Akhir**. | **Positive Soft Beep** (`880 Hz` → `1318 Hz`, 0.25s). | Kepastian psikologis kepada dokter penguji bahwa nilai ter-submit. |
+| `user_joined` | Penguji/Peserta baru bergabung di Presence. | **Subtle Water Drop / Blip** (`1200 Hz`, 0.08s). | Feedback auditori saat jumlah peserta online bertambah di Admin. |
 
 ---
 
-## 🛠️ 4. Arsitektur Teknis Implementasi di Praxis
+## 🛠️ 3. Arsitektur Dual-Engine Audio Engine Praxis
 
-Praxis menerapkan strategi **Dual-Layer Audio Engine**:
+Praxis menggunakan pendekatan **Dual-Engine Audio System** dengan strategi *fail-safe* tingkat tinggi:
 
 ```
-                 ┌──────────────────────────────────────────────┐
-                 │          Pemicu Waktu / WebSocket            │
-                 └──────────────────────┬───────────────────────┘
-                                        │
-                         ┌──────────────┴──────────────┐
-                         ▼                             ▼
-            Layer 1: Audio Asset MP3       Layer 2: Web Audio API (Fallback)
-          ┌───────────────────────────┐   ┌───────────────────────────────────┐
-          │  /public/sounds/*.mp3     │   │  Browser AudioContext Synthesizer │
-          │  (Studio Recording Quality)│  │  (Zero-Latency, 100% Offline Safe)│
-          └───────────────────────────┘   └───────────────────────────────────┘
+                               ┌──────────────────────────────────────────────┐
+                               │     Event Timer / Realtime WebSocket         │
+                               └──────────────────────┬───────────────────────┘
+                                                      │
+                                      ┌───────────────┴───────────────┐
+                                      ▼                               ▼
+                         Layer 1: MP3 Audio Assets       Layer 2: Web Audio API (Fallback)
+                       ┌───────────────────────────┐   ┌───────────────────────────────────┐
+                       │  /public/sounds/*.mp3     │   │  Browser AudioContext Synthesizer │
+                       │  (Human Studio Recording) │   │  (Zero-Latency, 100% Offline)     │
+                       └──────────────┬────────────┘   └─────────────────┬─────────────────┘
+                                      │                                  │
+                                      └─────────────────┬────────────────┘
+                                                        ▼
+                                       Layer 3: SpeechSynthesis (Id-ID)
+                                       ┌─────────────────────────────────┐
+                                       │ TTS Bahasa Indonesia Fallback   │
+                                       └─────────────────────────────────┘
 ```
 
-1. **Layer 1 (Audio File Studio)**: File `.mp3` di direktori `praxis/public/sounds/` untuk kualitas audio akustik studio alami.
-2. **Layer 2 (Zero-Latency Synthesizer Fallback)**: Menggunakan Web Audio API native browser (`OscillatorNode` & `GainNode`). Jika browser belum mengunduh file MP3 atau koneksi lambat, bel **tetap berbunyi secara instan tanpa delay 1 milidetik pun**.
-3. **Autoplay Policy Handling**: Mengaktifkan AudioContext pada interaksi klik pertama pengguna (*gesture unlock*) agar browser tidak memblokir suara otomatis di background.
+1. **Layer 1 — Studio MP3 Assets (Primary)**:
+   Menggunakan rekaman suara manusia asli (Aksa / Voice Actor Praxis) di direktori `/public/sounds/*.mp3`.
+2. **Layer 2 — Web Audio API Synthesizer (Zero-Latency Fallback)**:
+   Menggunakan `OscillatorNode` dan `GainNode` native browser jika koneksi lambat atau file audio terhambat.
+3. **Layer 3 — SpeechSynthesis Voiceover (Text Fallback)**:
+   Memutar narasi naskah Bahasa Indonesia secara otomatis jika browser belum mengunduh aset audio.
 
 ---
 
-## 📁 5. Struktur Folder File Audio
+## 📁 4. Struktur Direktori Aset Audio Terverifikasi
 
 ```
 praxis/
 ├── public/
 │   └── sounds/
-│       ├── broadcast.mp3             # Suara interkom broadcast admin
-│       ├── bell_start.mp3            # Bel lonceng tunggal mulai ujian
-│       ├── bell_warning.mp3          # Bel ganda peringatan 2 menit
-│       ├── bell_rotation.mp3         # Bel tiga kali rotasi pos
-│       ├── bell_completed.mp3        # Fanfare sirkuit tuntas
-│       ├── pause.mp3                 # Efek jeda
-│       ├── resume.mp3                # Efek lanjut
-│       ├── submit_grade.mp3          # Efek kirim nilai
-│       │
-│       ├── [PLANNED / VOICE ASSETS]
-│       ├── voice_welcome.mp3         # Narasi selamat datang di transisi awal
-│       ├── voice_pause_apology.mp3   # Narasi permohonan maaf saat sesi di-pause
-│       └── voice_closing_thanks.mp3  # Narasi terima kasih saat sirkuit tuntas
-└── SOUND.md                          # Dokumentasi spesifikasi audio ini
+│       ├── audio_01_waiting_room.mp3       # Narasi & Welcoming Waiting Room
+│       ├── audio_02_read_scenario.mp3      # Instruksi membaca skenario di luar stase
+│       ├── audio_03_start_exam.mp3         # Bel & instruksi mulai ujian stase
+│       ├── audio_04_warning_time.mp3       # Bel & instruksi sisa waktu 3 menit
+│       ├── audio_04_warning_1min.mp3       # (Alias pendukung) Peringatan 3 menit
+│       ├── audio_05_stop_transit.mp3       # Bel & instruksi waktu selesai / rotasi
+│       ├── audio_06_rest_break.mp3         # Bel & instruksi stase istirahat
+│       ├── audio_07_finish_exam.mp3        # Fanfare & instruksi sirkuit tuntas
+│       ├── audio_08_admin_broadcast.mp3    # Suara chime interkom broadcast admin
+│       ├── audio_09_countdown.mp3          # Sound tick countdown 10 detik terakhir
+│       ├── audio_10_resume.mp3             # Suara instruksi resume ujian dari Aksa
+│       ├── broadcast.mp3                   # Suara chime interkom alternatif
+│       └── README.txt                      # Catatan lisensi & pembuatan aset audio
+├── src/
+│   └── services/
+│       └── audioService.js                 # Engine pemutar audio & synthesizer
+└── SOUND.md                                # Berkas dokumentasi ini
 ```

@@ -248,7 +248,7 @@ export default function SessionReportsList({
                       </span>
                       <span className="flex items-center gap-1">
                         <Users size={13} className="text-blue-500" />
-                        {sess.max_participants || sess.session_participants?.length || 0} Mahasiswa
+                        {typeof sess.registered_participants === "number" ? sess.registered_participants : (sess.session_participants?.length ?? sess.max_participants ?? 0)} Mahasiswa
                       </span>
                     </div>
                   </div>

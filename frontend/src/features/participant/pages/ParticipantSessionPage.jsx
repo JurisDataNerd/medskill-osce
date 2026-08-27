@@ -745,6 +745,7 @@ export default function ParticipantSessionPage() {
       if (roundSecondsLeft === 10) playOsceAudio("countdown");
       if (roundSecondsLeft === 0) playOsceAudio("stop_transit");
     } else if (viewMode === "transit") {
+      if (transitSecondsLeft === 10) playOsceAudio("countdown");
       if (transitSecondsLeft === 0) playOsceAudio("start_exam");
     } else if (viewMode === "completed") {
       playOsceAudio("finish_exam");

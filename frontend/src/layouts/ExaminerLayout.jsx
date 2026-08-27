@@ -52,8 +52,13 @@ export default function ExaminerLayout({ children }) {
     localStorage.setItem("examiner_sidebar_collapsed", String(isCollapsed));
   }, [isCollapsed]);
 
+  const isStagePage =
+    location.pathname.startsWith("/examiner/stage") ||
+    location.pathname.startsWith("/examiner/session") ||
+    location.pathname.startsWith("/examiner/live");
+
   const getPageTitle = () => {
-    if (location.pathname.startsWith("/examiner/stage")) return "Pengujian Live Stase OSCE";
+    if (isStagePage) return "Pengujian Live Stase OSCE";
     if (location.pathname.startsWith("/examiner/history")) return "Riwayat Pengujian OSCE";
     if (location.pathname.startsWith("/examiner/profile")) return "Profil Dokter Penguji";
     return "Dashboard Penguji OSCE";
@@ -219,7 +224,7 @@ export default function ExaminerLayout({ children }) {
         </header>
 
         {/* Dynamic Page Content */}
-        <main className="flex-1 overflow-y-auto min-w-0 p-6 md:p-8">
+        <main className={`flex-1 overflow-y-auto min-w-0 ${isStagePage ? "p-0" : "p-6 md:p-8"}`}>
           {children}
         </main>
       </div>

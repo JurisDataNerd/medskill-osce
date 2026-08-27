@@ -15,11 +15,16 @@ export async function fetchSessions() {
     .order("created_at", { ascending: false });
 
   if (error) throw error;
-  return (data || []).map((sess) => ({
-    ...sess,
-    registered_participants: sess.session_participants?.length || 0,
-    total_examiners: sess.session_examiners?.length || 0,
-  }));
+  return (data || []).map((sess) => {
+    const loc = sess.location_building || sess.location || "Gedung Skill Lab Kedokteran";
+    return {
+      ...sess,
+      location: loc,
+      location_building: loc,
+      registered_participants: sess.session_participants?.length || 0,
+      total_examiners: sess.session_examiners?.length || 0,
+    };
+  });
 }
 
 /**
@@ -77,8 +82,12 @@ export async function fetchSessionById(sessionId) {
     };
   });
 
+  const loc = session?.location_building || session?.location || "Gedung Skill Lab Kedokteran";
+
   return {
     ...session,
+    location: loc,
+    location_building: loc,
     stations: formattedStations,
   };
 }
@@ -107,6 +116,8 @@ export async function createSession(sessionPayload, stationsPayload = []) {
       skdi_level: st.skdi_level || st.competency_level || null,
       scenario: st.scenario ?? null,
       participant_instructions: st.participant_instructions ?? st.participant_instruction ?? null,
+      examiner_instructions: st.examiner_instructions ?? null,
+      room_number: st.room_number ?? null,
       answer_key_diagnosis: st.answer_key_diagnosis || (st?.answer_key_wdx ? [st?.answer_key_wdx ? `WDx: ${st.answer_key_wdx}` : "", (st?.answer_key_ddx1 || (Array.isArray(st?.ddxKeys) ? st.ddxKeys[0] : "")) ? `DDx 1: ${st.answer_key_ddx1 || st.ddxKeys[0]}` : "", (st?.answer_key_ddx2 || (Array.isArray(st?.ddxKeys) ? st.ddxKeys[1] : "")) ? `DDx 2: ${st.answer_key_ddx2 || st.ddxKeys[1]}` : ""].filter(Boolean).join("\n") : null),
       answer_key_prescription: st.answer_key_prescription || null,
       question_bank_id: st.question_bank_id || st.case_id || null,
@@ -308,6 +319,8 @@ export async function updateSession(sessionId, sessionPayload, stationsPayload =
       skdi_level: st.skdi_level || st.competency_level || null,
       scenario: st.scenario ?? null,
       participant_instructions: st.participant_instructions ?? st.participant_instruction ?? null,
+      examiner_instructions: st.examiner_instructions ?? null,
+      room_number: st.room_number ?? null,
       answer_key_diagnosis: st.answer_key_diagnosis || (st?.answer_key_wdx ? [st?.answer_key_wdx ? `WDx: ${st.answer_key_wdx}` : "", (st?.answer_key_ddx1 || (Array.isArray(st?.ddxKeys) ? st.ddxKeys[0] : "")) ? `DDx 1: ${st.answer_key_ddx1 || st.ddxKeys[0]}` : "", (st?.answer_key_ddx2 || (Array.isArray(st?.ddxKeys) ? st.ddxKeys[1] : "")) ? `DDx 2: ${st.answer_key_ddx2 || st.ddxKeys[1]}` : ""].filter(Boolean).join("\n") : null),
       answer_key_prescription: st.answer_key_prescription || null,
       question_bank_id: st.question_bank_id || st.case_id || null,
@@ -505,7 +518,7 @@ export async function deleteSessionExaminer(sessionId, stationNumber) {
 
 /**
  * Duplicate an existing OSCE session with all stations, rubric items, auxiliary files, and examiners
- * (Participants are excluded from duplication as requested)
+ * (Participants start clean at 0 registered participants for the duplicated session)
  */
 export async function duplicateSession(sessionId) {
   const fullSession = await fetchSessionById(sessionId);
@@ -518,10 +531,10 @@ export async function duplicateSession(sessionId) {
     title: `Salinan ${fullSession.title}`,
     description: fullSession.description ? `(Salinan) ${fullSession.description}` : "Salinan Sesi OSCE Ujian",
     location_building: fullSession.location_building || fullSession.location || "Gedung Skill Lab Kedokteran",
-    session_date: dateStr,
+    session_date: fullSession.session_date || dateStr,
     start_time: fullSession.start_time || "08:00:00",
     end_time: fullSession.end_time || "12:00:00",
-    status: "scheduled",
+    status: fullSession.status === "draft" ? "draft" : "scheduled",
     exam_type: fullSession.exam_type || "regular",
     track_label: fullSession.track_label || "A",
     total_stations: fullSession.total_stations || fullSession.stations?.length || 6,
@@ -531,6 +544,10 @@ export async function duplicateSession(sessionId) {
     break_duration_minutes: fullSession.break_duration_minutes || 2,
     transition_duration_minutes: fullSession.transition_duration_minutes || 1,
     reading_duration_minutes: fullSession.reading_duration_minutes || 1,
+    single_live_session: fullSession.single_live_session ?? true,
+    auto_rolling_timer: fullSession.auto_rolling_timer ?? true,
+    auto_lock_answer: fullSession.auto_lock_answer ?? true,
+    late_tolerance_minutes: fullSession.late_tolerance_minutes ?? 5,
   };
 
   // Creates session, stations, rubric_items, auxiliary_configs, and examiners (0 participants)

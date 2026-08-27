@@ -383,10 +383,15 @@ export async function getParticipantsWithHistory() {
     const stationsMap = new Map((stationsRaw || []).map((st) => [st.id, st]));
     const profilesMap = new Map((profilesRaw || []).map((pr) => [pr.id, pr]));
 
-    // Group participants by user_id or nim or email or id
+    // Group ONLY approved/active participants for history & archive reporting
     const participantGroupMap = new Map();
 
-    (participantsRaw || []).forEach((p) => {
+    const approvedParticipantsRaw = (participantsRaw || []).filter((p) => {
+      const st = (p.status || "").toLowerCase();
+      return st === "approved" || st === "active";
+    });
+
+    approvedParticipantsRaw.forEach((p) => {
       const key = p.user_id || p.nim || p.email || p.id;
       const profileObj = p.user_id ? profilesMap.get(p.user_id) : null;
       

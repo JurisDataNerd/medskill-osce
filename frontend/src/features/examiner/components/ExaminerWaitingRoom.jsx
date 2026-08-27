@@ -31,7 +31,7 @@ export default function ExaminerWaitingRoom({
   setConfirmModal,
 }) {
   return (
-    <div className="space-y-6 max-w-6xl mx-auto py-2">
+    <div className="space-y-6 max-w-6xl mx-auto p-4 sm:p-6 md:p-8">
       {/* Realtime Broadcast Toast Overlay Component (Auto 5s & X Close Button) */}
       {activeBroadcast && (
         <div className="fixed top-5 right-5 z-[9999] max-w-md w-full animate-in slide-in-from-top-4 fade-in duration-200">

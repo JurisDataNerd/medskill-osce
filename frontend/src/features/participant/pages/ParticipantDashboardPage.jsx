@@ -545,16 +545,20 @@ export default function ParticipantDashboardPage() {
             user?.user_metadata?.full_name ||
             user?.user_metadata?.name ||
             user?.email ||
-            "Tidak ada data",
+            "Peserta OSCE",
           nim:
             userProfileData?.nim ||
             user?.user_metadata?.nim ||
-            "Tidak ada data",
+            "-",
           institution:
             userProfileData?.institution ||
             userProfileData?.university ||
             user?.user_metadata?.institution ||
-            "Tidak ada data",
+            "-",
+          email:
+            userProfileData?.email ||
+            user?.email ||
+            "-",
         }}
       />
 
@@ -580,7 +584,7 @@ export default function ParticipantDashboardPage() {
 
               <button
                 onClick={() => setPendingModalSession(null)}
-                className="rounded-xl border border-amber-600/40 bg-amber-400 p-2 text-slate-950 hover:bg-amber-300 transition"
+                className="rounded-xl border border-amber-600/40 bg-amber-400 p-2 text-slate-950 hover:bg-amber-300 transition cursor-pointer"
               >
                 <X size={16} />
               </button>
@@ -609,12 +613,22 @@ export default function ParticipantDashboardPage() {
                     <span className="font-extrabold text-slate-900 text-right max-w-[240px] truncate">{pendingModalSession.title}</span>
                   </div>
                   <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                    <span className="text-slate-500">Tanggal & Waktu</span>
+                    <span className="font-bold text-slate-800">
+                      {pendingModalSession.session_date || "Sesuai Jadwal"} • {pendingModalSession.start_time ? pendingModalSession.start_time.substring(0, 5) : "08:00"} - {pendingModalSession.end_time ? pendingModalSession.end_time.substring(0, 5) : "Selesai"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-100 pb-1.5">
                     <span className="text-slate-500">Lokasi Gedung</span>
-                    <span className="font-bold text-slate-800">{pendingModalSession.location_building || "Gedung Skill Lab RS"}</span>
+                    <span className="font-bold text-slate-800">
+                      {pendingModalSession.location_building || pendingModalSession.location || "Gedung Skill Lab Kedokteran"}
+                    </span>
                   </div>
                   <div className="flex justify-between border-b border-slate-100 pb-1.5">
                     <span className="text-slate-500">Sirkuit Rotasi</span>
-                    <span className="font-bold text-slate-800">{pendingModalSession.total_stations || 6} Pos Stase Aktif</span>
+                    <span className="font-bold text-slate-800">
+                      {pendingModalSession.total_stations || 8} Pos Stase Aktif ({pendingModalSession.station_duration_minutes || 12}m per stase)
+                    </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-slate-500">Akses Sesi Ujian</span>

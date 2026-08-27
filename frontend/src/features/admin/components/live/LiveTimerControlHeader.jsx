@@ -90,7 +90,7 @@ export default function LiveTimerControlHeader({
                     onClick={() => handleTriggerBell("warning")}
                     className="w-full text-left px-3 py-2 text-xs font-bold text-slate-200 hover:bg-slate-800 rounded-xl transition flex items-center justify-between"
                   >
-                    <span>Bel 2x (Sisa 2 Mnt)</span>
+                    <span>Bel 2x (Sisa 3 Mnt)</span>
                     <AlertTriangle size={12} className="text-amber-400" />
                   </button>
                   <button

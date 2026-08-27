@@ -43,7 +43,11 @@ export default function ExaminerStationScheduleWidget({
         setSession(sessData);
         setStations(sessData.stations || []);
       }
-      setParticipants(dbParticipants || []);
+      const approvedList = (dbParticipants || []).filter((p) => {
+        const st = (p.status || "").toLowerCase();
+        return st === "approved" || st === "active";
+      });
+      setParticipants(approvedList);
       setExaminers(dbExaminers || []);
     } catch (err) {
       console.error("Error loading examiner station schedule:", err);

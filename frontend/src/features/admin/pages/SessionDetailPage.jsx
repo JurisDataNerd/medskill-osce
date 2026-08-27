@@ -180,6 +180,10 @@ export default function SessionDetailPage() {
               <StatusBadge status={session.status} />
             </div>
             <p className="mt-1 text-sm text-slate-500">{session.description}</p>
+            <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-500 font-medium">
+              <MapPin size={14} className="text-blue-600 shrink-0" />
+              <span>{session.location_building || session.location || "Gedung Skill Lab Kedokteran"}</span>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -239,7 +243,7 @@ export default function SessionDetailPage() {
         <SummaryCard
           icon={<Users size={18} className="text-emerald-600" />}
           title="Kapasitas Peserta"
-          value={`${session.registered_participants || session.max_participants_per_wave || session.max_participants || totalStationCount} Peserta`}
+          value={`${typeof session.registered_participants === "number" ? session.registered_participants : (session.session_participants?.length ?? session.max_participants_per_wave ?? totalStationCount)} Peserta`}
           subtext="1 peserta per stase per rotasi"
         />
         <SummaryCard

@@ -173,7 +173,13 @@ export default function ReportsPage() {
           let totalPass = 0;
           let evaluatedCount = 0;
 
-          const mapped = pList.map((p, idx) => {
+          // Filter only approved/active participants for report & archive view
+          const approvedPList = (pList || []).filter((p) => {
+            const st = (p.status || "").toLowerCase();
+            return st === "approved" || st === "active";
+          });
+
+          const mapped = approvedPList.map((p, idx) => {
             const pEvals = activeEvals.filter((e) => e.participant_id === p.user_id || e.participant_id === p.id);
 
             const stationScores = {};
