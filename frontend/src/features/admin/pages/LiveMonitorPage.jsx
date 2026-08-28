@@ -54,7 +54,18 @@ import LiveTimerControlHeader from "@/features/admin/components/live/LiveTimerCo
 import LiveOnlinePresenceGrid from "@/features/admin/components/live/LiveOnlinePresenceGrid";
 import LiveStationMonitorGrid from "@/features/admin/components/live/LiveStationMonitorGrid";
 import LiveBroadcastModal from "@/features/admin/components/live/LiveBroadcastModal";
-import { playOsceAudio } from "@/services/audioService";
+import {
+  playOsceFeedback,
+  triggerWelcomeNotice,
+  triggerReadScenarioNotice,
+  triggerStartExamNotice,
+  triggerWarning3MinNotice,
+  triggerCountdownNotice,
+  triggerStopTransitNotice,
+  triggerRestBreakNotice,
+  triggerFinishExamNotice,
+  playOsceAudio,
+} from "@/services/audioService";
 
 export default function LiveMonitorPage() {
   const navigate = useNavigate();
@@ -430,12 +441,7 @@ export default function LiveMonitorPage() {
           if (!firedMilestonesRef.current.has(mKey)) {
             firedMilestonesRef.current.add(mKey);
             sendBellBroadcast(activeSession.id, "warning_3min").catch(() => {});
-            playOsceAudio("warning_3min", true);
-            toast.warning("Peringatan Waktu: Sisa Waktu Stase 3 Menit!", {
-              id: "osce-bell-status",
-              description: "Waktu pengerjaan stase tersisa 3 menit lagi.",
-              duration: 5000,
-            });
+            triggerWarning3MinNotice("admin");
             addLog("warning", "BEL AUTOMATIC: Sisa Waktu Stase 3 Menit!");
           }
         }
@@ -445,7 +451,7 @@ export default function LiveMonitorPage() {
           if (!firedMilestonesRef.current.has(mKey)) {
             firedMilestonesRef.current.add(mKey);
             sendBellBroadcast(activeSession.id, "countdown").catch(() => {});
-            playOsceAudio("countdown", true);
+            triggerCountdownNotice("admin");
             addLog("info", "BEL AUTOMATIC: Countdown 10 Detik Terakhir!");
           }
         }
@@ -461,12 +467,7 @@ export default function LiveMonitorPage() {
 
           if (currentPhase === "initial_transition") {
             sendBellBroadcast(activeSession.id, "start_exam").catch(() => {});
-            playOsceAudio("start_exam", true);
-            toast.success("Waktu Membaca Selesai! Ujian Stase Dimulai.", {
-              id: "osce-bell-status",
-              description: "Silakan memasuki ruang stase dan mulai ujian.",
-              duration: 6000,
-            });
+            triggerStartExamNotice("admin");
             addLog(
               "info",
               `BEL MULAI: Waktu membaca selesai. Masuk ke Stase Ujian Ronde ${currentRound} dari ${totalRounds} (${stationDuration} Mnt).`
@@ -482,16 +483,11 @@ export default function LiveMonitorPage() {
               });
           } else if (currentPhase === "action" || currentPhase === "running" || currentPhase === "reading") {
             if (transitionDuration > 0) {
-              sendBellBroadcast(activeSession.id, "read_scenario").catch(() => {});
-              playOsceAudio("read_scenario", true);
-              toast.info("Waktu Stase Selesai: Masuk ke Waktu Membaca & Berpindah Pos", {
-                id: "osce-bell-status",
-                description: "Peserta keluar stase dan membaca instruksi skenario pos berikutnya.",
-                duration: 6000,
-              });
+              sendBellBroadcast(activeSession.id, "stop_transit").catch(() => {});
+              triggerStopTransitNotice("admin");
               addLog(
                 "warning",
-                `BEL ROTASI: Stase Ronde ${currentRound} Selesai. Masuk ke Waktu Membaca Skenario & Transisi (${transitionDuration} Mnt).`
+                `BEL STOP & TRANSIT: Waktu Stase Ronde ${currentRound} Telah Selesai. Masuk ke Waktu Berpindah Pos (${transitionDuration} Mnt).`
               );
               updateTimerPhase(activeSession.id, "transition", transitionDuration, { roundNumber: currentRound })
                 .then((res) => {
@@ -515,12 +511,7 @@ export default function LiveMonitorPage() {
             if (currentRound >= totalRounds) {
               setRemainingSeconds(0);
               sendBellBroadcast(activeSession.id, "finish_exam").catch(() => {});
-              playOsceAudio("finish_exam", true);
-              toast.success("Seluruh Rangkaian Ujian OSCE Selesai!", {
-                id: "osce-bell-status",
-                description: "Terima kasih atas partisipasi Anda.",
-                duration: 8000,
-              });
+              triggerFinishExamNotice("admin");
               addLog(
                 "success",
                 `BEL SESI SELESAI: Entire circuit completed (Ronde ${currentRound}/${totalRounds})! Timer frozen at 00:00.`
@@ -539,12 +530,7 @@ export default function LiveMonitorPage() {
             const nextRound = currentRound + 1;
             setViewRound(nextRound);
             sendBellBroadcast(activeSession.id, "start_exam").catch(() => {});
-            playOsceAudio("start_exam", true);
-            toast.success(`Waktu Membaca Selesai! Ujian Stase Ronde ${nextRound} Dimulai.`, {
-              id: "osce-bell-status",
-              description: "Silakan memasuki ruang stase dan mulai ujian.",
-              duration: 6000,
-            });
+            triggerStartExamNotice("admin");
             addLog(
               "info",
               `BEL MULAI: Masuk ke Stase Ujian Ronde ${nextRound} dari ${totalRounds} (${stationDuration} Mnt).`
@@ -679,13 +665,13 @@ export default function LiveMonitorPage() {
         setConfirmModal((prev) => ({ ...prev, isOpen: false }));
         try {
           const targetId = activeSession.id;
+          triggerFinishExamNotice("admin");
+          await finishSession(targetId);
           setActiveSession(null);
           setTimerState(null);
           setOnlineUsers([]);
           setSearchParams({});
           navigate("/admin/live", { replace: true });
-          await finishSession(targetId);
-          toast.success("Sesi OSCE telah diakhiri. Seluruh pengguna telah dialihkan kembali ke Dashboard.");
           await loadLiveMonitorData("");
         } catch (err) {
           console.error("Failed to finish session:", err);
@@ -797,7 +783,7 @@ export default function LiveMonitorPage() {
   }
 
   async function handleTriggerBell(bellType) {
-    playOsceBell(bellType, activeSession?.id);
+    playOsceFeedback(bellType, "admin");
     const bellNames = {
       start: "Bel 1x (Mulai / Reading Time)",
       warning: "Bel 2x (Peringatan 2 Menit Tersisa)",

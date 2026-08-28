@@ -28,7 +28,7 @@ import {
   BellRing,
   PauseCircle,
 } from "lucide-react";
-import { playOsceAudio } from "@/services/audioService";
+import { playOsceFeedback, playOsceAudio } from "@/services/audioService";
 import { AUXILIARY_EXAM_CATALOG } from "@/features/participant/data/auxiliaryExamsCatalog";
 import AuxiliaryExamResultModal from "@/components/AuxiliaryExamResultModal";
 import ConfirmModal from "@/components/ConfirmModal";
@@ -682,57 +682,7 @@ export default function ParticipantSessionPage() {
         }
       },
       onBell: (bellData) => {
-        const bType = bellData?.bell_type;
-        if (bType === "waiting_room" || bType === "start_osce" || bType === "waiting") {
-          toast.info("Ujian OSCE Dimulai: Selamat Datang di OSCE MedSkill", {
-            id: "osce-bell-status",
-            description: "Peserta dipersilakan menempatkan diri di depan pintu stase masing-masing.",
-            duration: 6000,
-          });
-        } else if (bType === "read_scenario" || bType === "transit" || bType === "reading") {
-          toast.info("Waktu Membaca Skenario Kasus", {
-            id: "osce-bell-status",
-            description: "Silakan membuka dan membaca instruksi skenario kasus di luar pintu stase.",
-            duration: 6000,
-          });
-        } else if (bType === "pause") {
-          toast.warning("Sesi Ujian Dihentikan Sementara oleh Admin Control Room.", {
-            id: "osce-bell-status",
-            description: "Timer dibekukan sementara. Mohon tetap di posisi Anda.",
-            duration: 6000,
-          });
-        } else if (bType === "resume") {
-          toast.success("Sesi Ujian Dilanjutkan Kembali.", {
-            id: "osce-bell-status",
-            description: "Silakan melanjutkan pengerjaan stase.",
-            duration: 5000,
-          });
-        } else if (bType === "warning" || bType === "warning_3min") {
-          toast.warning("Peringatan Waktu: Sisa Waktu Stase 3 Menit!", {
-            id: "osce-bell-status",
-            description: "Waktu pengerjaan stase tersisa 3 menit lagi.",
-            duration: 5000,
-          });
-        } else if (bType === "rotation" || bType === "stop_transit") {
-          toast.info("Waktu Stase Telah Selesai!", {
-            id: "osce-bell-status",
-            description: "Peserta dipersilakan keluar dan berpindah ke pos stase berikutnya.",
-            duration: 6000,
-          });
-        } else if (bType === "start" || bType === "start_exam") {
-          toast.success("Waktu Membaca Selesai! Ujian Stase Dimulai.", {
-            id: "osce-bell-status",
-            description: "Silakan memasuki ruang stase dan mulai ujian.",
-            duration: 6000,
-          });
-        } else if (bType === "finish" || bType === "finish_exam") {
-          toast.dismiss();
-          toast.success("Seluruh Rangkaian Ujian OSCE Selesai!", {
-            id: "osce-bell-status",
-            description: "Terima kasih atas partisipasi Anda.",
-            duration: 8000,
-          });
-        }
+        playOsceFeedback(bellData?.bell_type, "participant");
       },
       onSessionUpdate: (sess) => {
         if (sess && sess.id === sessionId) {

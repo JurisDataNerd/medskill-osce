@@ -121,27 +121,19 @@ export function subscribeToSession(sessionId, {
   // Direct WebSocket Bell Trigger Event (Instant 0ms latency)
   channel.on("broadcast", { event: "play_bell" }, (payload) => {
     const data = payload.payload || payload;
-    const bType = data.bell_type || "warning";
-    if (bType === "waiting" || bType === "waiting_room" || bType === "start_osce") playOsceAudio("start_osce", true);
-    else if (bType === "read_scenario" || bType === "transit" || bType === "reading") playOsceAudio("read_scenario", true);
-    else if (bType === "start" || bType === "start_exam") playOsceAudio("start_exam", true);
-    else if (bType === "warning" || bType === "warning_3min") playOsceAudio("warning_3min", true);
-    else if (bType === "rotation" || bType === "stop_transit") playOsceAudio("stop_transit", true);
-    else if (bType === "rest" || bType === "rest_break") playOsceAudio("rest_break", true);
-    else if (bType === "finish" || bType === "finish_exam") playOsceAudio("finish_exam", true);
-    else if (bType === "pause") playOsceAudio("pause", true);
-    else if (bType === "resume") playOsceAudio("resume", true);
-    else if (bType === "countdown") playOsceAudio("countdown", true);
-    else if (bType === "broadcast" || bType === "admin_broadcast") playOsceAudio("admin_broadcast", true);
-    else playOsceAudio(bType, true);
-
-    if (onBell) onBell(data);
+    if (onBell) {
+      onBell(data);
+    } else {
+      playOsceAudio(data.bell_type, true);
+    }
   });
 
   // Direct WebSocket Session Finished Event (Instant 0ms latency)
-  channel.on("broadcast", { event: "session_finished" }, () => {
-    if (onSessionUpdate) onSessionUpdate({ status: "completed" });
-    if (onTimerUpdate) onTimerUpdate({ phase: "finished" });
+  channel.on("broadcast", { event: "session_finished" }, (payload) => {
+    const data = payload?.payload || payload || {};
+    if (onSessionUpdate) onSessionUpdate({ status: "completed", ...data });
+    if (onTimerUpdate) onTimerUpdate({ phase: "finished", ...data });
+    if (onBell) onBell({ bell_type: "finish_exam" });
   });
 
   // broadcast_messages table (INSERT fallback)
@@ -277,7 +269,7 @@ export async function openWaitingRoom(sessionId) {
       .schema("osce")
       .from("session_timer_state")
       .upsert(
-        [{
+        {
           session_id: sessionId,
           phase: "standby",
           target_end_time: null,
@@ -285,9 +277,11 @@ export async function openWaitingRoom(sessionId) {
           round_number: 1,
           wave_number: 1,
           updated_at: new Date().toISOString(),
-        }],
+        },
         { onConflict: "session_id" }
-      ),
+      )
+      .select()
+      .maybeSingle(),
   ]);
 
   if (sessionRes.error) throw sessionRes.error;
@@ -345,10 +339,9 @@ export async function startOsceSession(sessionId, _durationMinutes = 12, transit
   if (sessionRes.error) throw sessionRes.error;
   if (timerRes.error) throw timerRes.error;
 
-  // Broadcast appropriate audio signal (read_scenario for initial transition, start_exam if no transition)
-  const initialBell = hasTransition ? "read_scenario" : "start_exam";
-  sendBellBroadcast(sessionId, initialBell).catch(() => {});
-  playOsceAudio(initialBell, true);
+  // Broadcast Welcome Audio Signal (start_osce) to all participants and examiners
+  sendBellBroadcast(sessionId, "start_osce").catch(() => {});
+  playOsceAudio("start_osce", true);
 
   return { session: sessionRes.data, timer: timerRes.data };
 }
@@ -659,7 +652,8 @@ export async function finishSession(sessionId) {
     console.warn("Notice updating timer state to finished:", err);
   }
 
-  // Broadcast WebSocket session_finished event
+  // Broadcast WebSocket bell & session_finished event
+  sendBellBroadcast(sessionId, "finish_exam").catch(() => {});
   try {
     const channelName = `osce-session:${sessionId}`;
     let channel = supabase.getChannels().find((c) => c.topic === channelName || c.topic === `realtime:${channelName}`);
