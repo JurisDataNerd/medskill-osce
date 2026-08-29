@@ -335,28 +335,60 @@ export default function ExaminerStagePage() {
             .eq("station_id", st.id)
             .order("question_number", { ascending: true });
 
-          // 4. If no rubric items exist in DB for this station, populate and auto-insert real rubric items with DB UUIDs
-          if (!rList || rList.length === 0) {
-            const qbItems = qbCase?.question_bank_rubric_items || [];
+          const qbItems = qbCase?.question_bank_rubric_items || [];
 
+          // Helper to extract descriptors object safely
+          const parseDescriptors = (raw) => {
+            if (!raw) return {};
+            if (typeof raw === "object") return raw;
+            if (typeof raw === "string") {
+              try {
+                return JSON.parse(raw);
+              } catch (e) {
+                return {};
+              }
+            }
+            return {};
+          };
+
+          // Detect if existing rubric items in DB are just the generic template fallback
+          const isStaleDummyList =
+            rList &&
+            rList.length === 4 &&
+            rList[0]?.question === "Komunikasi & Anamnesis Terarah" &&
+            qbItems.length > 0;
+
+          // 4. If no rubric items exist in DB or stale dummy items are detected while real Bank Soal rubrics exist
+          if (!rList || rList.length === 0 || isStaleDummyList) {
             let itemsToInsert = [];
             if (qbItems.length > 0) {
-              itemsToInsert = qbItems.map((item, idx) => ({
-                station_id: st.id,
-                question_number: idx + 1,
-                question: item.question || item.title || item.name || `Item Rubrik #${idx + 1}`,
-                answer_key: item.answer_key || item.description || "",
-                max_points: Number(item.max_points) || 3,
-                weight: Number(item.weight) || 1.0,
-                competency_area: mapToValidCompetency(item.competency_area),
-                descriptors: {
-                  score_0: item.description_score_0 || item.descriptors?.score_0 || item.descriptors?.[0] || "0: Tidak Dilakukan / Salah Total",
-                  score_1: item.description_score_1 || item.descriptors?.score_1 || item.descriptors?.[1] || "1: Minimal / Sebagian Salah",
-                  score_2: item.description_score_2 || item.descriptors?.score_2 || item.descriptors?.[2] || "2: Cukup / Memadai",
-                  score_3: item.description_score_3 || item.descriptors?.score_3 || item.descriptors?.[3] || "3: Sempurna & Lengkap",
-                },
-                sort_order: idx,
-              }));
+              itemsToInsert = qbItems.map((item, idx) => {
+                const desc = parseDescriptors(item.descriptors);
+                return {
+                  station_id: st.id,
+                  question_number: item.question_number || idx + 1,
+                  question: item.question || item.title || item.name || `Item Rubrik #${idx + 1}`,
+                  answer_key: item.answer_key || item.description || item.guideline || item.gold_standard || "",
+                  max_points: Number(item.max_points) || 3,
+                  weight: Number(item.weight) || 1.0,
+                  competency_area: mapToValidCompetency(item.competency_area),
+                  descriptors: {
+                    score_0: desc.score_0 || desc[0] || desc["0"] || item.description_score_0 || "0: Tidak Dilakukan / Salah Total",
+                    score_1: desc.score_1 || desc[1] || desc["1"] || item.description_score_1 || "1: Minimal / Sebagian Salah",
+                    score_2: desc.score_2 || desc[2] || desc["2"] || item.description_score_2 || "2: Cukup / Memadai",
+                    score_3: desc.score_3 || desc[3] || desc["3"] || item.description_score_3 || "3: Sempurna & Lengkap",
+                  },
+                  sort_order: idx,
+                };
+              });
+
+              if (isStaleDummyList) {
+                try {
+                  await supabase.schema("osce").from("rubric_items").delete().eq("station_id", st.id);
+                } catch (delErr) {
+                  console.warn("Notice clearing stale rubric items:", delErr);
+                }
+              }
             } else {
               itemsToInsert = [
                 {
@@ -438,6 +470,34 @@ export default function ExaminerStagePage() {
             } catch (e) {
               console.warn("Notice inserting rubric items to Supabase:", e);
             }
+          }
+
+          // 5. In-memory enrichment: If qbItems exist, ensure real answer_key & descriptors from Bank Soal are always attached
+          if (rList && rList.length > 0 && qbItems.length > 0) {
+            rList = rList.map((r, idx) => {
+              const matchedQb =
+                qbItems.find((q) => q.question_number === r.question_number) ||
+                qbItems[idx];
+
+              if (!matchedQb) return r;
+
+              const qbDesc = parseDescriptors(matchedQb.descriptors);
+              const rDesc = parseDescriptors(r.descriptors);
+
+              const mergedDescriptors = {
+                score_0: rDesc.score_0 || rDesc[0] || rDesc["0"] || qbDesc.score_0 || qbDesc[0] || qbDesc["0"] || matchedQb.description_score_0 || r.description_score_0,
+                score_1: rDesc.score_1 || rDesc[1] || rDesc["1"] || qbDesc.score_1 || qbDesc[1] || qbDesc["1"] || matchedQb.description_score_1 || r.description_score_1,
+                score_2: rDesc.score_2 || rDesc[2] || rDesc["2"] || qbDesc.score_2 || qbDesc[2] || qbDesc["2"] || matchedQb.description_score_2 || r.description_score_2,
+                score_3: rDesc.score_3 || rDesc[3] || rDesc["3"] || qbDesc.score_3 || qbDesc[3] || qbDesc["3"] || matchedQb.description_score_3 || r.description_score_3,
+              };
+
+              return {
+                ...r,
+                question: r.question || matchedQb.question || matchedQb.title,
+                answer_key: r.answer_key || matchedQb.answer_key || matchedQb.description || matchedQb.guideline || "",
+                descriptors: mergedDescriptors,
+              };
+            });
           }
 
           setRubricItems(rList || []);

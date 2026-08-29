@@ -230,20 +230,31 @@ export async function saveStationChildren(stationId, st) {
       await supabase.schema("osce").from("rubric_items").delete().eq("station_id", stationId);
 
       const rubricPayload = rubrics.map((r, idx) => {
-        // Build descriptors JSONB from various input formats
-        const existingDesc = typeof r.descriptors === "object" && r.descriptors ? r.descriptors : {};
+        // Build descriptors JSONB safely from various input formats
+        let existingDesc = r.descriptors;
+        if (typeof existingDesc === "string") {
+          try {
+            existingDesc = JSON.parse(existingDesc);
+          } catch (e) {
+            existingDesc = {};
+          }
+        }
+        if (!existingDesc || typeof existingDesc !== "object") {
+          existingDesc = {};
+        }
+
         const descriptors = {
-          score_0: existingDesc.score_0 || existingDesc["0"] || existingDesc[0] || "",
-          score_1: existingDesc.score_1 || existingDesc["1"] || existingDesc[1] || "",
-          score_2: existingDesc.score_2 || existingDesc["2"] || existingDesc[2] || "",
-          score_3: existingDesc.score_3 || existingDesc["3"] || existingDesc[3] || "",
+          score_0: existingDesc.score_0 || existingDesc["0"] || existingDesc[0] || r.description_score_0 || "",
+          score_1: existingDesc.score_1 || existingDesc["1"] || existingDesc[1] || r.description_score_1 || "",
+          score_2: existingDesc.score_2 || existingDesc["2"] || existingDesc[2] || r.description_score_2 || "",
+          score_3: existingDesc.score_3 || existingDesc["3"] || existingDesc[3] || r.description_score_3 || "",
         };
 
         return {
           station_id: stationId,
           question_number: idx + 1,
           question: r.question || r.title || r.name || `Item Rubrik #${idx + 1}`,
-          answer_key: r.answer_key || r.description || "",
+          answer_key: r.answer_key || r.description || r.guideline || r.gold_standard || "",
           max_points: Number(r.max_points) || 3,
           weight: Number(r.weight) || 1.0,
           competency_area: mapCompetency(r.competency_area || r.competency),

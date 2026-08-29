@@ -17,11 +17,12 @@ Sistem Manajemen Ujian **OSCE (Objective Structured Clinical Examination)** berb
 
 ## 📚 Struktur Dokumentasi Master
 
-Dokumentasi proyek terkelola secara padat dan terstruktur dalam 3 berkas utama:
+Dokumentasi proyek terkelola secara padat dan terstruktur dalam berkas utama:
 
 1. 📘 **[OSCE-SPEC.md](file:///c:/KAIRAV/project/2026/medskill/praxis/OSCE-SPEC.md)** — Spesifikasi Sistem, Aturan Operasional Sirkuit 6 Stase, Alur Peran (Admin, Penguji, Peserta), Penilaian SKDI/GRS/NBL, & Live Control Room.
 2. 🗄️ **[DATABASE-SPEC.md](file:///c:/KAIRAV/project/2026/medskill/praxis/DATABASE-SPEC.md)** — Single Source of Truth Schema `osce` Supabase (19 Tabel, DDL SQL, Enum, RLS Policies, Audit Triggers, & Realtime Timer Sync).
-3. 🎯 **[PLAN-OSCE.md](file:///c:/KAIRAV/project/2026/medskill/praxis/PLAN-OSCE.md)** — Master Implementation Roadmap & Checklist Progress TODO Integrasi Live Database.
+3. 🔔 **[SOUND.md](file:///c:/KAIRAV/project/2026/medskill/praxis/SOUND.md)** — Spesifikasi Desain Audio, Sound Cues, & Voiceover Narasi Standar SOP OSCE Kedokteran Indonesia.
+4. ⚡ **[REALTIME.md](file:///c:/KAIRAV/project/2026/medskill/praxis/REALTIME.md)** — Arsitektur Sinkronisasi Realtime, Future Timestamp Engine, State Machine, & Presence Tracking.
 
 ---
 

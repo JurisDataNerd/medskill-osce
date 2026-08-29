@@ -19,8 +19,8 @@ import StaseDiagnosisRecipeBuilder from "@/features/admin/components/stase/Stase
 import StaseRubricBuilder from "@/features/admin/components/stase/StaseRubricBuilder";
 
 const DEFAULT_EMPTY_STAGE = {
-  id: "stg-101",
-  session_id: "session-osce-001",
+  id: "stg-new",
+  session_id: null,
   station_number: 1,
   title: "Stase Baru Ujian OSCE",
   case_title: "",
@@ -33,68 +33,11 @@ const DEFAULT_EMPTY_STAGE = {
   auxiliary_answer_key: "",
   auxiliary_files: [],
   gold_standard_keys: {
-    wdx: "STEMI Anteroseptal Akut (ICD-10: I21.0) / Penyakit Jantung Koroner (PJK)",
-    ddx: ["NSTEMI", "Angina Pektoris Tidak Stabil (UAP)"],
+    wdx: "",
+    ddx: ["", ""],
     recipe: "",
   },
-  rubric_items: [
-    {
-      id: "r1",
-      question: "Komunikasi & Membina Sambung Rasa",
-      competency: "Komunikasi & Edukasi",
-      weight: 2,
-      max_points: 3,
-      answer_key: "Peserta mengucapkan salam, memperkenalkan diri, mengonfirmasi identitas pasien, empati pada rasa nyeri dada pasien.",
-      descriptors: {
-        0: "Tidak dilakukan salam/perkenalan sama sekali.",
-        1: "Hanya menyebutkan nama tanpa konfirmasi identitas dan empati.",
-        2: "Memperkenalkan diri, konfirmasi identitas pasien dengan lengkap.",
-        3: "Sempurna: Memperkenalkan diri, empati, serta menjaga kenyamanan pasien selama wawancara klinis.",
-      },
-    },
-    {
-      id: "r2",
-      question: "Anamnesis Terarah & Riwayat Penyakit Sekarang (RPS)",
-      competency: "Anamnesis",
-      weight: 3,
-      max_points: 3,
-      answer_key: "Menggali keluhan nyeri dada khas iskemik substernal menjalar ke lengan kiri, durasi >20 menit, onset saat istirahat, faktor risiko (merokok, DM, hipertensi).",
-      descriptors: {
-        0: "Tidak menanyakan karakteristik nyeri dada.",
-        1: "Menanyakan lokasi nyeri saja tanpa penjalaran dan onset.",
-        2: "Menanyakan lokasi, penjalaran, durasi, dan minimal 2 faktor risiko.",
-        3: "Sempurna: Eksplorasi PQRST lengkap dan faktor risiko kardiovaskular secara sistematis.",
-      },
-    },
-    {
-      id: "r3",
-      question: "Pemeriksaan Fisik Tanda Vital & Kardiovaskular",
-      competency: "Pemeriksaan Fisik",
-      weight: 3,
-      max_points: 3,
-      answer_key: "Menilai kesadaran, tekanan darah, nadi perifer, auskultasi suara jantung S1-S2, gallop S3/S4, ronkhi basah basal paru.",
-      descriptors: {
-        0: "Tidak melakukan pemeriksaan fisik kardiovaskular.",
-        1: "Hanya memeriksa tekanan darah atau nadi.",
-        2: "Memeriksa tanda vital dan auskultasi jantung paru secara tepat.",
-        3: "Sempurna: Melakukan pemeriksaan tanda vital, JVP, auskultasi jantung paru lengkap dan aseptik.",
-      },
-    },
-    {
-      id: "r4",
-      question: "Penetapan Kunci Diagnosis Kerja & Terapi Awal (MONA/Fibrinolisis)",
-      competency: "Diagnosis & DDx",
-      weight: 4,
-      max_points: 3,
-      answer_key: "Diagnosis: STEMI Anteroseptal Akut. Terapi Awal: Oksigenasi jika SpO2<90%, Aspirin 160-320 mg kunyah, Clopidogrel 300-600 mg loading, ISDN 5 mg SL, rujuk PCI segera.",
-      descriptors: {
-        0: "Diagnosis keliru dan tidak memberikan tatalaksana awal.",
-        1: "Diagnosis benar namun tatalaksana aspirin/clopidogrel tidak tepat dosis.",
-        2: "Diagnosis benar dan meresepkan DAPT loading dose dengan tepat.",
-        3: "Sempurna: Diagnosis tepat (STEMI Anterior), tatalaksana MONA/DAPT lengkap, dan merencanakan reperfusi segera.",
-      },
-    },
-  ],
+  rubric_items: [],
 };
 
 export default function StageQuestionPage() {

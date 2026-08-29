@@ -28,14 +28,38 @@ export default function ExaminerRubricEvaluationSheet({
             rubricScores[rIdx] ??
             3;
 
-          const itemTitle = rub.title || rub.question || rub.name || `Item Rubrik #${rIdx + 1}`;
-          const itemDesc = rub.description || rub.answer_key || "";
+          // Helper to safely extract descriptor text across object, array, and JSON string formats
+          const getDescriptorText = (scoreLevel, defaultText) => {
+            let descObj = rub.descriptors;
+            if (typeof descObj === "string") {
+              try {
+                descObj = JSON.parse(descObj);
+              } catch (e) {
+                descObj = {};
+              }
+            }
+            if (!descObj || typeof descObj !== "object") {
+              descObj = {};
+            }
+
+            const candidate =
+              descObj[`score_${scoreLevel}`] ||
+              descObj[scoreLevel] ||
+              descObj[String(scoreLevel)] ||
+              rub[`description_score_${scoreLevel}`];
+
+            return candidate && String(candidate).trim() ? String(candidate).trim() : defaultText;
+          };
+
+          const itemTitle = rub.question || rub.title || rub.name || `Item Rubrik #${rIdx + 1}`;
+          // Prioritize real answer_key from Bank Soal over generic description
+          const itemDesc = rub.answer_key || rub.description || rub.guideline || rub.gold_standard || "";
           const displayNum = rub.question_number ? Number(rub.question_number) : rIdx + 1;
 
-          const desc0 = rub.description_score_0 || rub.descriptors?.[0] || rub.descriptors?.score_0 || "0: Tidak Dilakukan / Salah Total";
-          const desc1 = rub.description_score_1 || rub.descriptors?.[1] || rub.descriptors?.score_1 || "1: Minimal / Sebagian Salah";
-          const desc2 = rub.description_score_2 || rub.descriptors?.[2] || rub.descriptors?.score_2 || "2: Cukup / Memadai";
-          const desc3 = rub.description_score_3 || rub.descriptors?.[3] || rub.descriptors?.score_3 || "3: Sempurna & Lengkap";
+          const desc0 = getDescriptorText(0, "0: Tidak Dilakukan / Salah Total");
+          const desc1 = getDescriptorText(1, "1: Minimal / Sebagian Salah");
+          const desc2 = getDescriptorText(2, "2: Cukup / Memadai");
+          const desc3 = getDescriptorText(3, "3: Sempurna & Lengkap");
 
           const opts = [
             { val: 0, label: "Poin 0", desc: desc0, short: "Salah Total" },
