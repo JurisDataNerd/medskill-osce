@@ -21,6 +21,27 @@ export function calcRemaining(targetEndTime, pausedMs = null, isPaused = false) 
 export const calcRemainingSeconds = calcRemaining;
 
 /**
+ * Fetch current session timer state row from osce.session_timer_state table.
+ */
+export async function getSessionTimerState(sessionId) {
+  if (!sessionId) return null;
+  try {
+    const { data, error } = await supabase
+      .schema("osce")
+      .from("session_timer_state")
+      .select("*")
+      .eq("session_id", sessionId)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error("Error fetching session timer state:", err);
+    return null;
+  }
+}
+
+/**
  * Play a broadcast notification sound chime (Purely plays local /sounds/broadcast.mp3).
  */
 export function playBroadcastNotificationSound() {
